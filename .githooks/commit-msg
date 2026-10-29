@@ -1,0 +1,35 @@
+#!/bin/sh
+# Guard: reject any AI/assistant author attribution in commit messages.
+# Project rule: commits carry human authorship only.
+# Enabled via: git config core.hooksPath .githooks   (see tool/setup_hooks.sh)
+
+msg_file="$1"
+
+# Strip comment lines so commented-out text never trips the guard.
+body=$(grep -v '^#' "$msg_file")
+
+patterns='
+Co-authored-by:.*(claude|anthropic|copilot|gpt|openai|gemini|cursor|codex|bot@)
+Generated with .*(Claude|Copilot|GPT|Cursor|Codex)
+(Assisted|Authored|Written|Created) by .*(Claude|Anthropic|Copilot|GPT|AI assistant)
+noreply@anthropic\.com
+🤖
+'
+
+hit=0
+echo "$patterns" | while IFS= read -r p; do
+  [ -z "$p" ] && continue
+  if printf '%s' "$body" | grep -qiE "$p"; then
+    echo "COMMIT REJECTED: author-attribution guard matched /$p/" >&2
+    exit 1
+  fi
+done || hit=1
+
+if [ "$hit" -ne 0 ]; then
+  echo "" >&2
+  echo "This project forbids AI/assistant attribution in commit messages." >&2
+  echo "Remove the offending trailer or line, then commit again." >&2
+  exit 1
+fi
+
+exit 0
