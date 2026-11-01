@@ -34,6 +34,7 @@ lib/
       theme/app_palette.dart    semantic roles as a ThemeExtension
       theme/app_typography.dart type scale (variable-font weights)
       theme/app_theme.dart      ThemeData for light and dark
+      store_api/models/         Store API DTOs: money, product, cart
       widgets/                  widgets shared across features
     features/
       <feature>/
@@ -77,6 +78,16 @@ ones.** This is deliberate: the Store API answers a nonce-less write with 401
 *and a fresh `Nonce`*, so a client that only read successful responses could
 never make its first cart write. Do not "tidy" that into an `onResponse`-only
 interceptor.
+
+### Money
+**Never parse a Store API price as a decimal.** Prices arrive as strings in
+minor units with a `currency_minor_unit` exponent, so `"395"` means `$3.95`.
+Use `Money.tryParse` / `Money.parseOrZero`, keep amounts in `minorUnits`, and
+format with `Money.format()`, which applies the site's own separators and
+affixes. Doubles are never used for money.
+
+`Currency` is read from whichever price block is in hand — products, cart
+totals and line totals each repeat it.
 
 ### Theming
 Colours, radii and spacing come from `AppTokens`; **no hex, radius or spacing

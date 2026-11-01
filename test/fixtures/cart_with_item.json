@@ -1,0 +1,122 @@
+{
+  "items": [
+    {
+      "key": "4e732ced3463d06de0ca9a15b6153677",
+      "id": 26,
+      "type": "simple",
+      "quantity": 2,
+      "quantity_limits": {
+        "minimum": 1,
+        "maximum": 9999,
+        "multiple_of": 1,
+        "editable": true
+      },
+      "name": "Iced Latte",
+      "short_description": "<p>Double espresso over milk and ice.</p>",
+      "description": "<p>Double espresso over milk and ice.</p>",
+      "sku": "",
+      "low_stock_remaining": null,
+      "backorders_allowed": false,
+      "show_backorder_badge": false,
+      "sold_individually": false,
+      "permalink": "http://192.168.0.171:8080/product/iced-latte/",
+      "images": [],
+      "variation": [],
+      "item_data": [],
+      "prices": {
+        "price": "395",
+        "regular_price": "395",
+        "sale_price": "395",
+        "price_range": null,
+        "currency_code": "USD",
+        "currency_symbol": "$",
+        "currency_minor_unit": 2,
+        "currency_decimal_separator": ".",
+        "currency_thousand_separator": ",",
+        "currency_prefix": "$",
+        "currency_suffix": "",
+        "raw_prices": {
+          "precision": 6,
+          "price": "3950000",
+          "regular_price": "3950000",
+          "sale_price": "3950000"
+        }
+      },
+      "totals": {
+        "line_subtotal": "790",
+        "line_subtotal_tax": "0",
+        "line_total": "790",
+        "line_total_tax": "0",
+        "currency_code": "USD",
+        "currency_symbol": "$",
+        "currency_minor_unit": 2,
+        "currency_decimal_separator": ".",
+        "currency_thousand_separator": ",",
+        "currency_prefix": "$",
+        "currency_suffix": ""
+      },
+      "catalog_visibility": "visible",
+      "extensions": {}
+    }
+  ],
+  "coupons": [],
+  "fees": [],
+  "totals": {
+    "total_items": "790",
+    "total_items_tax": "0",
+    "total_fees": "0",
+    "total_fees_tax": "0",
+    "total_discount": "0",
+    "total_discount_tax": "0",
+    "total_shipping": null,
+    "total_shipping_tax": null,
+    "total_price": "790",
+    "total_tax": "0",
+    "tax_lines": [],
+    "currency_code": "USD",
+    "currency_symbol": "$",
+    "currency_minor_unit": 2,
+    "currency_decimal_separator": ".",
+    "currency_thousand_separator": ",",
+    "currency_prefix": "$",
+    "currency_suffix": ""
+  },
+  "shipping_address": {
+    "first_name": "",
+    "last_name": "",
+    "company": "",
+    "address_1": "",
+    "address_2": "",
+    "city": "",
+    "state": "BD-13",
+    "postcode": "",
+    "country": "BD",
+    "phone": ""
+  },
+  "billing_address": {
+    "first_name": "",
+    "last_name": "",
+    "company": "",
+    "address_1": "",
+    "address_2": "",
+    "city": "",
+    "state": "BD-13",
+    "postcode": "",
+    "country": "BD",
+    "email": "",
+    "phone": ""
+  },
+  "needs_payment": true,
+  "needs_shipping": false,
+  "payment_requirements": [
+    "products"
+  ],
+  "has_calculated_shipping": false,
+  "shipping_rates": [],
+  "items_count": 2,
+  "items_weight": 0,
+  "cross_sells": [],
+  "errors": [],
+  "payment_methods": [],
+  "extensions": {}
+}
