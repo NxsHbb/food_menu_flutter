@@ -57,7 +57,8 @@ Runs entirely against today's Store API. No plugin changes.
 | 2.1 | Category list and menu landing screen | app | done |
 | 2.2 | Product list with pagination, category filter and search | app | done |
 | 2.3 | Product detail: images, description, variable and sale pricing, stock state | app | todo |
-| 2.4 | Ingredients, nutrition and food tags on the detail screen | app | todo |
+| 2.4 | Food tags on the detail screen, via `product_tag` | app | done |
+| 2.7 | **Blocked, needs a decision.** Ingredients and nutrition: unreachable for WooCommerce products — see `FINDINGS.md`. Either extend the plugin's Food Data metabox and REST to `product`, model them as product attributes, or drop from v1 | pro + app | blocked |
 | 2.5 | Banner carousel on the landing screen, sourced from WordPress posts in a dedicated category via `wp/v2/posts` | app | todo |
 | 2.6 | Category suggestions when a search returns no dishes, so "pizza" offers the Pizza category instead of an empty screen | app | todo |
 
@@ -151,3 +152,6 @@ them.
   code, which is a v2 feature, so that banner cannot be reproduced as drawn.
 - **The heart is absent from dish cards and rows until task 3.6**, because
   wishlist is server-backed and depends on Phase 3 accounts.
+- **Ingredients and nutrition (task 2.7)** are blocked on a data-model
+  decision. The plugin keeps them on its own `food-menu` post type, which the
+  app never reads. `FINDINGS.md` has the trace and three options.

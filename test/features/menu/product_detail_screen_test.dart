@@ -8,6 +8,7 @@ import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
 import 'package:food_menu/src/features/menu/presentation/product_detail_screen.dart';
+import 'package:food_menu/src/features/menu/presentation/widgets/food_tags.dart';
 
 import 'fake_menu_repository.dart';
 
@@ -196,6 +197,48 @@ void main() {
 
     expect(find.text('Double espresso over milk and ice.'), findsOneWidget);
     expect(find.textContaining('<p>'), findsNothing);
+  });
+
+  group('food tags', () {
+    testWidgets('renders tags from the real variable fixture', (tester) async {
+      await pump(tester, product: fromFixture('product_variable'));
+
+      // Seeded on the dev site as product_tag terms.
+      expect(find.text('Vegetarian'), findsOneWidget);
+      expect(find.text('Shareable'), findsOneWidget);
+    });
+
+    testWidgets('gives known dietary slugs an icon', (tester) async {
+      await pump(tester, product: fromFixture('product_variable'));
+
+      expect(find.byIcon(Icons.eco_outlined), findsOneWidget);
+    });
+
+    testWidgets('an unknown tag still renders, just without an icon',
+        (tester) async {
+      final product = Product.fromJson({
+        'id': 9,
+        'name': 'Chef Special',
+        'prices': const {
+          'price': '1200',
+          'currency_minor_unit': 2,
+          'currency_prefix': r'$',
+        },
+        'tags': const [
+          {'id': 1, 'name': 'Chef Pick', 'slug': 'chef-pick'},
+        ],
+      });
+      await pump(tester, product: product);
+
+      expect(find.text('Chef Pick'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('no tag section when a dish has none', (tester) async {
+      await pump(tester, product: fromFixture('product_simple'));
+
+      expect(find.byType(FoodTags), findsNothing);
+    });
   });
 
   testWidgets('renders in dark mode without error', (tester) async {

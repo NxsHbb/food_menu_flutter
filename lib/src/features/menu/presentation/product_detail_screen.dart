@@ -7,6 +7,7 @@ import '../../../core/store_api/models/product.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/dish_image_placeholder.dart';
+import 'widgets/food_tags.dart';
 import '../data/menu_repository.dart';
 
 /// The design's dish detail screen: hero image, details, quantity and add.
@@ -18,7 +19,11 @@ import '../data/menu_repository.dart';
 /// - **special instructions** — a cart line note, task 4.5;
 /// - **the favourite heart** — task 3.6, once wishlist endpoints exist.
 ///
-/// Ingredients, nutrition and food tags arrive in task 2.4.
+/// Food tags are shown, from WooCommerce's `product_tag`. **Ingredients and
+/// nutrition are not available for products at all** — the plugin keeps them
+/// as `_ingredient` / `_nutrition` post meta on its own `food-menu` post type,
+/// whose metabox and taxonomies are never registered for `product`. See
+/// `FINDINGS.md`.
 class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({required this.productId, super.key});
 
@@ -248,6 +253,10 @@ class _Body extends StatelessWidget {
             description,
             style: text.bodyLarge?.copyWith(color: palette.muted2),
           ),
+        ],
+        if (product.tags.isNotEmpty) ...[
+          const SizedBox(height: AppTokens.space16),
+          FoodTags(tags: product.tags),
         ],
       ],
     );

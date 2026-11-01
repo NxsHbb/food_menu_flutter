@@ -38,7 +38,20 @@
             "link": "http://192.168.0.171:8080/product-category/pizza/"
         }
     ],
-    "tags": [],
+    "tags": [
+        {
+            "id": 23,
+            "name": "Shareable",
+            "slug": "shareable",
+            "link": "http://192.168.0.171:8080/product-tag/shareable/"
+        },
+        {
+            "id": 22,
+            "name": "Vegetarian",
+            "slug": "vegetarian",
+            "link": "http://192.168.0.171:8080/product-tag/vegetarian/"
+        }
+    ],
     "brands": [],
     "attributes": [
         {
