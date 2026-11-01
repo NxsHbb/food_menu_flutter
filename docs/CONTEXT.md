@@ -50,10 +50,29 @@ top-level tab keeps its own navigation stack and scroll position. The four
 destinations (Menu, Cart, Orders, Account) are **provisional** — the supplied
 design decides the final navigation.
 
-**HTTP: `dio`**, chosen for its interceptor model. Task 1.2 needs an
-interceptor that captures the `Nonce` and `Cart-Token` headers the Store API
-returns and replays them on the next request, which is awkward with a plainer
-client.
+**HTTP: `dio`**, chosen for its interceptor model, which the Store API's
+session headers need.
+
+### The network layer
+`core/network/` holds four pieces:
+
+- `api_client.dart` — `ApiClient`, the only thing features talk to. It builds
+  URLs from `AppConfig` and throws `ApiException`, never `DioException`, so
+  dio's types stop at this boundary.
+- `api_exception.dart` — failure classification plus `isRetryable` /
+  `isAuthFailure`. WordPress REST errors all share the shape
+  `{code, message, data:{status}}`, so the server's own `code` and `message`
+  are lifted out of it.
+- `store_session.dart` — holds the Store API's `Nonce` and `Cart-Token`.
+  In-memory until task 4.6 adds persistence.
+- `store_session_interceptor.dart` — carries those two headers between
+  requests.
+
+**The interceptor harvests headers from error responses, not just successful
+ones.** This is deliberate: the Store API answers a nonce-less write with 401
+*and a fresh `Nonce`*, so a client that only read successful responses could
+never make its first cart write. Do not "tidy" that into an `onResponse`-only
+interceptor.
 
 ## Configuration
 The backend URL is a compile-time define, never hard-coded to a machine:

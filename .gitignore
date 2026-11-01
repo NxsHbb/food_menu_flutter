@@ -47,3 +47,9 @@ app.*.map.json
 # IDE
 .idea/
 *.iml
+
+# Design source files — kept locally, not versioned.
+/designs/
+
+# macOS
+.DS_Store

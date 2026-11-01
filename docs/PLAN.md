@@ -12,10 +12,11 @@ Staff/kitchen operations are explicitly out of scope for v1.
 | Decision | Choice |
 |---|---|
 | Audience | Customer app (v1) |
+| Design | `designs/All Screens.dc.html` — 10 screens, untracked and local only |
 | Plugin-side endpoints | Written here, on the `mobile-app` branches |
-| Payment | Hand off to the site's WooCommerce checkout in a webview |
+| Payment | **Native checkout in the app.** Cash on delivery in v1; card (Stripe) and PayPal are their own phase |
 | Accounts | Required — register/login before ordering |
-| v1 features | Menu browse + detail, cart + add-ons, pickup/delivery/dine-in with slots, order tracking |
+| v1 features | Menu browse + detail, cart + add-ons, **pickup/delivery** with slots, order tracking |
 
 ## Architecture in one paragraph
 The app is a thin client. Menu reads go to WooCommerce's Store API
@@ -23,9 +24,10 @@ The app is a thin client. Menu reads go to WooCommerce's Store API
 the Store API too, carrying the `Nonce` and `Cart-Token` headers it returns.
 Anything Food Menu layers on the cart — add-on groups, order types, time slots,
 branches — is not in the Store API, so Phase 3/4/5 add REST endpoints under a
-new `fmp/v1/app/*` namespace on the plugin branches. Checkout is **not**
-reimplemented: the app mints a one-time handoff URL and opens the site's own
-checkout in a webview, so every existing gateway keeps working. Business rules
+new `fmp/v1/app/*` namespace on the plugin branches. Checkout is native, per
+the design: the app posts the order through the Store API's checkout route,
+carrying the `food-menu-pro` extension fields that Pro already registers.
+Business rules
 (pricing, slot caps, discount math, status transitions) stay server-side
 throughout; the app renders and calls.
 
@@ -40,7 +42,7 @@ throughout; the app renders and calls.
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 1.1 | Choose and wire architecture: state management, DI, routing, folder layout; record the choice in `CONTEXT.md` | app | done |
-| 1.2 | HTTP client with env-based base URL, error mapping, and a `Nonce`/`Cart-Token` interceptor that captures and replays Store API session headers | app | todo |
+| 1.2 | HTTP client with env-based base URL, error mapping, and a `Nonce`/`Cart-Token` interceptor that captures and replays Store API session headers | app | done |
 | 1.3 | Theme and design system: colors, typography, spacing, light/dark, shared widgets | app | todo |
 | 1.4 | Store API models for product, category, cart, cart item, totals, with serialization tests | app | todo |
 
@@ -80,29 +82,31 @@ selections cannot be submitted as-is. Add-on definitions live in the
 | 4.6 | Floating mini cart, persisted across app restarts via the `Cart-Token` | app | todo |
 
 ## Phase 5 — Order type and time slots
-The **write** path already exists: Pro registers a `food-menu-pro` Store API
-checkout extension with `fmp_order_time_type`, pickup/delivery/dine-in dates and
-times, table and custom fields. Only the **read** path is missing.
+Pickup and delivery only — the design has no dine-in, which also makes QR
+table ordering moot. The **write** path already exists: Pro registers a
+`food-menu-pro` Store API checkout extension with `fmp_order_time_type` and the
+pickup/delivery dates and times. Only the **read** path is missing.
 
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 5.1 | `GET /fmp/v1/app/order-types` — which of pickup/delivery/dine-in are enabled, with their weekly schedules | pro | todo |
-| 5.2 | `GET /fmp/v1/app/slots` — selectable dates and times for a type and branch, respecting slot limits and timed products | pro | todo |
+| 5.1 | `GET /fmp/v1/app/order-types` — whether pickup and delivery are enabled, with their weekly schedules | pro | todo |
+| 5.2 | `GET /fmp/v1/app/slots` — selectable slots for a type and branch, respecting slot limits and timed products. Returns the design's flat list (`ASAP (15 min)`, `12:45`, …) rather than a date+time matrix | pro | todo |
 | 5.3 | `GET /fmp/v1/app/branches` — branch list with per-branch rules | free | todo |
-| 5.4 | Flutter order type selector with date and time slot pickers, driven by server availability | app | todo |
+| 5.4 | Flutter pickup/delivery toggle and slot list, driven by server availability | app | todo |
 | 5.5 | Flutter branch selection, persisted and applied to menu and cart requests | app | todo |
 
-## Phase 6 — Checkout handoff
-Accounts are required and payment is a webview, so the webview must open
-already authenticated **and** carrying the cart the app built as a guest. That
-is the crux of this phase.
+## Phase 6 — Native checkout
+The design's checkout is a single native screen: a pickup/delivery toggle, the
+address block, contact details, a payment method list and an order summary.
+No webview, so the earlier cart-handoff problem disappears.
 
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 6.1 | `POST /fmp/v1/app/checkout/handoff` — exchange an app token + `Cart-Token` for a single-use, short-lived URL that logs the webview in and adopts the cart into that session | pro | todo |
-| 6.2 | Flutter checkout webview: open the handoff URL, detect success and failure, block navigation outside the site | app | todo |
-| 6.3 | Order confirmation screen read back from the API after the webview reports success | app | todo |
-| 6.4 | Cancel, back and payment-failure paths return to a cart that still has its contents | app | todo |
+| 6.1 | Flutter checkout screen: contact details, address block, order summary, per the design | app | todo |
+| 6.2 | Place the order via `POST /wc/store/v1/checkout`, sending the `food-menu-pro` extension fields for order type, date and time | app | todo |
+| 6.3 | Cash on delivery as the v1 payment method, with server-side validation that it is an enabled gateway | pro + app | todo |
+| 6.4 | Order received screen, read back from the API after the order is placed | app | todo |
+| 6.5 | Failure paths — declined order, validation errors, connectivity loss — return to a checkout that keeps its input | app | todo |
 
 ## Phase 7 — Orders and tracking
 | # | Task | Repo | Status |
@@ -121,14 +125,21 @@ is the crux of this phase.
 
 ## Deliberately out of scope for v1
 Staff dashboard, kitchen monitor, inventory, POS printing, role manager,
-reservations and the visual floor plan, QR table ordering, order bumps, tips,
-and automatic discounts. Tips and discounts are server-side cart behaviour, so
-they will appear in the webview checkout totals even though the app does not
-drive them.
+reservations and the visual floor plan, dine-in and QR table ordering, tips.
+
+Deferred to **v2**, all three present in the design but each needing backend
+work this phase plan does not cost:
+- **Coupons** — the cart's code field and the discount line in totals.
+- **Upsells** — the cart's cross-sell carousel, i.e. the Order Bumps feature.
+- **Card and PayPal payment** — Stripe and PayPal need native SDK integration.
+
+Tips and automatic discounts are server-side cart behaviour, so they may still
+appear in totals returned by the Store API even though the app does not drive
+them.
 
 ## Open dependencies
-- **Design** has not been supplied. Phase 1.3 and every Flutter screen task
-  needs it; without it those tasks will produce a plain, functional UI that
-  then needs rework.
-- **Payment gateway** on the live site determines how reliably 6.2 can detect
-  success. To be confirmed against `radiustheme.net`.
+- **Wishlist** (design screen 10) is **undecided**. Neither plugin provides a
+  wishlist, so it needs a third-party plugin or custom endpoints. Not costed in
+  any phase above. Awaiting a decision on v1 or v2.
+- **Payment gateways** — card and PayPal are deferred, so v1 needs cash on
+  delivery enabled on the WooCommerce site. To be confirmed.
