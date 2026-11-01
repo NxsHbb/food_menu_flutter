@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../menu/presentation/menu_screen.dart';
+import '../../../core/widgets/feature_placeholder.dart';
 
 /// Cart screen. Filled in by Phase 4.
 class CartScreen extends StatelessWidget {

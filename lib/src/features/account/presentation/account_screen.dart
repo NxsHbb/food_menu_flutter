@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../menu/presentation/menu_screen.dart';
+import '../../../core/widgets/feature_placeholder.dart';
 
 /// Account screen. Filled in by Phase 3.
 class AccountScreen extends StatelessWidget {
