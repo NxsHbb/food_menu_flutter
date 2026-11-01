@@ -1,3 +1,6 @@
+export 'package:food_menu/src/core/store_api/models/product.dart';
+
+import 'package:food_menu/src/core/network/paged.dart';
 import 'package:food_menu/src/core/store_api/models/menu_category.dart';
 import 'package:food_menu/src/core/store_api/models/product.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
@@ -16,7 +19,7 @@ class FakeMenuRepository implements MenuRepository {
   final List<MenuCategory> categoryList;
   final List<Product> productList;
   final Object? categoriesError;
-  final Object? productsError;
+  Object? productsError;
   final Duration delay;
 
   /// Category ids the screen asked for, in order.
@@ -27,6 +30,54 @@ class FakeMenuRepository implements MenuRepository {
     if (delay > Duration.zero) await Future<void>.delayed(delay);
     if (categoriesError != null) throw categoriesError!;
     return categoryList;
+  }
+
+  /// Every page request the controller made, as (categoryId, search, page).
+  final List<({int? categoryId, String? search, int page})> pageRequests = [];
+
+  /// Products per page, so pagination can be exercised with a short list.
+  int pageSize = 20;
+
+  @override
+  Future<Paged<Product>> productPage({
+    int? categoryId,
+    String? search,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    pageRequests.add((categoryId: categoryId, search: search, page: page));
+    if (delay > Duration.zero) await Future<void>.delayed(delay);
+    if (productsError != null) throw productsError!;
+
+    var matches = productList;
+    if (categoryId != null) {
+      matches = matches
+          .where((p) => p.categories.any((c) => c.id == categoryId))
+          .toList();
+    }
+    if (search != null && search.trim().isNotEmpty) {
+      final needle = search.trim().toLowerCase();
+      matches =
+          matches.where((p) => p.name.toLowerCase().contains(needle)).toList();
+    }
+
+    final start = (page - 1) * pageSize;
+    final slice = start >= matches.length
+        ? <Product>[]
+        : matches.sublist(
+            start,
+            (start + pageSize).clamp(0, matches.length),
+          );
+    final totalPages = matches.isEmpty
+        ? 0
+        : ((matches.length - 1) ~/ pageSize) + 1;
+
+    return Paged(
+      items: slice,
+      total: matches.length,
+      totalPages: totalPages,
+      page: page,
+    );
   }
 
   @override

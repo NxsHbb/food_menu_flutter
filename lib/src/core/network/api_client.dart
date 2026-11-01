@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/app_config.dart';
 import 'api_exception.dart';
+import 'paged.dart';
 import 'store_session.dart';
 import 'store_session_interceptor.dart';
 
@@ -66,6 +67,47 @@ class ApiClient {
     return _send<T>(
       () => _dio.get<T>(url, queryParameters: query, cancelToken: cancelToken),
     );
+  }
+
+  /// A list request that also reads WordPress's pagination headers.
+  ///
+  /// Needed because the Store API sends totals as headers rather than in an
+  /// envelope, so [get] alone cannot say whether another page exists.
+  Future<Paged<Map<String, dynamic>>> getPaged(
+    String url, {
+    Map<String, dynamic>? query,
+    int page = 1,
+    CancelToken? cancelToken,
+  }) async {
+    try {
+      final response = await _dio.get<List<dynamic>>(
+        url,
+        queryParameters: {...?query, 'page': page},
+        cancelToken: cancelToken,
+      );
+
+      final items = (response.data ?? const [])
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList(growable: false);
+
+      final headers = response.headers;
+      final total =
+          int.tryParse(headers.value('X-WP-Total') ?? '') ?? items.length;
+      // A missing header means a single page, not zero pages — otherwise a
+      // proxy that strips headers would make every list look empty.
+      final totalPages = int.tryParse(headers.value('X-WP-TotalPages') ?? '') ??
+          (items.isEmpty ? 0 : 1);
+
+      return Paged(
+        items: items,
+        total: total,
+        totalPages: totalPages,
+        page: page,
+      );
+    } on DioException catch (error) {
+      throw ApiException.from(error);
+    }
   }
 
   Future<T> post<T>(

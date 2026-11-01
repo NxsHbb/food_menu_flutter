@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paged.dart';
 import '../../../core/store_api/models/menu_category.dart';
 import '../../../core/store_api/models/product.dart';
 
@@ -29,6 +30,32 @@ class MenuRepository {
         .map((e) => MenuCategory.fromJson(e.cast<String, dynamic>()))
         .where((c) => c.hasItems)
         .toList(growable: false);
+  }
+
+  /// A page of dishes with its totals, for the paginated list screen.
+  Future<Paged<Product>> productPage({
+    int? categoryId,
+    String? search,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final raw = await _client.getPaged(
+      _client.storeApi('products'),
+      page: page,
+      query: {
+        'per_page': perPage,
+        'catalog_visibility': 'catalog',
+        'category': ?categoryId,
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      },
+    );
+
+    return Paged(
+      items: raw.items.map(Product.fromJson).toList(growable: false),
+      total: raw.total,
+      totalPages: raw.totalPages,
+      page: raw.page,
+    );
   }
 
   /// A page of dishes, optionally narrowed to one category or a search term.

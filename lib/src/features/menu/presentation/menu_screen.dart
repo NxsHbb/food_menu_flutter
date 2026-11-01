@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/store_api/models/menu_category.dart';
 import '../../../core/store_api/models/product.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../data/menu_repository.dart';
+import 'menu_list_screen.dart';
 import 'widgets/category_chips.dart';
 import 'widgets/dish_card.dart';
 import 'widgets/menu_header.dart';
@@ -50,7 +53,8 @@ class MenuScreen extends ConsumerWidget {
                 address: 'Choose a branch',
                 greeting: 'Welcome',
                 prompt: 'What are you craving?',
-                onSearchTap: () => _notYet(context, 'Search'),
+                onSearchTap: () =>
+                    context.goNamed(MenuListScreen.routeName),
               ),
             ),
             SliverToBoxAdapter(
@@ -74,6 +78,7 @@ class MenuScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: _SectionHeader(
                 title: _titleFor(selectedId, categories),
+                onSeeAll: () => context.goNamed(MenuListScreen.routeName),
               ),
             ),
             ..._dishSlivers(context, products),
@@ -161,9 +166,10 @@ class MenuScreen extends ConsumerWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
+  const _SectionHeader({required this.title, required this.onSeeAll});
 
   final String title;
+  final VoidCallback onSeeAll;
 
   @override
   Widget build(BuildContext context) {
@@ -174,7 +180,13 @@ class _SectionHeader extends StatelessWidget {
         AppTokens.space16,
         AppTokens.space12,
       ),
-      child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          TextButton(onPressed: onSeeAll, child: const Text('See all')),
+        ],
+      ),
     );
   }
 }
