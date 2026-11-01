@@ -32,6 +32,23 @@ class FakeMenuRepository implements MenuRepository {
     return categoryList;
   }
 
+  /// Returned by [product]; falls back to the first item in [productList].
+  Product? single;
+
+  /// Thrown by [product] when set.
+  Object? productError;
+
+  @override
+  Future<Product> product(int id) async {
+    if (delay > Duration.zero) await Future<void>.delayed(delay);
+    if (productError != null) throw productError!;
+    final match = single ??
+        productList.where((p) => p.id == id).firstOrNull ??
+        productList.firstOrNull;
+    if (match == null) throw StateError('no product configured for id $id');
+    return match;
+  }
+
   /// Every page request the controller made, as (categoryId, search, page).
   final List<({int? categoryId, String? search, int page})> pageRequests = [];
 

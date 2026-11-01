@@ -6,6 +6,7 @@ import '../../features/account/presentation/account_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/menu/presentation/menu_list_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
+import '../../features/menu/presentation/product_detail_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
 
 /// The app's router.
@@ -34,6 +35,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: MenuListScreen.routePath,
                     name: MenuListScreen.routeName,
                     builder: (context, state) => const MenuListScreen(),
+                  ),
+                  GoRoute(
+                    path: ProductDetailScreen.routePath,
+                    name: ProductDetailScreen.routeName,
+                    builder: (context, state) {
+                      // A non-numeric or missing id is a bad link rather than
+                      // a crash: the screen's own 404 handles it.
+                      final id =
+                          int.tryParse(state.pathParameters['id'] ?? '') ?? -1;
+                      return ProductDetailScreen(productId: id);
+                    },
                   ),
                 ],
               ),

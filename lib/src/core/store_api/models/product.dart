@@ -121,6 +121,7 @@ class Product {
     required this.averageRating,
     required this.reviewCount,
     required this.lowStockRemaining,
+    required this.stockText,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -153,6 +154,13 @@ class Product {
       averageRating: double.tryParse(json['average_rating']?.toString() ?? '') ?? 0,
       reviewCount: (json['review_count'] as num?)?.toInt() ?? 0,
       lowStockRemaining: (json['low_stock_remaining'] as num?)?.toInt(),
+      // The API supplies its own wording ("Out of stock", "Only 2 left in
+      // stock"), already translated by the site. Preferred over inventing
+      // copy the store owner cannot change.
+      stockText: switch (json['stock_availability']) {
+        final Map<dynamic, dynamic> m => m['text'] as String? ?? '',
+        _ => '',
+      },
     );
   }
 
@@ -179,7 +187,29 @@ class Product {
   final int reviewCount;
 
   /// Non-null only when the store is set to warn at a low threshold.
+  ///
+  /// **Can be 0 on an out-of-stock product**, so never render it without
+  /// checking [isInStock] first — see [lowStockWarning].
   final int? lowStockRemaining;
+
+  /// The site's own stock wording, e.g. `Out of stock`. May be empty.
+  final String stockText;
+
+  /// How many are left, but only when that is worth saying.
+  ///
+  /// Guards the trap above: the API sends `low_stock_remaining: 0` alongside
+  /// `is_in_stock: false`, which would otherwise render as "Only 0 left".
+  int? get lowStockWarning {
+    final remaining = lowStockRemaining;
+    if (!isInStock || remaining == null || remaining <= 0) return null;
+    return remaining;
+  }
+
+  /// True when the dish can be ordered at all.
+  ///
+  /// Note that `is_purchasable` stays **true** on a sold-out product, so it
+  /// alone is not enough.
+  bool get isOrderable => isPurchasable && isInStock;
 
   ProductImage? get primaryImage => images.isEmpty ? null : images.first;
 

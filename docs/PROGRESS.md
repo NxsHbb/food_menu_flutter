@@ -2,6 +2,56 @@
 
 Newest first. One entry per completed task.
 
+## Decisions — wishlist, banners, search
+Recorded in `PLAN.md`:
+- **Wishlist is in v1, server-backed.** New endpoints on the `mobile-app`
+  branch store favourites against the customer's WP user, so they follow the
+  customer between devices. Added as tasks 3.5 (plugin) and 3.6 (app), placed
+  in Phase 3 because the data is account-scoped and needs auth first. **The
+  heart stays absent from cards and rows until 3.6.** Confirmed first that
+  neither plugin has any wishlist code and no wishlist plugin is installed.
+- **Banners come from WordPress posts** in a dedicated category, read through
+  `wp/v2/posts`. No plugin code and no new admin UI — the team edits them in
+  WordPress today. Added as task 2.5. Needs an agreed category slug. The
+  design's second banner advertises a coupon code, a v2 feature, so that one
+  cannot be reproduced as drawn.
+- **Search suggests categories when a search returns nothing**, so "pizza"
+  offers the Pizza category instead of an empty screen. Client-side against
+  the already-loaded category list. Added as task 2.6.
+
+## Task 2.3 — Product detail screen
+Branch `feat/product-detail`
+
+- Hero image with scrim and close button, details card, sticky bottom bar with
+  a quantity stepper and the add button carrying a live line total.
+- Nested route `dish/:id` under the menu tab. A non-numeric id resolves to -1
+  and lands on the screen's own not-found state rather than crashing.
+- **Seeded a variable product and an out-of-stock product** on the dev site
+  so this was built against real payloads instead of hand-written JSON. Both
+  are saved as fixtures.
+
+**Two API traps the real payloads exposed**, now encoded in the model:
+- `low_stock_remaining` is **0** on an out-of-stock product, so rendering it
+  unguarded gives "Only 0 left". `Product.lowStockWarning` returns null unless
+  the dish is in stock and the count is above zero, and a test pins it.
+- `is_purchasable` stays **true** when a dish is sold out, so it alone cannot
+  gate the add button. `Product.isOrderable` requires stock as well.
+
+Also: the API supplies its own `stock_availability.text` ("Out of stock"),
+already translated by the site, so that wording is preferred over copy a store
+owner cannot change.
+
+A variable dish shows a **range** and asks to "Choose options" rather than
+offering a line total, because no single price exists until a variation is
+picked. A 404 reads "This dish is no longer on the menu." rather than a
+generic network message.
+
+Deliberately not built here, each belonging to a later task: add-on groups
+(4.4), special instructions (4.5), the favourite heart (3.6), and
+ingredients/nutrition/tags (2.4).
+
+111 tests pass, `flutter analyze` clean.
+
 ## Task 2.2 — Menu list: search, category filter and pagination
 Branch `feat/menu-search`
 

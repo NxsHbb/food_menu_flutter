@@ -32,6 +32,14 @@ class MenuRepository {
         .toList(growable: false);
   }
 
+  /// One dish by id, for the detail screen.
+  Future<Product> product(int id) async {
+    final raw = await _client.get<Map<String, dynamic>>(
+      _client.storeApi('products/$id'),
+    );
+    return Product.fromJson(raw);
+  }
+
   /// A page of dishes with its totals, for the paginated list screen.
   Future<Paged<Product>> productPage({
     int? categoryId,
@@ -108,6 +116,12 @@ class SelectedCategory extends Notifier<int?> {
 
 final selectedCategoryProvider =
     NotifierProvider<SelectedCategory, int?>(SelectedCategory.new);
+
+/// One dish, by id. Keyed so navigating between dishes does not refetch one
+/// already loaded in this session.
+final productProvider = FutureProvider.family<Product, int>((ref, id) {
+  return ref.watch(menuRepositoryProvider).product(id);
+});
 
 /// The dishes shown for the current selection.
 final menuProductsProvider = FutureProvider<List<Product>>((ref) {

@@ -16,7 +16,10 @@ Staff/kitchen operations are explicitly out of scope for v1.
 | Plugin-side endpoints | Written here, on the `mobile-app` branches |
 | Payment | **Native checkout in the app.** Cash on delivery in v1; card (Stripe) and PayPal are their own phase |
 | Accounts | Required — register/login before ordering |
-| v1 features | Menu browse + detail, cart + add-ons, **pickup/delivery** with slots, order tracking |
+| v1 features | Menu browse + detail, cart + add-ons, **pickup/delivery** with slots, order tracking, wishlist |
+| Wishlist | **In v1, server-backed.** New endpoints on the `mobile-app` branch, favourites stored against the customer's WP user. Depends on Phase 3 accounts |
+| Banners | **WordPress posts in a category.** Reuses `wp/v2/posts`, edited in WordPress today, no plugin code |
+| Search | Names only, with **category suggestions when a search returns nothing** |
 
 ## Architecture in one paragraph
 The app is a thin client. Menu reads go to WooCommerce's Store API
@@ -55,6 +58,8 @@ Runs entirely against today's Store API. No plugin changes.
 | 2.2 | Product list with pagination, category filter and search | app | done |
 | 2.3 | Product detail: images, description, variable and sale pricing, stock state | app | todo |
 | 2.4 | Ingredients, nutrition and food tags on the detail screen | app | todo |
+| 2.5 | Banner carousel on the landing screen, sourced from WordPress posts in a dedicated category via `wp/v2/posts` | app | todo |
+| 2.6 | Category suggestions when a search returns no dishes, so "pizza" offers the Pizza category instead of an empty screen | app | todo |
 
 ## Phase 3 — Customer accounts
 `fmp/v1` is nonce-gated and unusable from a mobile client (see `FINDINGS.md`),
@@ -66,6 +71,8 @@ so customer auth is new work. No nonce gate on these routes — token only.
 | 3.2 | `GET/PUT /fmp/v1/app/me` — profile and saved addresses | pro | todo |
 | 3.3 | Flutter auth flow: register, login, validation, error states | app | todo |
 | 3.4 | Secure token storage, auto-refresh, and logout-on-401 across the client | app | todo |
+| 3.5 | `GET/POST/DELETE /fmp/v1/app/wishlist` — favourites against the customer's WP user | pro | todo |
+| 3.6 | Wishlist screen (design 10) and the heart on dish cards and rows | app | todo |
 
 ## Phase 4 — Cart and add-ons
 Store API `cart/add-item` accepts only `id`, `quantity`, `variation`, so add-on
@@ -127,8 +134,7 @@ No webview, so the earlier cart-handoff problem disappears.
 Staff dashboard, kitchen monitor, inventory, POS printing, role manager,
 reservations and the visual floor plan, dine-in and QR table ordering, tips.
 
-Deferred to **v2**, all three present in the design but each needing backend
-work this phase plan does not cost:
+Deferred to **v2**:
 - **Coupons** — the cart's code field and the discount line in totals.
 - **Upsells** — the cart's cross-sell carousel, i.e. the Order Bumps feature.
 - **Card and PayPal payment** — Stripe and PayPal need native SDK integration.
@@ -138,8 +144,10 @@ appear in totals returned by the Store API even though the app does not drive
 them.
 
 ## Open dependencies
-- **Wishlist** (design screen 10) is **undecided**. Neither plugin provides a
-  wishlist, so it needs a third-party plugin or custom endpoints. Not costed in
-  any phase above. Awaiting a decision on v1 or v2.
 - **Payment gateways** — card and PayPal are deferred, so v1 needs cash on
   delivery enabled on the WooCommerce site. To be confirmed.
+- **Banner category** — task 2.5 needs an agreed category slug and someone to
+  publish the first posts. The design's second banner advertises a coupon
+  code, which is a v2 feature, so that banner cannot be reproduced as drawn.
+- **The heart is absent from dish cards and rows until task 3.6**, because
+  wishlist is server-backed and depends on Phase 3 accounts.
