@@ -9,7 +9,9 @@ import '../data/menu_repository.dart';
 import 'package:go_router/go_router.dart';
 
 import 'product_detail_screen.dart';
+import '../domain/category_suggestions.dart';
 import 'widgets/category_chips.dart';
+import 'widgets/empty_search_result.dart';
 import 'widgets/dish_row.dart';
 
 /// The design's Menu screen: live search, category chips and a paged list.
@@ -51,6 +53,17 @@ class _MenuListScreenState extends ConsumerState<MenuListScreen> {
     if (remaining < 600) {
       ref.read(menuListControllerProvider.notifier).loadMore();
     }
+  }
+
+  /// Leaves the search behind and browses a category instead.
+  ///
+  /// Clears the field's own text as well as the query: leaving "pizza" in the
+  /// box while showing the Pizza category reads as the search having worked.
+  void _browseCategory(int categoryId) {
+    _search.clear();
+    ref.read(menuSearchInputProvider.notifier).clear();
+    ref.read(menuQueryProvider.notifier).browseCategory(categoryId);
+    setState(() {});
   }
 
   @override
@@ -102,7 +115,13 @@ class _MenuListScreenState extends ConsumerState<MenuListScreen> {
               ),
             _ => const SizedBox.shrink(),
           },
-          Expanded(child: _Results(scroll: _scroll, listing: listing)),
+          Expanded(
+            child: _Results(
+              scroll: _scroll,
+              listing: listing,
+              onBrowseCategory: _browseCategory,
+            ),
+          ),
         ],
       ),
     );
@@ -110,10 +129,17 @@ class _MenuListScreenState extends ConsumerState<MenuListScreen> {
 }
 
 class _Results extends ConsumerWidget {
-  const _Results({required this.scroll, required this.listing});
+  const _Results({
+    required this.scroll,
+    required this.listing,
+    required this.onBrowseCategory,
+  });
 
   final ScrollController scroll;
   final AsyncValue<MenuListState> listing;
+
+  /// Switches to a category and clears the search box, including its text.
+  final ValueChanged<int> onBrowseCategory;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -124,18 +150,30 @@ class _Results extends ConsumerWidget {
     return switch (listing) {
       AsyncLoading() => const Center(child: CircularProgressIndicator()),
       AsyncError(:final error) => _Failure(error: error),
-      AsyncData(:final value) when value.products.isEmpty => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppTokens.space24),
-            child: Text(
-              search.isEmpty
-                  ? 'Nothing on the menu here yet.'
-                  : 'No dishes match “$search”.',
-              textAlign: TextAlign.center,
-              style: text.bodyLarge?.copyWith(color: palette.muted),
-            ),
-          ),
-        ),
+      AsyncData(:final value) when value.products.isEmpty =>
+        search.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppTokens.space24),
+                  child: Text(
+                    'Nothing on the menu here yet.',
+                    textAlign: TextAlign.center,
+                    style: text.bodyLarge?.copyWith(color: palette.muted),
+                  ),
+                ),
+              )
+            : EmptySearchResult(
+                query: search,
+                // Matched against the categories already loaded for the chip
+                // row, so a dead-end search costs no extra request.
+                suggestions: switch (ref.watch(menuCategoriesProvider)) {
+                  AsyncData(:final value) =>
+                    suggestCategories(value, search),
+                  _ => const [],
+                },
+                onBrowseCategory: (category) =>
+                    onBrowseCategory(category.id),
+              ),
       AsyncData(:final value) => ListView.separated(
           controller: scroll,
           padding: const EdgeInsets.fromLTRB(

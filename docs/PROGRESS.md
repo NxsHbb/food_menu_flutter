@@ -19,6 +19,35 @@ Recorded in `PLAN.md`:
   offers the Pizza category instead of an empty screen. Client-side against
   the already-loaded category list. Added as task 2.6.
 
+## Task 2.6 — Category suggestions on an empty search
+Branch `feat/search-suggestions`
+
+Closes Phase 2, apart from blocked task 2.7.
+
+- `suggestCategories()` is a pure function in `features/menu/domain`, so the
+  matching rules are testable without a widget. Matched against the categories
+  **already loaded for the chip row**, so a dead-end search costs no extra
+  request.
+- Handles singular/plural **both ways** — "burger" finds Burgers, "pizzas"
+  finds Pizza — and whole words inside longer names, so "course" finds Main
+  Course. Ranked, so an exact match beats a partial one.
+- **It relates words; it does not guess at synonyms.** "italian" does not find
+  Pizza and should not — a wrong suggestion is worse than none, because it
+  sends the customer somewhere they did not ask for.
+- A substring-only match needs **four characters or more**. Three is
+  coincidence ("ink" inside Drinks); four is usually intent.
+- Tapping a suggestion clears the **search field's text** as well as the
+  query. Leaving "pizza" in the box while showing the Pizza category reads as
+  the search having worked.
+- `browseCategory()` sets the category and clears the search in one state
+  change, so the list is not rebuilt twice.
+
+One test correction worth recording: my first expectation said a four-letter
+substring should not match, which contradicted the threshold rule I had just
+written. The rule is the sensible one, so the test now documents it instead.
+
+149 tests pass, `flutter analyze` clean.
+
 ## Task 2.5 — Banner carousel from WordPress posts
 Branch `feat/banner-carousel`
 
