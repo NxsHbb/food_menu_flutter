@@ -1,69 +1,107 @@
 import 'package:flutter/material.dart';
 
-/// Raw values taken from the design, `designs/Food Ordering App.dc.html`.
+/// Raw values from the design's own theme map.
+///
+/// Source: the `THEME` object in `designs/Food Ordering App.html`, which
+/// defines a `light` and a `dark` set over the same role names and applies
+/// them as CSS custom properties. The role names below mirror that map
+/// one-to-one, so a value can be checked against the design without
+/// translating vocabulary.
 ///
 /// Nothing outside this file should hard-code a hex, radius or spacing number.
-/// Screens read semantic roles from [AppPalette] via the theme instead, so a
-/// token change lands everywhere at once.
+/// Screens read roles from [AppPalette] via the theme.
 abstract final class AppTokens {
-  // ---------------------------------------------------------------- palette
-  /// Brand red. The design's single accent, used for CTAs, prices and links.
+  // ------------------------------------------------------------------ brand
+  /// `RED` in the design. **Deliberately identical in both modes** — the
+  /// design declares it as a constant outside the theme map, so do not
+  /// "improve" its dark-mode contrast without the designer agreeing.
   static const brand = Color(0xFFF20800);
+
+  /// Hover/pressed red, from the design's stylesheet (`a:hover`).
   static const brandPressed = Color(0xFFB80600);
 
-  /// Brand tints, used for selected chips and soft badges.
-  static const brandTintStrong = Color(0xFFFFE8E6);
-  static const brandTintSoft = Color(0xFFFFF1F0);
+  // ------------------------------------------------------------ light theme
+  /// `page` — the scaffold background.
+  static const pageLight = Color(0xFFE9E7E4);
 
-  static const ink = Color(0xFF161616);
-  static const inkMuted = Color(0xFF7A7A7A);
-  static const inkFaint = Color(0xFF9A9A9A);
+  /// `bg` — recessed panels inside a card.
+  static const bgLight = Color(0xFFF6F6F6);
 
-  /// The canvas behind the phone frames, and the app's own page background.
-  static const canvas = Color(0xFFE9E7E4);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceSubtle = Color(0xFFF6F6F6);
-  static const surfaceFaint = Color(0xFFFAFAFA);
+  /// `card` — the raised surface most content sits on.
+  static const cardLight = Color(0xFFFFFFFF);
 
-  static const border = Color(0xFFEEEEEE);
-  static const borderStrong = Color(0xFFE6E6E6);
+  static const inkLight = Color(0xFF161616);
 
-  /// Image placeholder stripes, for dishes with no photo yet.
-  static const placeholderLight = Color(0xFFEFEDEA);
-  static const placeholderDark = Color(0xFFE6E3DF);
-  static const placeholderInk = Color(0xFF8A8580);
+  /// `muted` — secondary copy.
+  static const mutedLight = Color(0xFF6E6E6E);
 
-  static const success = Color(0xFF0E8A6A);
-  static const successBright = Color(0xFF23C69D);
+  /// `muted2` — between ink and muted; used where muted is too faint.
+  static const muted2Light = Color(0xFF555555);
+
+  /// `line` — hairline dividers and card borders.
+  static const lineLight = Color(0xFFEEEEEE);
+
+  /// `field` — text input fill.
+  static const fieldLight = Color(0xFFFAFAFA);
+
+  /// `chip` — unselected filter chip fill.
+  static const chipLight = Color(0xFFEFEFEF);
+
+  /// `ph1` / `ph2` — the two stripes of the no-photo placeholder.
+  static const ph1Light = Color(0xFFEFEDEA);
+  static const ph2Light = Color(0xFFE6E3DF);
+
+  /// `tint` — soft brand wash behind selected and badged elements.
+  static const tintLight = Color(0xFFFFE8E6);
+
+  /// `contrast` — a deliberately high-contrast fill, e.g. a dark pill.
+  static const contrastLight = Color(0xFF161616);
+
+  /// `ring` — focus and emphasis outlines.
+  ///
+  /// **The one invented value in this file.** The design's light theme map
+  /// has `ring: 'var(--ring)'`, which is self-referential and defined
+  /// nowhere, so light mode has no ring colour to copy. This sits between
+  /// [lineLight] and [mutedLight] so an outline reads as emphasis without
+  /// becoming a border. Dark mode uses the design's own `#55555A`.
+  /// Worth confirming with the designer.
+  static const ringLight = Color(0xFFD8D8D8);
+
+  /// `okbg` / `okfg` — success pair.
+  static const okBgLight = Color(0xFFE0F7F0);
+  static const okFgLight = Color(0xFF0E8A6A);
+
+  /// `warnbg` / `warnfg` — warning pair.
+  static const warnBgLight = Color(0xFFFFF3D6);
+  static const warnFgLight = Color(0xFFA86A00);
+
+  /// `tab` — inactive bottom-navigation item.
+  static const tabLight = Color(0xFF9A9A9A);
+
+  // ------------------------------------------------------------- dark theme
+  // Neutral, not warm: the design's dark set is a cool grey ramp.
+  static const pageDark = Color(0xFF0A0A0A);
+  static const bgDark = Color(0xFF111112);
+  static const cardDark = Color(0xFF1C1C1E);
+  static const inkDark = Color(0xFFF4F4F5);
+  static const mutedDark = Color(0xFFA1A1A6);
+  static const muted2Dark = Color(0xFFC2C2C7);
+  static const lineDark = Color(0xFF2C2C2E);
+  static const fieldDark = Color(0xFF242426);
+  static const chipDark = Color(0xFF2A2A2D);
+  static const ph1Dark = Color(0xFF2A2826);
+  static const ph2Dark = Color(0xFF222020);
+  static const tintDark = Color(0xFF3B1412);
+  static const contrastDark = Color(0xFF2C2C2E);
+  static const ringDark = Color(0xFF55555A);
+  static const okBgDark = Color(0xFF0F3328);
+  static const okFgDark = Color(0xFF3FD6A8);
+  static const warnBgDark = Color(0xFF3A2C0E);
+  static const warnFgDark = Color(0xFFF2B84B);
+  static const tabDark = Color(0xFF7C7C80);
+
+  /// Star rating gold. Not in the theme map, so it is the same in both modes.
   static const star = Color(0xFFFFB800);
-
-  // ------------------------------------------------- dark mode (derived)
-  // The design is light-only. These are derived from the tokens above, not
-  // supplied: warm-neutral surfaces to match the warm light canvas, and a
-  // lifted brand red because #F20800 on a dark surface reads muddy and its
-  // contrast against white text is already marginal.
-  static const brandDark = Color(0xFFFF5436);
-  static const brandPressedDark = Color(0xFFD93A20);
-  static const brandTintStrongDark = Color(0xFF3A1A14);
-  static const brandTintSoftDark = Color(0xFF2A1512);
-
-  static const inkDark = Color(0xFFF5F3F1);
-  static const inkMutedDark = Color(0xFFA8A4A0);
-  static const inkFaintDark = Color(0xFF807C78);
-
-  static const canvasDark = Color(0xFF121110);
-  static const surfaceDark = Color(0xFF1C1A19);
-  static const surfaceSubtleDark = Color(0xFF242120);
-  static const surfaceFaintDark = Color(0xFF1F1D1C);
-
-  static const borderDark = Color(0xFF302C2A);
-  static const borderStrongDark = Color(0xFF3C3734);
-
-  static const placeholderLightDark = Color(0xFF2A2726);
-  static const placeholderDarkDark = Color(0xFF221F1E);
-  static const placeholderInkDark = Color(0xFF6E6964);
-
-  static const successDark = Color(0xFF2ED3A5);
 
   // ----------------------------------------------------------------- shape
   /// Corner radii, from the design's 12 / 14 / 16 / 18 / 20 scale.

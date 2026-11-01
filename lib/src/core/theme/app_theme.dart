@@ -6,36 +6,34 @@ import 'app_typography.dart';
 
 /// The app's light and dark themes, built from the design tokens.
 ///
-/// Light is the design. **Dark is derived, not designed** — see `AppTokens`
-/// for which values were invented and why. Worth a designer's review before
-/// release.
+/// Both sets come from the design's own `THEME` map, so neither is invented.
+/// Note that the brand red is the same in both modes by the design's own
+/// declaration — it sits outside the theme map as a constant.
 abstract final class AppTheme {
   static ThemeData light() => _build(Brightness.light, AppPalette.light());
 
   static ThemeData dark() => _build(Brightness.dark, AppPalette.dark());
 
   static ThemeData _build(Brightness brightness, AppPalette palette) {
-    final isLight = brightness == Brightness.light;
-
     final scheme = ColorScheme(
       brightness: brightness,
       primary: palette.brand,
       onPrimary: Colors.white,
-      primaryContainer: palette.brandTintStrong,
-      onPrimaryContainer: isLight ? palette.brand : palette.ink,
+      primaryContainer: palette.tint,
+      onPrimaryContainer: palette.brand,
       secondary: palette.brand,
       onSecondary: Colors.white,
       error: palette.brand,
       onError: Colors.white,
-      surface: palette.surface,
+      surface: palette.card,
       onSurface: palette.ink,
-      onSurfaceVariant: palette.inkMuted,
-      surfaceContainerLowest: palette.surface,
-      surfaceContainerLow: palette.surfaceFaint,
-      surfaceContainer: palette.surfaceSubtle,
-      surfaceContainerHigh: palette.surfaceSubtle,
-      outline: palette.borderStrong,
-      outlineVariant: palette.border,
+      onSurfaceVariant: palette.muted,
+      surfaceContainerLowest: palette.card,
+      surfaceContainerLow: palette.field,
+      surfaceContainer: palette.bg,
+      surfaceContainerHigh: palette.chip,
+      outline: palette.ring,
+      outlineVariant: palette.line,
     );
 
     final textTheme = AppTypography.textTheme.apply(
@@ -47,12 +45,12 @@ abstract final class AppTheme {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
-      scaffoldBackgroundColor: palette.canvas,
+      scaffoldBackgroundColor: palette.page,
       fontFamily: AppTypography.fontFamily,
       textTheme: textTheme,
       extensions: [palette],
       appBarTheme: AppBarTheme(
-        backgroundColor: palette.canvas,
+        backgroundColor: palette.page,
         foregroundColor: palette.ink,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -60,12 +58,12 @@ abstract final class AppTheme {
         titleTextStyle: textTheme.titleLarge,
       ),
       dividerTheme: DividerThemeData(
-        color: palette.border,
+        color: palette.line,
         thickness: 1,
         space: 1,
       ),
       cardTheme: CardThemeData(
-        color: palette.surface,
+        color: palette.card,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
@@ -78,8 +76,8 @@ abstract final class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: palette.brand,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: palette.borderStrong,
-          disabledForegroundColor: palette.inkFaint,
+          disabledBackgroundColor: palette.line,
+          disabledForegroundColor: palette.muted,
           minimumSize: const Size.fromHeight(AppTokens.buttonHeight),
           padding: const EdgeInsets.symmetric(horizontal: 28),
           textStyle: textTheme.labelLarge,
@@ -94,7 +92,7 @@ abstract final class AppTheme {
           minimumSize: const Size.fromHeight(AppTokens.buttonHeight),
           padding: const EdgeInsets.symmetric(horizontal: 28),
           textStyle: textTheme.labelLarge,
-          side: BorderSide(color: palette.borderStrong),
+          side: BorderSide(color: palette.ring),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTokens.radiusButton),
           ),
@@ -110,35 +108,35 @@ abstract final class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: palette.surfaceSubtle,
-        hintStyle: textTheme.bodyLarge?.copyWith(color: palette.inkFaint),
+        fillColor: palette.field,
+        hintStyle: textTheme.bodyLarge?.copyWith(color: palette.muted),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppTokens.space14,
           vertical: AppTokens.space14,
         ),
-        border: _inputBorder(palette.border),
-        enabledBorder: _inputBorder(palette.border),
+        border: _inputBorder(palette.line),
+        enabledBorder: _inputBorder(palette.line),
         focusedBorder: _inputBorder(palette.brand, width: 1.5),
         errorBorder: _inputBorder(palette.brand),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: palette.surface,
+        backgroundColor: palette.chip,
         selectedColor: palette.brand,
-        side: BorderSide(color: palette.border),
+        side: BorderSide(color: palette.line),
         labelStyle: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTokens.radiusChip),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: palette.surface,
+        backgroundColor: palette.card,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: palette.brandTintStrong,
+        indicatorColor: palette.tint,
         elevation: 0,
         labelTextStyle: WidgetStatePropertyAll(textTheme.labelMedium),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: palette.surface,
+        backgroundColor: palette.card,
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(

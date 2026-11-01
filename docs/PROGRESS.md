@@ -2,6 +2,39 @@
 
 Newest first. One entry per completed task.
 
+## Fix — rebuild dark mode from the design's own theme map
+Branch `fix/dark-mode-from-design`
+
+A second design export, `designs/Food Ordering App.html`, turned up carrying a
+real `THEME` object with `light` and `dark` sets over the same role names,
+applied as CSS custom properties. It supersedes the dark palette derived in
+task 1.3, which was wrong in three ways:
+
+- **The brand red does not change in dark mode.** The design declares
+  `RED = '#F20800'` as a constant *outside* the theme map. Task 1.3 lifted it
+  to `#FF5436` for contrast; the design does not. A test now pins it in both
+  modes so the "improvement" cannot come back.
+- **The dark ramp is cool, not warm.** Real values are `#0A0A0A` / `#111112` /
+  `#1C1C1E` / `#2C2C2E`. Task 1.3 guessed warm browns to match the warm light
+  canvas.
+- **Nine roles were missing**: `muted2`, `chip`, `field`, `contrast`, `ring`,
+  and the `okbg`/`okfg` and `warnbg`/`warnfg` semantic pairs.
+
+Token and palette role names now mirror the design's map one-to-one, so a
+value can be checked against the design without translating vocabulary. Two
+light values also corrected: `muted` is `#6E6E6E` (not `#7A7A7A`, which came
+from inline styles in the earlier export).
+
+`AppPalette.lerp` and `copyWith` both drive off a single role list, so a role
+added to the class cannot be silently forgotten by either.
+
+**One invented value remains**: the design's light `ring` is
+`var(--ring)`, self-referential and defined nowhere, so light mode has no ring
+colour to copy. `#D8D8D8` is my choice and is flagged in `AppTokens` for the
+designer to confirm. Dark mode uses the design's `#55555A`.
+
+70 tests pass, `flutter analyze` clean.
+
 ## Task 1.4 — Store API models
 Branch `feat/store-api-models`
 
