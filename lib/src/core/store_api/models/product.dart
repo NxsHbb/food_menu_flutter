@@ -22,6 +22,27 @@ class ProductCategory {
   final String slug;
 }
 
+/// A food tag, e.g. Vegetarian or Spicy.
+///
+/// Backed by WooCommerce's `product_tag` taxonomy. Note this is **not** the
+/// plugin's own `food-menu-tag` taxonomy, which is registered only for the
+/// `food-menu` post type and so is unreachable in online-ordering mode.
+class ProductTag {
+  const ProductTag({required this.id, required this.name, required this.slug});
+
+  factory ProductTag.fromJson(Map<String, dynamic> json) {
+    return ProductTag(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      slug: json['slug'] as String? ?? '',
+    );
+  }
+
+  final int id;
+  final String name;
+  final String slug;
+}
+
 /// One product image. `src` is the full-size URL; `thumbnail` is smaller.
 class ProductImage {
   const ProductImage({
@@ -112,6 +133,7 @@ class Product {
     required this.prices,
     required this.images,
     required this.categories,
+    required this.tags,
     required this.description,
     required this.shortDescription,
     required this.isInStock,
@@ -141,6 +163,10 @@ class Product {
       categories: ((json['categories'] as List?) ?? const [])
           .whereType<Map>()
           .map((e) => ProductCategory.fromJson(e.cast<String, dynamic>()))
+          .toList(growable: false),
+      tags: ((json['tags'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => ProductTag.fromJson(e.cast<String, dynamic>()))
           .toList(growable: false),
       description: json['description'] as String? ?? '',
       shortDescription: json['short_description'] as String? ?? '',
@@ -174,6 +200,9 @@ class Product {
   final ProductPrices prices;
   final List<ProductImage> images;
   final List<ProductCategory> categories;
+
+  /// Food tags, from `product_tag`. Often empty.
+  final List<ProductTag> tags;
 
   /// Both description fields arrive as HTML and need rendering or stripping.
   final String description;

@@ -73,3 +73,41 @@ the actual paths differ — `/orders/statuses`, `/orders/{id}/timeline`,
 `/reports/valuation`, `/reports/waste-cost` etc. — and `/qr-codes` and
 `/timed-products` are not registered at all. Enumerate
 `?rest_route=/fmp/v1` on the running site rather than trusting the table.
+
+## Ingredients and nutrition do not exist in online-ordering mode
+The plugin's "rich menu item data — ingredients, nutrition facts, food tags"
+applies to its **own `food-menu` post type**, not to WooCommerce products. The
+app runs against products, because that is what online ordering requires, so
+two of those three fields are unreachable.
+
+Traced on a live install:
+
+- `food-menu-ingredient`, `food-menu-nutrition`, `food-menu-tag` and
+  `food-menu-unit` are registered for **`food-menu` only**. `get_object_taxonomies('product')`
+  returns none of them.
+- The **Food Data** metabox that captures them is registered against
+  `TLPFoodMenu()->post_type`, i.e. `food-menu`
+  (`food-menu-pro/app/Controllers/Admin/Metabox/PostMeta.php`). The only
+  `add_meta_box( …, 'product', … )` in either plugin is for Reviews.
+- The data itself is post meta — `_ingredient` and `_nutrition`, each an array
+  of `{id, unit_id, value}` referencing ingredient and unit terms
+  (`FnsPro::get_fm_ingredient_list()`).
+- The tabs that display them render through the plugin's own
+  `fmp_single_details` action, not WooCommerce's `woocommerce_product_tabs`.
+- On the dev site: 18 products, **0** carrying `_ingredient` meta, and there is
+  no admin UI that could add it.
+
+**Food tags are fine**, via a different route: WooCommerce's own `product_tag`
+taxonomy, which the Store API returns as `tags` on each product. That is what
+task 2.4 shipped. It is *not* the plugin's `food-menu-tag` taxonomy.
+
+To get ingredients and nutrition into the app, one of:
+1. extend the Food Data metabox and its meta to `product` on the `mobile-app`
+   branch, then expose both through REST — the faithful option, and it also
+   fixes the plugin's own web UI in online-ordering mode;
+2. model them as WooCommerce product attributes, which the Store API already
+   returns — no plugin code, but a different data model from the plugin's and
+   a manual migration for anyone already using `food-menu` posts;
+3. leave both out of v1.
+
+Until one is chosen, the detail screen shows tags and no nutrition block.

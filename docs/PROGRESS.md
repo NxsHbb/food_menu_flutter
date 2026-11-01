@@ -19,6 +19,33 @@ Recorded in `PLAN.md`:
   offers the Pizza category instead of an empty screen. Client-side against
   the already-loaded category list. Added as task 2.6.
 
+## Task 2.4 — Food tags on the detail screen (ingredients and nutrition blocked)
+Branch `feat/dish-details`
+
+Delivered the part that is reachable and stopped short of the part that is not.
+
+- **Food tags ship**, via WooCommerce's `product_tag` taxonomy, which the Store
+  API returns as `tags` on every product. Seeded seven tags across nine dishes
+  on the dev site so this was built and tested against real payloads.
+- `FoodTags` renders tinted pills, with a leading icon for seven common
+  dietary slugs. Matched on **slug, not label**, so renaming a tag in
+  WordPress does not silently drop its icon. An unrecognised tag renders as a
+  plain pill rather than getting a guessed icon.
+
+- **Ingredients and nutrition are not buildable** and are now task 2.7,
+  blocked pending a decision. The plugin stores them as `_ingredient` and
+  `_nutrition` post meta on its own `food-menu` post type; the Food Data
+  metabox and all four `food-menu-*` taxonomies are registered for that post
+  type only, never for `product`. The app reads products, because online
+  ordering requires it, so there is no path to the data — and no admin UI that
+  could even enter it against a product. Full trace and three options in
+  `FINDINGS.md`.
+
+Note the tags shipped are *not* the plugin's `food-menu-tag` taxonomy, which is
+equally unreachable; they are the WooCommerce equivalent.
+
+115 tests pass, `flutter analyze` clean.
+
 ## Task 2.3 — Product detail screen
 Branch `feat/product-detail`
 
