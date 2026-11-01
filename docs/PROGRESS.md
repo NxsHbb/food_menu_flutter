@@ -2,6 +2,36 @@
 
 Newest first. One entry per completed task.
 
+## Task 1.4 — Store API models
+Branch `feat/store-api-models`
+
+- **`Money` holds amounts as integer minor units.** The Store API sends prices
+  as *strings in minor units* beside a `currency_minor_unit` exponent, so
+  `"395"` is **$3.95**, not $395. Parsing those as a decimal is the easiest
+  way to ship a menu priced a hundred times too high. Amounts stay `int` end
+  to end, so totals cannot drift by a cent — there is a test adding one cent a
+  hundred times and landing on exactly $1.00.
+- `Currency` is parsed from whichever price block is at hand, because the API
+  repeats the metadata on every one. Formatting uses the site's own separators,
+  prefix and suffix, so a store set to `1.234,56 kr` renders that way with no
+  locale knowledge in the app. Covered for 0-, 2- and 3-decimal currencies.
+- `Product.prices.isDiscounted` is derived from the prices rather than the
+  `on_sale` flag, because the two disagree when a scheduled sale lapses but
+  leaves `sale_price` populated.
+- `CartItem` is keyed by the server's `key`, not the product `id`: the same
+  dish added twice with different add-ons is two lines sharing one id, so
+  updates and removals must address the key.
+- `CartItemData` is where Phase 4's add-ons will surface — the Pro plugin
+  writes them via `woocommerce_get_item_data` and the Store API returns them
+  verbatim.
+- `totals.totalShipping` is **nullable**, not zero: a pickup order never
+  calculates shipping, and zero would read as free delivery.
+- `QuantityLimits.clamp` steps **down** to the nearest allowed multiple, so a
+  stepper never silently charges for more than was asked.
+- Tests run against **fixtures captured from the running dev site**
+  (`test/fixtures/`), so they fail if the Store API's shape changes rather
+  than if invented JSON does. 66 tests pass, `flutter analyze` clean.
+
 ## Task 1.3 — Design system: tokens, typography, light and dark themes
 Branch `feat/design-system`
 
