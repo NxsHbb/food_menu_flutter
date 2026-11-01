@@ -43,7 +43,7 @@ throughout; the app renders and calls.
 |---|---|---|---|
 | 1.1 | Choose and wire architecture: state management, DI, routing, folder layout; record the choice in `CONTEXT.md` | app | done |
 | 1.2 | HTTP client with env-based base URL, error mapping, and a `Nonce`/`Cart-Token` interceptor that captures and replays Store API session headers | app | done |
-| 1.3 | Theme and design system: colors, typography, spacing, light/dark, shared widgets | app | todo |
+| 1.3 | Theme and design system: colors, typography, spacing, light/dark, shared widgets | app | done |
 | 1.4 | Store API models for product, category, cart, cart item, totals, with serialization tests | app | todo |
 
 ## Phase 2 — Menu browsing
