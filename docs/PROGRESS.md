@@ -2,6 +2,45 @@
 
 Newest first. One entry per completed task.
 
+## Task 2.2 — Menu list: search, category filter and pagination
+Branch `feat/menu-search`
+
+- New `/menu` screen, nested under the menu tab so the bottom bar stays and
+  the tab keeps its own back stack. Reached from the landing header's search
+  entry and from "See all".
+- `ApiClient.getPaged` reads WordPress's `X-WP-Total` and `X-WP-TotalPages`
+  headers, because the Store API reports totals as headers rather than in an
+  envelope — the body alone cannot say whether another page exists. A missing
+  header is treated as one page, not zero, so a header-stripping proxy does
+  not make every list look empty.
+- The dish count shows the **server's** total, not how many have loaded.
+- Search is debounced at 350ms, but **clearing the box skips the debounce**,
+  so wiping a query feels instant.
+- Changing the query rebuilds the list from page 1 rather than appending, and
+  a page that lands after the query changed is discarded.
+- A failed later page keeps the loaded rows on screen and offers a retry,
+  instead of blanking the list.
+- `DishRow` strips HTML from `short_description` with a small tag/entity
+  replacement rather than pulling in a parser for one line of text.
+
+**A search finding worth a decision:** WooCommerce's `search` matches product
+names, not categories. Searching **"pizza" returns nothing** on the seeded
+menu, even though there is a Pizza category holding Margherita and Pepperoni.
+A customer typing a cuisine rather than a dish name hits an empty screen.
+Fixable by also matching category names and offering them as suggestions, but
+that goes beyond the design, so it is flagged rather than built.
+
+**Three test-writing traps worth recording**, all of which produced false
+failures before the assertions were corrected:
+- `ListView` builds lazily, so counting rendered `DishRow` widgets measures
+  the viewport, not the page size.
+- The count header is disposed once scrolled out, so it cannot be asserted
+  after a fling.
+- `find.text('Dish 7')` also matches the search field when the query is a
+  dish name, so row assertions are scoped to `DishRow`.
+
+96 tests pass, `flutter analyze` clean.
+
 ## Task 2.1 — Menu landing screen and categories
 Branch `feat/menu-landing`
 

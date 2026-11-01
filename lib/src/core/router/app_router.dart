@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/account/presentation/account_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
+import '../../features/menu/presentation/menu_list_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
 
@@ -26,6 +27,15 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: MenuScreen.routePath,
                 name: MenuScreen.routeName,
                 builder: (context, state) => const MenuScreen(),
+                routes: [
+                  // Nested, so the bottom navigation stays visible and the
+                  // menu tab keeps its own back stack.
+                  GoRoute(
+                    path: MenuListScreen.routePath,
+                    name: MenuListScreen.routeName,
+                    builder: (context, state) => const MenuListScreen(),
+                  ),
+                ],
               ),
             ],
           ),
