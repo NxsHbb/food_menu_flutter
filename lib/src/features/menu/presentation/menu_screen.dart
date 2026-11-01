@@ -10,6 +10,7 @@ import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../data/menu_repository.dart';
 import 'menu_list_screen.dart';
+import 'product_detail_screen.dart';
 import 'widgets/category_chips.dart';
 import 'widgets/dish_card.dart';
 import 'widgets/menu_header.dart';
@@ -143,7 +144,10 @@ class MenuScreen extends ConsumerWidget {
                   final product = value[index];
                   return DishCard(
                     product: product,
-                    onTap: () => _notYet(context, product.name),
+                    onTap: () => context.goNamed(
+                      ProductDetailScreen.routeName,
+                      pathParameters: {'id': '${product.id}'},
+                    ),
                     onAdd: product.canAddDirectly
                         ? () => _notYet(context, 'Add to cart')
                         : null,

@@ -6,6 +6,9 @@ import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../data/menu_list_controller.dart';
 import '../data/menu_repository.dart';
+import 'package:go_router/go_router.dart';
+
+import 'product_detail_screen.dart';
 import 'widgets/category_chips.dart';
 import 'widgets/dish_row.dart';
 
@@ -162,7 +165,10 @@ class _Results extends ConsumerWidget {
             final product = value.products[itemIndex];
             return DishRow(
               product: product,
-              onTap: () => _notYet(context, product.name),
+              onTap: () => context.goNamed(
+                ProductDetailScreen.routeName,
+                pathParameters: {'id': '${product.id}'},
+              ),
               onAdd: product.canAddDirectly
                   ? () => _notYet(context, 'Add to cart')
                   : null,
