@@ -2,6 +2,39 @@
 
 Newest first. One entry per completed task.
 
+## Task 1.2 — HTTP client, error mapping, Store API session
+Branch `feat/http-client`
+
+- `ApiClient` wraps dio and speaks only in `ApiException`, so no feature layer
+  ever imports dio's error types. URLs are built from `AppConfig`, so a feature
+  never concatenates a base URL itself.
+- `ApiException` classifies failures as network / timeout / http /
+  malformedResponse / cancelled / unknown, and lifts `code` and `message` out
+  of the WordPress REST error body (`{code, message, data:{status}}`), which
+  both the Store API and the plugin use. Exposes `isRetryable` and
+  `isAuthFailure` so screens decide what to do without inspecting statuses.
+- `StoreSessionInterceptor` carries the Store API's `Nonce` and `Cart-Token`
+  between requests. **It harvests them from error responses too** — a 401 for
+  a missing nonce still returns a usable `Nonce`, so reading only successful
+  responses would leave a client that can never make its first write. Verified
+  against the running site before writing the code.
+- A response carrying only one of the two headers no longer erases the other,
+  and a header set deliberately by a caller is never overwritten.
+- `StoreSession` is in-memory behind a notifier; task 4.6 adds persistence
+  without touching anything else.
+- Tests use a fake dio adapter, so the suite needs no network and no new
+  dependency. 22 tests pass, `flutter analyze` clean.
+
+## Revised the plan after reading the design
+- Payment is **native**, per the design: cash on delivery in v1, card and
+  PayPal deferred. The webview handoff and its cart-adoption problem are gone,
+  and Phase 6 is rewritten around a native checkout screen.
+- **Dine-in dropped** — the design has a pickup/delivery toggle only, which
+  also makes QR table ordering moot.
+- Coupons, upsells, card and PayPal payment moved to **v2**.
+- Wishlist (design screen 10) is **undecided** and not costed in any phase.
+- `designs/` is gitignored, along with `.DS_Store`.
+
 ## Task 1.1 — Flutter foundations: architecture, routing, folder layout
 Branch `feat/app-foundations`
 
