@@ -7,21 +7,28 @@ import 'package:food_menu/src/core/theme/app_typography.dart';
 
 void main() {
   group('AppTheme', () {
-    test('light theme uses the design brand colour', () {
+    test('light theme uses the design page and brand colours', () {
       final theme = AppTheme.light();
 
       expect(theme.colorScheme.primary, AppTokens.brand);
-      expect(theme.scaffoldBackgroundColor, AppTokens.canvas);
+      expect(theme.scaffoldBackgroundColor, AppTokens.pageLight);
       expect(theme.brightness, Brightness.light);
     });
 
-    test('dark theme lifts the brand colour off the dark surface', () {
+    test('dark theme uses the design dark surfaces', () {
       final theme = AppTheme.dark();
 
       expect(theme.brightness, Brightness.dark);
-      expect(theme.colorScheme.primary, AppTokens.brandDark);
-      // The raw design red is deliberately not reused on dark surfaces.
-      expect(theme.colorScheme.primary, isNot(AppTokens.brand));
+      expect(theme.scaffoldBackgroundColor, AppTokens.pageDark);
+      expect(theme.colorScheme.surface, AppTokens.cardDark);
+    });
+
+    test('the brand red is identical in both modes', () {
+      // The design declares RED as a constant outside its theme map. An
+      // earlier version of this theme lightened it for dark mode, which the
+      // design does not do — this test exists to stop that coming back.
+      expect(AppTheme.light().colorScheme.primary, AppTokens.brand);
+      expect(AppTheme.dark().colorScheme.primary, AppTokens.brand);
     });
 
     test('both themes carry an AppPalette extension', () {
@@ -46,6 +53,13 @@ void main() {
       expect(style.textStyle?.resolve({})?.fontSize, 14);
       expect(style.textStyle?.resolve({})?.fontWeight, FontWeight.w700);
     });
+
+    test('input fill and chip fill come from their own roles', () {
+      final light = AppTheme.light();
+
+      expect(light.inputDecorationTheme.fillColor, AppTokens.fieldLight);
+      expect(light.chipTheme.backgroundColor, AppTokens.chipLight);
+    });
   });
 
   group('AppTypography', () {
@@ -55,10 +69,7 @@ void main() {
       final style = AppTypography.style(size: 14, weight: 800);
 
       expect(style.fontWeight, FontWeight.w800);
-      expect(
-        style.fontVariations,
-        contains(const FontVariation('wght', 800)),
-      );
+      expect(style.fontVariations, contains(const FontVariation('wght', 800)));
     });
 
     test('every style in the scale carries a wght variation', () {
@@ -108,17 +119,50 @@ void main() {
         return resolved;
       }
 
-      expect((await paletteFor(AppTheme.light())).brand, AppTokens.brand);
-      expect((await paletteFor(AppTheme.dark())).brand, AppTokens.brandDark);
+      expect((await paletteFor(AppTheme.light())).page, AppTokens.pageLight);
+      expect((await paletteFor(AppTheme.dark())).page, AppTokens.pageDark);
+    });
+
+    test('mirrors the design theme map, role for role', () {
+      // Spot-check each role against the design's THEME object so a typo in
+      // a hex is caught here rather than on a screen.
+      final light = AppPalette.light();
+
+      expect(light.page, AppTokens.pageLight);
+      expect(light.bg, AppTokens.bgLight);
+      expect(light.card, AppTokens.cardLight);
+      expect(light.ink, AppTokens.inkLight);
+      expect(light.muted, AppTokens.mutedLight);
+      expect(light.muted2, AppTokens.muted2Light);
+      expect(light.line, AppTokens.lineLight);
+      expect(light.field, AppTokens.fieldLight);
+      expect(light.chip, AppTokens.chipLight);
+      expect(light.tint, AppTokens.tintLight);
+      expect(light.contrast, AppTokens.contrastLight);
+      expect(light.ring, AppTokens.ringLight);
+      expect(light.okForeground, AppTokens.okFgLight);
+      expect(light.warnForeground, AppTokens.warnFgLight);
+      expect(light.tab, AppTokens.tabLight);
     });
 
     test('lerp moves every role, not just a few', () {
       final mixed = AppPalette.light().lerp(AppPalette.dark(), 1.0);
 
-      expect(mixed.brand, AppTokens.brandDark);
-      expect(mixed.canvas, AppTokens.canvasDark);
+      expect(mixed.page, AppTokens.pageDark);
+      expect(mixed.card, AppTokens.cardDark);
       expect(mixed.ink, AppTokens.inkDark);
-      expect(mixed.border, AppTokens.borderDark);
+      expect(mixed.line, AppTokens.lineDark);
+      expect(mixed.okForeground, AppTokens.okFgDark);
+      expect(mixed.tab, AppTokens.tabDark);
+    });
+
+    test('lerp covers every role the class declares', () {
+      // lerp and copyWith both drive off one role list, so adding a role to
+      // the class without adding it there would fail here.
+      final half = AppPalette.light().lerp(AppPalette.dark(), 0.5);
+
+      expect(half.page, isNot(AppTokens.pageLight));
+      expect(half.page, isNot(AppTokens.pageDark));
     });
   });
 }

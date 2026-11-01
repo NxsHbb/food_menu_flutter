@@ -101,9 +101,17 @@ style with no `fontVariations` silently renders at the default weight, so build
 styles through `AppTypography.style()` rather than constructing `TextStyle`
 directly.
 
-**Dark mode is derived, not designed.** The supplied design covers light only.
-The dark values in `AppTokens` were chosen here and should be reviewed by a
-designer before release.
+Both light and dark come from the design's own `THEME` map in
+`designs/Food Ordering App.html`, and the role names in `AppTokens` and
+`AppPalette` mirror that map one-to-one — check a value against the design
+without translating vocabulary.
+
+**The brand red is the same in both modes.** The design declares it as a
+constant outside the theme map. Do not adjust it for dark-mode contrast; a
+test pins it.
+
+The only invented token is light-mode `ring`, because the design's value for it
+is self-referential. It is flagged in `AppTokens`.
 
 ## Configuration
 The backend URL is a compile-time define, never hard-coded to a machine:

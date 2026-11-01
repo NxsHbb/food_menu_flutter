@@ -24,8 +24,8 @@ class DishImagePlaceholder extends StatelessWidget {
 
     return CustomPaint(
       painter: _StripePainter(
-        light: palette.placeholderLight,
-        dark: palette.placeholderDark,
+        light: palette.placeholderStripe1,
+        dark: palette.placeholderStripe2,
         stripeWidth: stripeWidth,
       ),
       child: text == null
@@ -37,7 +37,7 @@ class DishImagePlaceholder extends StatelessWidget {
                   text,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: palette.placeholderInk,
+                        color: palette.muted,
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                 ),
