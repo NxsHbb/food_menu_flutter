@@ -15,6 +15,7 @@ v1 — see `PLAN.md`.
 | `wc/store/v1` | menu reads, cart writes | public for reads; `Nonce` + `Cart-Token` headers for cart |
 | `fmp/v1` | the one public route, `GET /track/{token}` | none |
 | `fmp/v1/app/*` | add-ons, order types, slots, branches, accounts — **built by this project** | bearer token |
+| `wp/v2` | landing-screen banner posts | none |
 
 The existing `fmp/v1` routes are nonce-gated and unusable from a mobile client;
 `FINDINGS.md` explains why and what that implies.
@@ -78,6 +79,18 @@ ones.** This is deliberate: the Store API answers a nonce-less write with 401
 *and a fresh `Nonce`*, so a client that only read successful responses could
 never make its first cart write. Do not "tidy" that into an `onResponse`-only
 interceptor.
+
+### Text from WordPress
+Every text field from both APIs arrives as rendered HTML, and `wp/v2` fields
+are entity-escaped on top — an ampersand reaches the app as `&#038;`. Pass
+anything displayed through `plainText()` in `core/util/html_text.dart`; never
+render an API string directly.
+
+### Banners
+The landing carousel reads WordPress posts in the **`app-banners`** category:
+post title, excerpt, featured image, and the first post tag as a badge. The
+category is resolved **by slug, never by id**, because term ids differ between
+sites. Nothing published there means no carousel at all, not an empty band.
 
 ### Money
 **Never parse a Store API price as a decimal.** Prices arrive as strings in

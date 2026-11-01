@@ -41,4 +41,8 @@ class AppConfig {
   /// does not cover (add-ons, order types, slots, branches, accounts).
   String get foodMenuApiBase => '$baseUrl/wp-json/fmp/v1';
 
+  /// Core WordPress REST, used for content that is not commerce — currently
+  /// the landing screen's banner posts.
+  String get wpApiBase => '$baseUrl/wp-json/wp/v2';
+
 }

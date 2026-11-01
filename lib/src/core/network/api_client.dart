@@ -59,6 +59,9 @@ class ApiClient {
   /// Absolute URL for a Food Menu plugin path, e.g. `track/abc123`.
   String foodMenuApi(String path) => '${_config.foodMenuApiBase}/$path';
 
+  /// Absolute URL for a core WordPress REST path, e.g. `posts`.
+  String wpApi(String path) => '${_config.wpApiBase}/$path';
+
   Future<T> get<T>(
     String url, {
     Map<String, dynamic>? query,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/store_api/models/product.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/util/html_text.dart';
 import '../../../../core/widgets/dish_image_placeholder.dart';
 
 /// The design's menu list row: square image, name, description, price, add.
@@ -27,7 +28,7 @@ class DishRow extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final image = product.primaryImage;
     final prices = product.prices;
-    final description = _plainText(product.shortDescription);
+    final description = plainText(product.shortDescription);
 
     return Material(
       color: palette.card,
@@ -124,25 +125,6 @@ class DishRow extends StatelessWidget {
     );
   }
 
-  /// Short descriptions arrive as HTML. This strips tags and decodes the few
-  /// entities WordPress actually emits, rather than pulling in a parser for
-  /// one line of text.
-  static String _plainText(String html) {
-    if (html.isEmpty) return '';
-    final stripped = html.replaceAll(RegExp(r'<[^>]*>'), ' ');
-    return stripped
-        .replaceAll('&nbsp;', ' ')
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .replaceAll('&#8217;', '’')
-        .replaceAll('&#8216;', '‘')
-        .replaceAll('&ldquo;', '“')
-        .replaceAll('&rdquo;', '”')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  }
 }
 
 class _AddButton extends StatelessWidget {
