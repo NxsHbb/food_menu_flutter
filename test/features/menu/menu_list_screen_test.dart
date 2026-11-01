@@ -8,6 +8,7 @@ import 'package:food_menu/src/features/menu/data/menu_repository.dart';
 import 'package:food_menu/src/features/menu/presentation/menu_list_screen.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/category_chips.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/dish_row.dart';
+import 'package:food_menu/src/features/menu/presentation/widgets/empty_search_result.dart';
 
 import 'fake_menu_repository.dart';
 
@@ -171,6 +172,104 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No dishes match “sushi”.'), findsOneWidget);
+  });
+
+  group('category suggestions on an empty search', () {
+    FakeMenuRepository repoWithPizza() => FakeMenuRepository(
+          categoryList: [
+            buildCategory(id: 10, name: 'Pizza', count: 4),
+            buildCategory(id: 11, name: 'Drinks', count: 2),
+          ],
+          // Nothing is *named* pizza, which is exactly the real situation.
+          productList: [
+            buildProduct(
+              id: 1,
+              name: 'Margherita',
+              categories: const [
+                {'id': 10, 'name': 'Pizza', 'slug': 'pizza'},
+              ],
+            ),
+          ],
+        );
+
+    testWidgets('offers the matching category instead of a dead end',
+        (tester) async {
+      await pump(tester, repository: repoWithPizza());
+
+      await tester.enterText(find.byType(TextField), 'pizza');
+      await tester.pump(searchDebounce);
+      await tester.pumpAndSettle();
+
+      expect(find.text('No dishes match “pizza”.'), findsOneWidget);
+      expect(find.text('Try this category instead'), findsOneWidget);
+      expect(find.byType(EmptySearchResult), findsOneWidget);
+      expect(find.text('4 dishes'), findsOneWidget);
+    });
+
+    testWidgets('tapping a suggestion browses that category', (tester) async {
+      final repo = repoWithPizza();
+      await pump(tester, repository: repo);
+
+      await tester.enterText(find.byType(TextField), 'pizza');
+      await tester.pump(searchDebounce);
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(EmptySearchResult),
+          matching: find.text('Pizza'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final last = repo.pageRequests.last;
+      expect(last.categoryId, 10);
+      // The search is abandoned, not combined with the category.
+      expect(last.search, anyOf(isNull, isEmpty));
+      expect(find.text('Margherita'), findsOneWidget);
+    });
+
+    testWidgets('clears the search field text as well as the query',
+        (tester) async {
+      await pump(tester, repository: repoWithPizza());
+
+      await tester.enterText(find.byType(TextField), 'pizza');
+      await tester.pump(searchDebounce);
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(EmptySearchResult),
+          matching: find.text('Pizza'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Leaving "pizza" in the box would read as the search having worked.
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller?.text, isEmpty);
+    });
+
+    testWidgets('no suggestion block when nothing relates to the term',
+        (tester) async {
+      await pump(tester, repository: repoWithPizza());
+
+      await tester.enterText(find.byType(TextField), 'sushi');
+      await tester.pump(searchDebounce);
+      await tester.pumpAndSettle();
+
+      expect(find.text('No dishes match “sushi”.'), findsOneWidget);
+      expect(find.text('Try this category instead'), findsNothing);
+      expect(find.text('Try these categories instead'), findsNothing);
+    });
+
+    testWidgets('an empty menu with no search keeps its own wording',
+        (tester) async {
+      await pump(tester, repository: FakeMenuRepository());
+
+      expect(find.text('Nothing on the menu here yet.'), findsOneWidget);
+      expect(find.byType(EmptySearchResult), findsNothing);
+    });
   });
 
   testWidgets('category selection scopes the request', (tester) async {

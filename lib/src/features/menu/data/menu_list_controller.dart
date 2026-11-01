@@ -116,6 +116,14 @@ class MenuQueryNotifier extends Notifier<MenuQuery> {
     state = state.copyWith(search: search);
   }
 
+  /// Switches to browsing a category, abandoning the search that led here.
+  ///
+  /// One state change rather than two, so the list is not rebuilt twice —
+  /// once for the cleared search and again for the new category.
+  void browseCategory(int id) {
+    state = const MenuQuery().copyWith(categoryId: id);
+  }
+
   /// Selects a category, or clears it when the selected one is tapped again.
   void toggleCategory(int? id) {
     if (id == null || state.categoryId == id) {

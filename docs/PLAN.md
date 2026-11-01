@@ -60,7 +60,7 @@ Runs entirely against today's Store API. No plugin changes.
 | 2.4 | Food tags on the detail screen, via `product_tag` | app | done |
 | 2.7 | **Blocked, needs a decision.** Ingredients and nutrition: unreachable for WooCommerce products — see `FINDINGS.md`. Either extend the plugin's Food Data metabox and REST to `product`, model them as product attributes, or drop from v1 | pro + app | blocked |
 | 2.5 | Banner carousel on the landing screen, sourced from WordPress posts in a dedicated category via `wp/v2/posts` | app | done |
-| 2.6 | Category suggestions when a search returns no dishes, so "pizza" offers the Pizza category instead of an empty screen | app | todo |
+| 2.6 | Category suggestions when a search returns no dishes, so "pizza" offers the Pizza category instead of an empty screen | app | done |
 
 ## Phase 3 — Customer accounts
 `fmp/v1` is nonce-gated and unusable from a mobile client (see `FINDINGS.md`),
