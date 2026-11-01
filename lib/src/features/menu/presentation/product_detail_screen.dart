@@ -6,6 +6,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/store_api/models/product.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/util/html_text.dart';
 import '../../../core/widgets/dish_image_placeholder.dart';
 import 'widgets/food_tags.dart';
 import '../data/menu_repository.dart';
@@ -185,7 +186,7 @@ class _Body extends StatelessWidget {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
     final prices = product.prices;
-    final description = _plainText(product.description);
+    final description = plainText(product.description);
     final lowStock = product.lowStockWarning;
 
     return Column(
@@ -262,19 +263,6 @@ class _Body extends StatelessWidget {
     );
   }
 
-  static String _plainText(String html) {
-    if (html.isEmpty) return '';
-    return html
-        .replaceAll(RegExp(r'<[^>]*>'), ' ')
-        .replaceAll('&nbsp;', ' ')
-        .replaceAll('&amp;', '&')
-        .replaceAll('&#8217;', '’')
-        .replaceAll('&#8216;', '‘')
-        .replaceAll('&ldquo;', '“')
-        .replaceAll('&rdquo;', '”')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  }
 }
 
 /// Out-of-stock or low-stock notice, preferring the site's own wording.

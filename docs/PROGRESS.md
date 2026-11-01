@@ -19,6 +19,40 @@ Recorded in `PLAN.md`:
   offers the Pizza category instead of an empty screen. Client-side against
   the already-loaded category list. Added as task 2.6.
 
+## Task 2.5 — Banner carousel from WordPress posts
+Branch `feat/banner-carousel`
+
+- Reads posts in the **`app-banners`** category through `wp/v2/posts`: title,
+  excerpt, featured image, and the first post tag as a badge. No plugin code
+  and no custom fields — the team edits banners in WordPress today.
+- **The category is resolved by slug, never by id.** Term ids differ between
+  the dev site and production, so a hard-coded id would silently return
+  nothing live. Costs one extra request, which is the right trade.
+- One request fetches artwork and tags with the posts, via
+  `_embed=wp:featuredmedia,wp:term`, rather than one request per banner.
+- Prefers a sized rendition over `full`, which can be a multi-megabyte upload.
+- **Banner failures resolve to an empty list, not an error.** A banner is
+  decoration; a down posts endpoint must not take the menu with it. Nothing
+  published means no carousel at all rather than an empty band.
+- Set the category up on the dev site and seeded two banners using the
+  design's own artwork, so this was built against real payloads. Saved as a
+  fixture.
+
+Extracted `plainText()` into `core/util/html_text.dart` and routed the two
+existing copies through it. It now also decodes **numeric** entities, which
+matters because `wp/v2` returns an ampersand as `&#038;` rather than `&amp;` —
+the old copies would have rendered that literally.
+
+Also tightened the screen tests: they now override the banner repository
+instead of reaching the real posts endpoint and relying on the error fallback
+to hide a live request.
+
+**Still open:** a banner opens the full menu, because `wp/v2/posts` exposes
+only registered meta and registering a field needs plugin code. Per-banner
+targets are a small follow-up.
+
+132 tests pass, `flutter analyze` clean.
+
 ## Task 2.4 — Food tags on the detail screen (ingredients and nutrition blocked)
 Branch `feat/dish-details`
 

@@ -59,7 +59,7 @@ Runs entirely against today's Store API. No plugin changes.
 | 2.3 | Product detail: images, description, variable and sale pricing, stock state | app | todo |
 | 2.4 | Food tags on the detail screen, via `product_tag` | app | done |
 | 2.7 | **Blocked, needs a decision.** Ingredients and nutrition: unreachable for WooCommerce products — see `FINDINGS.md`. Either extend the plugin's Food Data metabox and REST to `product`, model them as product attributes, or drop from v1 | pro + app | blocked |
-| 2.5 | Banner carousel on the landing screen, sourced from WordPress posts in a dedicated category via `wp/v2/posts` | app | todo |
+| 2.5 | Banner carousel on the landing screen, sourced from WordPress posts in a dedicated category via `wp/v2/posts` | app | done |
 | 2.6 | Category suggestions when a search returns no dishes, so "pizza" offers the Pizza category instead of an empty screen | app | todo |
 
 ## Phase 3 — Customer accounts
@@ -147,9 +147,13 @@ them.
 ## Open dependencies
 - **Payment gateways** — card and PayPal are deferred, so v1 needs cash on
   delivery enabled on the WooCommerce site. To be confirmed.
-- **Banner category** — task 2.5 needs an agreed category slug and someone to
-  publish the first posts. The design's second banner advertises a coupon
-  code, which is a v2 feature, so that banner cannot be reproduced as drawn.
+- **Banner tap targets** — a banner currently opens the full menu, because
+  `wp/v2/posts` only exposes *registered* meta and registering a field needs
+  plugin code. Per-banner targets are a small follow-up: one
+  `register_post_meta` call plus a field on `PromoBanner`. Say if wanted.
+- **The design's coupon banner** ("10% off / SAVE10") cannot be reproduced as
+  drawn, because coupons are v2. The seeded equivalent carries an "Offer"
+  badge and no code.
 - **The heart is absent from dish cards and rows until task 3.6**, because
   wishlist is server-backed and depends on Phase 3 accounts.
 - **Ingredients and nutrition (task 2.7)** are blocked on a data-model

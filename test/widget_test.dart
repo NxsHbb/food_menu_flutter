@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/app.dart';
+import 'package:food_menu/src/features/menu/data/banner_repository.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
 
+import 'features/menu/fake_banner_repository.dart';
 import 'features/menu/fake_menu_repository.dart';
 
 void main() {
@@ -19,6 +21,7 @@ void main() {
               productList: [buildProduct()],
             ),
           ),
+          bannerRepositoryProvider.overrideWithValue(FakeBannerRepository()),
         ],
         child: const FoodMenuApp(),
       ),

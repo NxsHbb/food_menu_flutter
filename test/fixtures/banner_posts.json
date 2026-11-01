@@ -1,0 +1,604 @@
+[
+    {
+        "id": 34,
+        "date": "2026-11-01T07:09:11",
+        "date_gmt": "2026-11-01T07:09:11",
+        "guid": {
+            "rendered": "http://192.168.0.171:8080/bbq-crispy-chicken/"
+        },
+        "modified": "2026-11-01T07:09:11",
+        "modified_gmt": "2026-11-01T07:09:11",
+        "slug": "bbq-crispy-chicken",
+        "status": "publish",
+        "type": "post",
+        "link": "http://192.168.0.171:8080/bbq-crispy-chicken/",
+        "title": {
+            "rendered": "BBQ Crispy Chicken"
+        },
+        "content": {
+            "rendered": "",
+            "protected": false
+        },
+        "excerpt": {
+            "rendered": "<p>Extra cheese &#038; bacon</p>\n",
+            "protected": false
+        },
+        "author": 0,
+        "featured_media": 32,
+        "comment_status": "open",
+        "ping_status": "open",
+        "sticky": false,
+        "template": "",
+        "format": "standard",
+        "meta": {
+            "footnotes": ""
+        },
+        "categories": [
+            29
+        ],
+        "tags": [
+            30
+        ],
+        "class_list": [
+            "post-34",
+            "post",
+            "type-post",
+            "status-publish",
+            "format-standard",
+            "has-post-thumbnail",
+            "hentry",
+            "category-app-banners",
+            "tag-new"
+        ],
+        "_links": {
+            "self": [
+                {
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/posts/34",
+                    "targetHints": {
+                        "allow": [
+                            "GET"
+                        ]
+                    }
+                }
+            ],
+            "collection": [
+                {
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/posts"
+                }
+            ],
+            "about": [
+                {
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/types/post"
+                }
+            ],
+            "replies": [
+                {
+                    "embeddable": true,
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/comments?post=34"
+                }
+            ],
+            "version-history": [
+                {
+                    "count": 0,
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/posts/34/revisions"
+                }
+            ],
+            "wp:featuredmedia": [
+                {
+                    "embeddable": true,
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/media/32"
+                }
+            ],
+            "wp:attachment": [
+                {
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/media?parent=34"
+                }
+            ],
+            "wp:term": [
+                {
+                    "taxonomy": "category",
+                    "embeddable": true,
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/categories?post=34"
+                },
+                {
+                    "taxonomy": "post_tag",
+                    "embeddable": true,
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/tags?post=34"
+                }
+            ],
+            "curies": [
+                {
+                    "name": "wp",
+                    "href": "https://api.w.org/{rel}",
+                    "templated": true
+                }
+            ]
+        },
+        "_embedded": {
+            "wp:featuredmedia": [
+                {
+                    "id": 32,
+                    "date": "2026-11-01T07:08:56",
+                    "slug": "banner-burger",
+                    "type": "attachment",
+                    "link": "http://192.168.0.171:8080/banner-burger/",
+                    "title": {
+                        "rendered": "Banner burger"
+                    },
+                    "author": 0,
+                    "featured_media": 0,
+                    "caption": {
+                        "rendered": ""
+                    },
+                    "alt_text": "",
+                    "media_type": "image",
+                    "mime_type": "image/png",
+                    "media_details": {
+                        "width": 173,
+                        "height": 120,
+                        "file": "2026/11/burger.png",
+                        "filesize": 51148,
+                        "sizes": {
+                            "thumbnail": {
+                                "file": "burger-150x120.png",
+                                "width": 150,
+                                "height": 120,
+                                "filesize": 40959,
+                                "mime_type": "image/png",
+                                "source_url": "http://192.168.0.171:8080/wp-content/uploads/2026/11/burger-150x120.png"
+                            },
+                            "woocommerce_gallery_thumbnail": {
+                                "file": "burger-100x100.png",
+                                "width": 100,
+                                "height": 100,
+                                "filesize": 23233,
+                                "mime_type": "image/png",
+                                "source_url": "http://192.168.0.171:8080/wp-content/uploads/2026/11/burger-100x100.png"
+                            },
+                            "full": {
+                                "file": "burger.png",
+                                "width": 173,
+                                "height": 120,
+                                "mime_type": "image/png",
+                                "source_url": "http://192.168.0.171:8080/wp-content/uploads/2026/11/burger.png"
+                            }
+                        },
+                        "image_meta": {
+                            "aperture": "0",
+                            "credit": "",
+                            "camera": "",
+                            "caption": "",
+                            "created_timestamp": "0",
+                            "copyright": "",
+                            "focal_length": "0",
+                            "iso": "0",
+                            "shutter_speed": "0",
+                            "title": "",
+                            "orientation": "0",
+                            "keywords": [],
+                            "alt": ""
+                        }
+                    },
+                    "source_url": "http://192.168.0.171:8080/wp-content/uploads/2026/11/burger.png",
+                    "_links": {
+                        "self": [
+                            {
+                                "href": "http://192.168.0.171:8080/wp-json/wp/v2/media/32",
+                                "targetHints": {
+                                    "allow": [
+                                        "GET"
+                                    ]
+                                }
+                            }
+                        ],
+                        "collection": [
+                            {
+                                "href": "http://192.168.0.171:8080/wp-json/wp/v2/media"
+                            }
+                        ],
+                        "about": [
+                            {
+                                "href": "http://192.168.0.171:8080/wp-json/wp/v2/types/attachment"
+                            }
+                        ],
+                        "replies": [
+                            {
+                                "embeddable": true,
+                                "href": "http://192.168.0.171:8080/wp-json/wp/v2/comments?post=32"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "wp:term": [
+                [
+                    {
+                        "id": 29,
+                        "link": "http://192.168.0.171:8080/category/app-banners/",
+                        "name": "App Banners",
+                        "slug": "app-banners",
+                        "taxonomy": "category",
+                        "_links": {
+                            "self": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/categories/29",
+                                    "targetHints": {
+                                        "allow": [
+                                            "GET"
+                                        ]
+                                    }
+                                }
+                            ],
+                            "collection": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/categories"
+                                }
+                            ],
+                            "about": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/taxonomies/category"
+                                }
+                            ],
+                            "wp:post_type": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/posts?categories=29"
+                                }
+                            ],
+                            "curies": [
+                                {
+                                    "name": "wp",
+                                    "href": "https://api.w.org/{rel}",
+                                    "templated": true
+                                }
+                            ]
+                        }
+                    }
+                ],
+                [
+                    {
+                        "id": 30,
+                        "link": "http://192.168.0.171:8080/tag/new/",
+                        "name": "New",
+                        "slug": "new",
+                        "taxonomy": "post_tag",
+                        "_links": {
+                            "self": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/tags/30",
+                                    "targetHints": {
+                                        "allow": [
+                                            "GET"
+                                        ]
+                                    }
+                                }
+                            ],
+                            "collection": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/tags"
+                                }
+                            ],
+                            "about": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/taxonomies/post_tag"
+                                }
+                            ],
+                            "wp:post_type": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/posts?tags=30"
+                                }
+                            ],
+                            "curies": [
+                                {
+                                    "name": "wp",
+                                    "href": "https://api.w.org/{rel}",
+                                    "templated": true
+                                }
+                            ]
+                        }
+                    }
+                ]
+            ]
+        }
+    },
+    {
+        "id": 35,
+        "date": "2026-11-01T07:09:11",
+        "date_gmt": "2026-11-01T07:09:11",
+        "guid": {
+            "rendered": "http://192.168.0.171:8080/first-order-offer/"
+        },
+        "modified": "2026-11-01T07:09:11",
+        "modified_gmt": "2026-11-01T07:09:11",
+        "slug": "first-order-offer",
+        "status": "publish",
+        "type": "post",
+        "link": "http://192.168.0.171:8080/first-order-offer/",
+        "title": {
+            "rendered": "First order offer"
+        },
+        "content": {
+            "rendered": "",
+            "protected": false
+        },
+        "excerpt": {
+            "rendered": "<p>Use code at checkout</p>\n",
+            "protected": false
+        },
+        "author": 0,
+        "featured_media": 33,
+        "comment_status": "open",
+        "ping_status": "open",
+        "sticky": false,
+        "template": "",
+        "format": "standard",
+        "meta": {
+            "footnotes": ""
+        },
+        "categories": [
+            29
+        ],
+        "tags": [
+            31
+        ],
+        "class_list": [
+            "post-35",
+            "post",
+            "type-post",
+            "status-publish",
+            "format-standard",
+            "has-post-thumbnail",
+            "hentry",
+            "category-app-banners",
+            "tag-offer"
+        ],
+        "_links": {
+            "self": [
+                {
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/posts/35",
+                    "targetHints": {
+                        "allow": [
+                            "GET"
+                        ]
+                    }
+                }
+            ],
+            "collection": [
+                {
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/posts"
+                }
+            ],
+            "about": [
+                {
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/types/post"
+                }
+            ],
+            "replies": [
+                {
+                    "embeddable": true,
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/comments?post=35"
+                }
+            ],
+            "version-history": [
+                {
+                    "count": 0,
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/posts/35/revisions"
+                }
+            ],
+            "wp:featuredmedia": [
+                {
+                    "embeddable": true,
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/media/33"
+                }
+            ],
+            "wp:attachment": [
+                {
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/media?parent=35"
+                }
+            ],
+            "wp:term": [
+                {
+                    "taxonomy": "category",
+                    "embeddable": true,
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/categories?post=35"
+                },
+                {
+                    "taxonomy": "post_tag",
+                    "embeddable": true,
+                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/tags?post=35"
+                }
+            ],
+            "curies": [
+                {
+                    "name": "wp",
+                    "href": "https://api.w.org/{rel}",
+                    "templated": true
+                }
+            ]
+        },
+        "_embedded": {
+            "wp:featuredmedia": [
+                {
+                    "id": 33,
+                    "date": "2026-11-01T07:08:57",
+                    "slug": "banner-pizza",
+                    "type": "attachment",
+                    "link": "http://192.168.0.171:8080/banner-pizza/",
+                    "title": {
+                        "rendered": "Banner pizza"
+                    },
+                    "author": 0,
+                    "featured_media": 0,
+                    "caption": {
+                        "rendered": ""
+                    },
+                    "alt_text": "",
+                    "media_type": "image",
+                    "mime_type": "image/png",
+                    "media_details": {
+                        "width": 173,
+                        "height": 120,
+                        "file": "2026/11/pizza.png",
+                        "filesize": 57455,
+                        "sizes": {
+                            "thumbnail": {
+                                "file": "pizza-150x120.png",
+                                "width": 150,
+                                "height": 120,
+                                "filesize": 47285,
+                                "mime_type": "image/png",
+                                "source_url": "http://192.168.0.171:8080/wp-content/uploads/2026/11/pizza-150x120.png"
+                            },
+                            "woocommerce_gallery_thumbnail": {
+                                "file": "pizza-100x100.png",
+                                "width": 100,
+                                "height": 100,
+                                "filesize": 25477,
+                                "mime_type": "image/png",
+                                "source_url": "http://192.168.0.171:8080/wp-content/uploads/2026/11/pizza-100x100.png"
+                            },
+                            "full": {
+                                "file": "pizza.png",
+                                "width": 173,
+                                "height": 120,
+                                "mime_type": "image/png",
+                                "source_url": "http://192.168.0.171:8080/wp-content/uploads/2026/11/pizza.png"
+                            }
+                        },
+                        "image_meta": {
+                            "aperture": "0",
+                            "credit": "",
+                            "camera": "",
+                            "caption": "",
+                            "created_timestamp": "0",
+                            "copyright": "",
+                            "focal_length": "0",
+                            "iso": "0",
+                            "shutter_speed": "0",
+                            "title": "",
+                            "orientation": "0",
+                            "keywords": [],
+                            "alt": ""
+                        }
+                    },
+                    "source_url": "http://192.168.0.171:8080/wp-content/uploads/2026/11/pizza.png",
+                    "_links": {
+                        "self": [
+                            {
+                                "href": "http://192.168.0.171:8080/wp-json/wp/v2/media/33",
+                                "targetHints": {
+                                    "allow": [
+                                        "GET"
+                                    ]
+                                }
+                            }
+                        ],
+                        "collection": [
+                            {
+                                "href": "http://192.168.0.171:8080/wp-json/wp/v2/media"
+                            }
+                        ],
+                        "about": [
+                            {
+                                "href": "http://192.168.0.171:8080/wp-json/wp/v2/types/attachment"
+                            }
+                        ],
+                        "replies": [
+                            {
+                                "embeddable": true,
+                                "href": "http://192.168.0.171:8080/wp-json/wp/v2/comments?post=33"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "wp:term": [
+                [
+                    {
+                        "id": 29,
+                        "link": "http://192.168.0.171:8080/category/app-banners/",
+                        "name": "App Banners",
+                        "slug": "app-banners",
+                        "taxonomy": "category",
+                        "_links": {
+                            "self": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/categories/29",
+                                    "targetHints": {
+                                        "allow": [
+                                            "GET"
+                                        ]
+                                    }
+                                }
+                            ],
+                            "collection": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/categories"
+                                }
+                            ],
+                            "about": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/taxonomies/category"
+                                }
+                            ],
+                            "wp:post_type": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/posts?categories=29"
+                                }
+                            ],
+                            "curies": [
+                                {
+                                    "name": "wp",
+                                    "href": "https://api.w.org/{rel}",
+                                    "templated": true
+                                }
+                            ]
+                        }
+                    }
+                ],
+                [
+                    {
+                        "id": 31,
+                        "link": "http://192.168.0.171:8080/tag/offer/",
+                        "name": "Offer",
+                        "slug": "offer",
+                        "taxonomy": "post_tag",
+                        "_links": {
+                            "self": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/tags/31",
+                                    "targetHints": {
+                                        "allow": [
+                                            "GET"
+                                        ]
+                                    }
+                                }
+                            ],
+                            "collection": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/tags"
+                                }
+                            ],
+                            "about": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/taxonomies/post_tag"
+                                }
+                            ],
+                            "wp:post_type": [
+                                {
+                                    "href": "http://192.168.0.171:8080/wp-json/wp/v2/posts?tags=31"
+                                }
+                            ],
+                            "curies": [
+                                {
+                                    "name": "wp",
+                                    "href": "https://api.w.org/{rel}",
+                                    "templated": true
+                                }
+                            ]
+                        }
+                    }
+                ]
+            ]
+        }
+    }
+]

@@ -4,11 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/core/widgets/dish_image_placeholder.dart';
+import 'package:food_menu/src/features/menu/data/banner_repository.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
 import 'package:food_menu/src/features/menu/presentation/menu_screen.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/category_chips.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/dish_card.dart';
 
+import 'fake_banner_repository.dart';
 import 'fake_menu_repository.dart';
 
 /// The chip, not the section header — after a category is selected its name
@@ -27,7 +29,10 @@ void main() {
     final repo = repository ?? FakeMenuRepository();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [menuRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          menuRepositoryProvider.overrideWithValue(repo),
+          bannerRepositoryProvider.overrideWithValue(FakeBannerRepository()),
+        ],
         child: MaterialApp(
           theme: theme ?? AppTheme.light(),
           home: const MenuScreen(),
@@ -45,6 +50,7 @@ void main() {
           menuRepositoryProvider.overrideWithValue(
             FakeMenuRepository(delay: const Duration(milliseconds: 50)),
           ),
+          bannerRepositoryProvider.overrideWithValue(FakeBannerRepository()),
         ],
         child: MaterialApp(theme: AppTheme.light(), home: const MenuScreen()),
       ),

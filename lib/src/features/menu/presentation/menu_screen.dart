@@ -8,20 +8,21 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../data/banner_repository.dart';
 import '../data/menu_repository.dart';
 import 'menu_list_screen.dart';
 import 'product_detail_screen.dart';
+import 'widgets/banner_carousel.dart';
 import 'widgets/category_chips.dart';
 import 'widgets/dish_card.dart';
 import 'widgets/menu_header.dart';
 
 /// The menu landing screen: header, category chips and a dish grid.
 ///
-/// The design also shows a promotional banner carousel between the header and
-/// the chips. It is **not built**, because nothing in either plugin supplies
-/// banners — the content in the design is hard-coded, and one of the two
-/// banners promotes a coupon code, which is a v2 feature. Needs a data source
-/// before it can be real.
+/// The banner carousel between the header and the chips reads WordPress posts
+/// in the `app-banners` category. It disappears entirely when nothing is
+/// published there, so a site that never uses banners sees the design minus
+/// one band rather than an empty slot.
 class MenuScreen extends ConsumerWidget {
   const MenuScreen({super.key});
 
@@ -30,6 +31,7 @@ class MenuScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final banners = ref.watch(bannersProvider);
     final categories = ref.watch(menuCategoriesProvider);
     final products = ref.watch(menuProductsProvider);
     final selectedId = ref.watch(selectedCategoryProvider);
@@ -37,11 +39,14 @@ class MenuScreen extends ConsumerWidget {
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(menuCategoriesProvider);
-          ref.invalidate(menuProductsProvider);
+          ref
+            ..invalidate(menuCategoriesProvider)
+            ..invalidate(menuProductsProvider)
+            ..invalidate(bannersProvider);
           await Future.wait([
             ref.read(menuCategoriesProvider.future),
             ref.read(menuProductsProvider.future),
+            ref.read(bannersProvider.future),
           ]);
         },
         child: CustomScrollView(
@@ -57,6 +62,21 @@ class MenuScreen extends ConsumerWidget {
                 onSearchTap: () =>
                     context.goNamed(MenuListScreen.routeName),
               ),
+            ),
+            SliverToBoxAdapter(
+              child: switch (banners) {
+                // Absent while loading and when empty: a placeholder band
+                // would push the menu down for nothing.
+                AsyncData(:final value) when value.isNotEmpty => Padding(
+                    padding: const EdgeInsets.only(top: AppTokens.space16),
+                    child: BannerCarousel(
+                      banners: value,
+                      onTap: (_) =>
+                          context.goNamed(MenuListScreen.routeName),
+                    ),
+                  ),
+                _ => const SizedBox.shrink(),
+              },
             ),
             SliverToBoxAdapter(
               child: switch (categories) {
