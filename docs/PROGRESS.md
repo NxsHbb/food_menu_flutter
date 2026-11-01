@@ -2,6 +2,49 @@
 
 Newest first. One entry per completed task.
 
+## Task 2.1 — Menu landing screen and categories
+Branch `feat/menu-landing`
+
+- `MenuRepository` reads `products` and `products/categories` from the Store
+  API. Both are public, so the menu loads before anyone signs in. Verified the
+  exact queries against the live site, including `hide_empty` and
+  `catalog_visibility=catalog`, so the menu never lists a dish that fails at
+  add-to-cart.
+- Empty categories are filtered in the repository, not the UI: a chip leading
+  to an empty list is never useful, and only this layer sees the count.
+- Screen renders the design's red header (address, greeting, search entry),
+  the category chip row with a leading **All** chip, a section title that
+  follows the selection, and a responsive dish grid. Pull to refresh.
+- `DishCard` shows image, name, rating, price and the add button. A dish
+  needing choices routes to the detail screen rather than disabling its add
+  button, which would read as out of stock.
+- The rating row is replaced by "No reviews yet" at zero reviews, because
+  "★ 0.0 (0)" reads as a bad score rather than no score.
+
+**Two layout bugs the tests caught**, both fixed structurally rather than by
+tuning numbers:
+- The card overflowed 11px vertically with a fixed image aspect ratio. The
+  image is now `Expanded`, so it absorbs whatever height the text block
+  leaves — which changes with the platform text scale.
+- The price row overflowed 24px horizontally on a discounted dish, where two
+  prices sit side by side. It is a `Wrap` now, so the struck price drops
+  below on a narrow card.
+
+**Three things the design shows that are deliberately not built**, because no
+data source exists:
+- the **promotional banner carousel** — nothing in either plugin supplies
+  banners, the design's content is hard-coded, and one banner advertises a
+  coupon code, which is v2;
+- the **favourite heart** on each card — needs the wishlist decision;
+- the **per-dish prep time** — no Store API field supplies it.
+
+Faking any of them would put a number on screen the backend cannot stand
+behind. The header's address and greeting are placeholders for the same
+reason, pending branches (5.5) and accounts (3.3), and are passed in from the
+screen so the invented copy sits in one visible place.
+
+84 tests pass, `flutter analyze` clean.
+
 ## Fix — rebuild dark mode from the design's own theme map
 Branch `fix/dark-mode-from-design`
 

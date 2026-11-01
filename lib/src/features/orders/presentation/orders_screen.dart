@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../menu/presentation/menu_screen.dart';
+import '../../../core/widgets/feature_placeholder.dart';
 
 /// Orders screen. Filled in by Phase 7.
 class OrdersScreen extends StatelessWidget {

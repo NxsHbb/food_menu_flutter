@@ -51,7 +51,7 @@ Runs entirely against today's Store API. No plugin changes.
 
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 2.1 | Category list and menu landing screen | app | todo |
+| 2.1 | Category list and menu landing screen | app | done |
 | 2.2 | Product list with pagination, category filter and search | app | todo |
 | 2.3 | Product detail: images, description, variable and sale pricing, stock state | app | todo |
 | 2.4 | Ingredients, nutrition and food tags on the detail screen | app | todo |
