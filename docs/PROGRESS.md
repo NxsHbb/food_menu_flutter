@@ -2,6 +2,33 @@
 
 Newest first. One entry per completed task.
 
+## Task 1.3 — Design system: tokens, typography, light and dark themes
+Branch `feat/design-system`
+
+- `AppTokens` holds every raw value from the design — brand `#F20800`, the
+  neutral ramp, the 12/14/16/18/20 radius scale and the 2→24 spacing run.
+  Nothing outside that file hard-codes a hex or a radius.
+- `AppPalette` is a `ThemeExtension`, so a widget calls
+  `AppPalette.of(context)` and gets the right values in either mode without
+  asking which one is active.
+- **Plus Jakarta Sans is bundled, not fetched.** Only a *variable* font is
+  published upstream, so weights are driven with
+  `fontVariations: [FontVariation('wght', …)]` **as well as** `fontWeight`.
+  Setting `fontWeight` alone renders the whole scale at one weight — it looks
+  like the theme ignoring the design, and a test guards against it.
+- Theme styles buttons, inputs, chips, cards, nav bar and sheets from the
+  tokens, so most screens need no local styling. The primary CTA matches the
+  design exactly: 48px tall, 14px radius, 14/700 label.
+- `DishImagePlaceholder` draws the design's 135° stripe fill for dishes with
+  no photo. It is in `core/widgets` because home, menu, cart, upsells and
+  order thumbnails all use it.
+- **Dark mode is derived, not designed.** The design is light-only, so the
+  dark surfaces are warm neutrals matching the warm light canvas, and the
+  brand red is lifted to `#FF5436` because `#F20800` reads muddy on dark and
+  its contrast with white text is already marginal. Worth a designer's review.
+- Verified the font actually ships: it appears in `FontManifest.json` and
+  `build/flutter_assets`. 34 tests pass, `flutter analyze` clean.
+
 ## Task 1.2 — HTTP client, error mapping, Store API session
 Branch `feat/http-client`
 

@@ -19,6 +19,9 @@ class FoodMenuApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
+      // Follows the device. The design covers light only, so the dark
+      // palette is derived — see AppTokens.
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }

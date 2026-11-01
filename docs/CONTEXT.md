@@ -30,7 +30,11 @@ lib/
     core/
       config/app_config.dart    base URL and derived API bases
       router/app_router.dart    GoRouter + bottom-nav shell
-      theme/app_theme.dart      interim theme (replaced in task 1.3)
+      theme/app_tokens.dart     raw design values — the only place hexes live
+      theme/app_palette.dart    semantic roles as a ThemeExtension
+      theme/app_typography.dart type scale (variable-font weights)
+      theme/app_theme.dart      ThemeData for light and dark
+      widgets/                  widgets shared across features
     features/
       <feature>/
         presentation/           screens and widgets
@@ -73,6 +77,22 @@ ones.** This is deliberate: the Store API answers a nonce-less write with 401
 *and a fresh `Nonce`*, so a client that only read successful responses could
 never make its first cart write. Do not "tidy" that into an `onResponse`-only
 interceptor.
+
+### Theming
+Colours, radii and spacing come from `AppTokens`; **no hex, radius or spacing
+literal belongs anywhere else.** Widgets read semantic roles with
+`AppPalette.of(context)` rather than branching on brightness.
+
+The bundled Plus Jakarta Sans is a **variable** font, because that is the only
+form published upstream. Every text style therefore sets the weight twice — in
+`fontWeight` for layout and in `fontVariations` to move the `wght` axis. A
+style with no `fontVariations` silently renders at the default weight, so build
+styles through `AppTypography.style()` rather than constructing `TextStyle`
+directly.
+
+**Dark mode is derived, not designed.** The supplied design covers light only.
+The dark values in `AppTokens` were chosen here and should be reviewed by a
+designer before release.
 
 ## Configuration
 The backend URL is a compile-time define, never hard-coded to a machine:

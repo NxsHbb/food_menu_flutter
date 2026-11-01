@@ -60,6 +60,14 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  fonts:
+    # Plus Jakarta Sans, per the design. This is the VARIABLE font, so weights
+    # are driven with FontVariation('wght', …) in AppTypography — declaring
+    # per-weight entries against one variable file would not interpolate.
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Variable.ttf
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
