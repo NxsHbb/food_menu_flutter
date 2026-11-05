@@ -19,6 +19,49 @@ Recorded in `PLAN.md`:
   offers the Pizza category instead of an empty screen. Client-side against
   the already-loaded category list. Added as task 2.6.
 
+## iOS on a physical device — what was actually wrong
+Branch: `fix/ios-local-network`. Follows the Android/iOS signing work below.
+
+The iPhone showed no products and "could not reach server". Three separate
+things were going on, and two of them were me measuring the wrong thing.
+
+1. **The app was never running.** A debug Flutter build cannot be launched from
+   the iOS home screen; tapping the icon shows a black placeholder and the Dart
+   code never executes. `devicectl process launch` reports success anyway, and
+   the process exists, so "launched successfully" was not evidence of anything.
+   **`--profile` is required on a physical iPhone.**
+2. **iOS needs two permissions, not one.** `NSAllowsLocalNetworking` only
+   relaxes ATS. Since iOS 14 a LAN connection also needs the Local Network
+   privacy permission, which requires `NSLocalNetworkUsageDescription`. Without
+   it the system denies the connection **silently, with no packets leaving the
+   device**. Simulators do not enforce it. The key is now set.
+3. **The dev server was hiding the evidence.** PHP's built-in server does not
+   log requests handled by `router.php`, so a working REST API looks silent. A
+   temporary `muplugins_loaded` logger gave ground truth and showed the iPhone
+   (192.168.0.116) sending *nothing* while Safari on the same handset loaded
+   the site fine — which is what finally separated network from app.
+
+### How it was resolved
+Habib opened up the live site, which runs the merged Pro plugin over **HTTPS**.
+A public HTTPS host needs neither cleartext ATS nor the Local Network
+permission, so it is now the iOS testing target. He confirmed **Account → Sign
+in works on the iPhone** against it.
+
+The residual "iPhone cannot reach the LAN dev site" problem is therefore unproven —
+most likely stale privacy state from the installs that predated the usage
+string. The `Info.plist` key is correct regardless and stays.
+
+### The live site is now seeded
+It started as a **non-WooCommerce** install, which usefully exercised the
+fallback paths: registration fell back to `wp_insert_user`, and the address
+endpoints returned a clean `503 fmp_app_woocommerce_missing` rather than
+crashing. After WooCommerce was installed it was seeded to mirror the local
+demo — 16 products (one variable, one out of stock, three on sale), 6
+categories, 7 tags, 6 uploaded images and 2 banner posts. Verified through the
+app's own API calls, then rendered on the Android device against the live site.
+
+A test customer was created there: `claude.devicetest@foodmenu.test`.
+
 ## Device enablement — Android network config, iOS signing
 Branch: `fix/android-network-config`. Not a planned task: it came out of
 running task 3.3's work on the attached physical devices rather than only the

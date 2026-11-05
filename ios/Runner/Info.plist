@@ -56,6 +56,17 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- Required separately from the ATS key above: since iOS 14 a connection
+	     to a local-network address also needs the Local Network privacy
+	     permission, and without a purpose string here the system denies it
+	     outright — silently, with no packets leaving the device. Simulators do
+	     not enforce this, so it only ever shows up on a real handset.
+
+	     This costs production nothing: the prompt is triggered by actually
+	     touching the local network, not by the key existing, so a build
+	     pointed at a public HTTPS host never asks. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Food Menu connects to your restaurant's server. Allow local network access when that server is on the same Wi-Fi, such as an on-site installation or a development machine.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
