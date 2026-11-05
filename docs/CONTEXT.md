@@ -18,7 +18,9 @@ v1 — see `PLAN.md`.
 | `wp/v2` | landing-screen banner posts | none |
 
 The existing `fmp/v1` routes are nonce-gated and unusable from a mobile client;
-`FINDINGS.md` explains why and what that implies.
+`FINDINGS.md` explains why and what that implies. `fmp/v1/app/*` exists for
+exactly that reason — it is a separate prefix with no nonce anywhere, and its
+auth half now exists on the plugin's `mobile-app` branch (task 3.1).
 
 ## Architecture
 Feature-first, with a thin shared core.
@@ -79,6 +81,27 @@ ones.** This is deliberate: the Store API answers a nonce-less write with 401
 *and a fresh `Nonce`*, so a client that only read successful responses could
 never make its first cart write. Do not "tidy" that into an `onResponse`-only
 interceptor.
+
+### Accounts and the bearer token
+The plugin side landed in task 3.1 (food-menu-pro#6); the Flutter half is tasks
+3.3 and 3.4. What the client has to honour:
+
+- `POST fmp/v1/app/auth/{register,login,refresh,logout}`. Register and login
+  both return `{token_type, access_token, expires_in, refresh_token,
+  refresh_expires_in, user}`. The access token lives an hour, the refresh token
+  thirty days.
+- Authenticate with `Authorization: Bearer <access_token>`. The server resolves
+  it into the real WordPress current user, so the same token also authenticates
+  Store API cart and checkout calls later — one credential for the whole app.
+- **Refreshes must be serialised behind a single mutex.** Replaying a spent
+  refresh token revokes the session server-side, so two concurrent 401s each
+  kicking off their own refresh will sign the user out. A 401 from `/refresh`
+  is a logout, not a retry.
+- Failed sign-ins return one generic `fmp_app_invalid_credentials` by design;
+  do not try to tell the user which field was wrong, because the server does
+  not say.
+- `429` responses carry `data.retry_after` in seconds.
+- There is no password reset endpoint yet.
 
 ### Text from WordPress
 Every text field from both APIs arrives as rendered HTML, and `wp/v2` fields

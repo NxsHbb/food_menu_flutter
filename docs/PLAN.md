@@ -68,7 +68,7 @@ so customer auth is new work. No nonce gate on these routes — token only.
 
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 3.1 | `POST /fmp/v1/app/auth/register`, `/login`, `/refresh`, `/logout` — token issue and rotation, rate limited | pro | todo |
+| 3.1 | `POST /fmp/v1/app/auth/register`, `/login`, `/refresh`, `/logout` — token issue and rotation, rate limited | pro | done |
 | 3.2 | `GET/PUT /fmp/v1/app/me` — profile and saved addresses | pro | todo |
 | 3.3 | Flutter auth flow: register, login, validation, error states | app | todo |
 | 3.4 | Secure token storage, auto-refresh, and logout-on-401 across the client | app | todo |
@@ -159,3 +159,13 @@ them.
 - **Android cleartext HTTP** is not configured. iOS now permits local-network
   HTTP via `NSAllowsLocalNetworking`; Android needs an equivalent debug-only
   network security config before the app can reach an HTTP dev site there.
+  Task 3.3 is the first task that cannot be verified on Android without it.
+- **Customer registration must be enabled on the store.** Task 3.1 follows
+  WooCommerce's My Account registration setting rather than overriding it, so a
+  store running the app needs `woocommerce_enable_myaccount_registration` on.
+  It is off by default and was off on the dev site. To be confirmed for
+  production.
+- **Password reset is not in the plan.** Task 3.1 covers register, login,
+  refresh and logout only. A customer who forgets their password currently has
+  no in-app route back, and the WordPress reset flow is a web page. Say if a
+  `/auth/forgot-password` pair should be added to Phase 3.
