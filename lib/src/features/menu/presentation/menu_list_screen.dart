@@ -203,7 +203,7 @@ class _Results extends ConsumerWidget {
             final product = value.products[itemIndex];
             return DishRow(
               product: product,
-              onTap: () => context.goNamed(
+              onTap: () => context.pushNamed(
                 ProductDetailScreen.routeName,
                 pathParameters: {'id': '${product.id}'},
               ),

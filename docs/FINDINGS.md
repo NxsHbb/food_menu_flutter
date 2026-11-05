@@ -74,7 +74,15 @@ the actual paths differ — `/orders/statuses`, `/orders/{id}/timeline`,
 `/timed-products` are not registered at all. Enumerate
 `?rest_route=/fmp/v1` on the running site rather than trusting the table.
 
-## Ingredients and nutrition do not exist in online-ordering mode
+## Ingredients and nutrition in online-ordering mode — RESOLVED
+> **Resolved** by food-menu-pro#5, which adds both to WooCommerce products and
+> exposes them through the Store API. The analysis below is kept because it
+> explains why the fix is shaped the way it is. The one line to carry forward:
+> **do not merge the product Food Data box into `Admin\Metabox\PostMeta`** —
+> its save is guarded by a post-type check, and relaxing that would run the
+> whole `singleFoodMetaFields()` loop on every product save.
+
+### Original analysis — ingredients and nutrition did not exist for products
 The plugin's "rich menu item data — ingredients, nutrition facts, food tags"
 applies to its **own `food-menu` post type**, not to WooCommerce products. The
 app runs against products, because that is what online ordering requires, so
@@ -110,4 +118,9 @@ To get ingredients and nutrition into the app, one of:
    a manual migration for anyone already using `food-menu` posts;
 3. leave both out of v1.
 
-Until one is chosen, the detail screen shows tags and no nutrition block.
+Option 1 was chosen and shipped. The taxonomies now take an optional
+`object_types` key that is **merged with** `food-menu` rather than replacing
+it, a separate self-contained metabox writes the same `_ingredient` /
+`_nutrition` rows on products, and a Store API extension returns them under
+the `food-menu-pro` namespace. Storage is byte-identical to the post type's,
+so `FnsPro::get_fm_ingredient_list()` was untouched.

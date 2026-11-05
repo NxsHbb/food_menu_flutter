@@ -19,6 +19,61 @@ Recorded in `PLAN.md`:
   offers the Pizza category instead of an empty screen. Client-side against
   the already-loaded category list. Added as task 2.6.
 
+## Task 2.7 — Ingredients and nutrition (plugin + app)
+Branches: `mobile-app` on `radiustheme/food-menu-pro` (merged as #5), and
+`feat/dish-food-data` here.
+
+Completes Phase 2. The blocker from task 2.4 is gone.
+
+### Plugin side — food-menu-pro#5
+- `PostTypesController::taxonomies()` honours an optional `object_types` key,
+  **merged with** `food-menu` rather than replacing it, so no site can lose an
+  association. Ingredient, nutrition and unit gain `product` in
+  online-ordering mode, following the free plugin's `food-location` pattern.
+  `food-menu-tag` deliberately left alone — products have `product_tag`.
+- A **separate, self-contained** metabox writes the fields on products.
+  `Admin\Metabox\PostMeta` was not touched: its save is guarded by
+  `TLPFoodMenu()->post_type !== $post->post_type`, and relaxing that guard
+  would run the whole `singleFoodMetaFields()` loop on every product save.
+- The save requires **its own nonce to be present**, so a programmatic
+  `$product->save()` or a REST update cannot look like an empty form and wipe
+  the rows. Verified against all three paths.
+- Storage is byte-identical to the post type's, so
+  `FnsPro::get_fm_ingredient_list()` keeps working unchanged.
+- Exposed through `woocommerce_store_api_register_endpoint_data` on the
+  product schema, under the existing `food-menu-pro` namespace.
+
+### App side
+- `FoodDataRow` parses the extension block, tolerating every level being
+  absent — a site on an older plugin simply shows no sections.
+- Rows with an empty name are dropped rather than rendered as a blank line,
+  and a row with no amount still renders its name, because the amount is
+  optional in the admin.
+- `FoodDataSection` renders a labelled list rather than a table: a two-column
+  table collapses badly once an ingredient name wraps.
+- Added `NSAllowsLocalNetworking` to the iOS `Info.plist`. iOS blocks
+  cleartext HTTP, so the app could not reach an HTTP dev or staging site at
+  all. Scoped to local-network addresses, so production still requires HTTPS.
+  **Android has no equivalent yet** and will need one before it can reach an
+  HTTP dev site.
+
+### Found by running the app on a simulator
+Ran the app on an iPhone 17 Pro simulator against the dev site — the first
+time it has been run rather than only tested. Two things only visible that
+way:
+
+- **The dish screen was showing the bottom tab bar.** The design shows it on
+  home, menu, cart, orders, account and wishlist only
+  (`showTabs=['home','menu','cart','orders','account','wish'].includes(sc)`),
+  not on a dish, which is full-screen with its own close button. The route was
+  nested inside the shell in task 2.3; it is now top-level and pushed, so it
+  covers the bar and pops back. Checkout, order received and order tracking
+  belong there too. Two tests lock it.
+- iOS blocked the dev site outright until `NSAllowsLocalNetworking` was added,
+  so the app could not have reached any HTTP backend at all.
+
+158 tests pass, `flutter analyze` clean.
+
 ## Task 2.6 — Category suggestions on an empty search
 Branch `feat/search-suggestions`
 

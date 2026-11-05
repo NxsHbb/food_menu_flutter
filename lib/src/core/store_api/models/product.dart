@@ -43,6 +43,47 @@ class ProductTag {
   final String slug;
 }
 
+/// One ingredient or nutrition row on a dish.
+///
+/// Supplied by the Food Menu plugin through its `food-menu-pro` Store API
+/// extension, not by WooCommerce. [value] and [unit] are both optional on the
+/// admin side, so either can be empty — "Basil" with no amount is a valid row.
+class FoodDataRow {
+  const FoodDataRow({
+    required this.id,
+    required this.name,
+    required this.value,
+    required this.unit,
+  });
+
+  factory FoodDataRow.fromJson(Map<String, dynamic> json) {
+    return FoodDataRow(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      // Sent as a string, because the admin field is free text.
+      value: json['value']?.toString() ?? '',
+      unit: json['unit'] as String? ?? '',
+    );
+  }
+
+  final int id;
+  final String name;
+  final String value;
+  final String unit;
+
+  /// A row with no name has nothing to render.
+  bool get isRenderable => name.isNotEmpty;
+
+  /// "120 g", "540 kcal", or empty when no amount was entered.
+  String get amount {
+    if (value.isEmpty) return unit;
+    return unit.isEmpty ? value : '$value $unit';
+  }
+
+  @override
+  String toString() => 'FoodDataRow($name, $amount)';
+}
+
 /// One product image. `src` is the full-size URL; `thumbnail` is smaller.
 class ProductImage {
   const ProductImage({
@@ -134,6 +175,8 @@ class Product {
     required this.images,
     required this.categories,
     required this.tags,
+    required this.ingredients,
+    required this.nutrition,
     required this.description,
     required this.shortDescription,
     required this.isInStock,
@@ -168,6 +211,8 @@ class Product {
           .whereType<Map>()
           .map((e) => ProductTag.fromJson(e.cast<String, dynamic>()))
           .toList(growable: false),
+      ingredients: _foodData(json, 'ingredients'),
+      nutrition: _foodData(json, 'nutrition'),
       description: json['description'] as String? ?? '',
       shortDescription: json['short_description'] as String? ?? '',
       isInStock: json['is_in_stock'] as bool? ?? true,
@@ -203,6 +248,12 @@ class Product {
 
   /// Food tags, from `product_tag`. Often empty.
   final List<ProductTag> tags;
+
+  /// Ingredients, from the plugin's Store API extension. Often empty.
+  final List<FoodDataRow> ingredients;
+
+  /// Nutrition facts, from the plugin's Store API extension. Often empty.
+  final List<FoodDataRow> nutrition;
 
   /// Both description fields arrive as HTML and need rendering or stripping.
   final String description;
@@ -241,6 +292,31 @@ class Product {
   bool get isOrderable => isPurchasable && isInStock;
 
   ProductImage? get primaryImage => images.isEmpty ? null : images.first;
+
+  /// True when there is any food data worth giving a section to.
+  bool get hasFoodData => ingredients.isNotEmpty || nutrition.isNotEmpty;
+
+  /// Reads one list out of the plugin's Store API extension block.
+  ///
+  /// Absent on a site whose plugin predates the change, and absent from any
+  /// non-WooCommerce response, so every level is tolerated as missing rather
+  /// than assumed.
+  static List<FoodDataRow> _foodData(Map<String, dynamic> json, String key) {
+    final extensions = json['extensions'];
+    if (extensions is! Map) return const [];
+
+    final foodMenu = extensions['food-menu-pro'];
+    if (foodMenu is! Map) return const [];
+
+    final rows = foodMenu[key];
+    if (rows is! List) return const [];
+
+    return rows
+        .whereType<Map>()
+        .map((e) => FoodDataRow.fromJson(e.cast<String, dynamic>()))
+        .where((row) => row.isRenderable)
+        .toList(growable: false);
+  }
 
   /// True when a tap can add this straight to the cart, with no choices and
   /// no trip to the detail screen.
