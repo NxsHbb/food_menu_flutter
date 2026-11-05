@@ -103,6 +103,26 @@ The plugin side landed in task 3.1 (food-menu-pro#6); the Flutter half is tasks
 - `429` responses carry `data.retry_after` in seconds.
 - There is no password reset endpoint yet.
 
+### Profile and saved addresses
+`GET|PUT fmp/v1/app/me` (task 3.2). The Flutter side is tasks 3.7 and 3.8.
+
+- The response is `{ user, addresses }`. `user.phone` is the account's contact
+  number; each address carries its own optional `phone` on top of that.
+- **`PUT` is partial** — send only what changed. But `addresses`, when present,
+  **replaces the whole book**, so send the full list, not a delta. Omitting an
+  address deletes it.
+- Address IDs are stable; keep them when editing. Send `is_default: true` on
+  one entry, or the server promotes the first.
+- `locality` arrives pre-rendered ("Celina, Delaware 10299") because resolving
+  a state code to its display name is server-side knowledge. Use it for the
+  card's second line rather than rebuilding it in Dart.
+- Validation is per-country, so **do not hard-code required fields** in the
+  form. A US address needs a state and a ZIP, a UAE address needs neither.
+  Errors come back as `fmp_app_invalid_address` with `data.field` and
+  `data.index`, which is what the form should highlight.
+- The default address is mirrored into WooCommerce's billing and shipping
+  fields server-side, so Phase 6 checkout does not need to send it again.
+
 ### Text from WordPress
 Every text field from both APIs arrives as rendered HTML, and `wp/v2` fields
 are entity-escaped on top — an ampersand reaches the app as `&#038;`. Pass

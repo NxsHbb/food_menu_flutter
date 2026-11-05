@@ -19,6 +19,76 @@ Recorded in `PLAN.md`:
   offers the Pizza category instead of an empty screen. Client-side against
   the already-loaded category list. Added as task 2.6.
 
+## Task 3.2 — Profile and address book (plugin)
+Branch: `mobile-app-me` on `radiustheme/food-menu-pro`, PR #7. Nothing in this
+repo changes except these docs.
+
+`GET|PUT /fmp/v1/app/me`, authenticated by the bearer token from 3.1.
+
+### The design decided the data model
+Checkout shows one address card — `Deliver to / 6391 Elgin St. /
+Celina, Delaware 10299 · Home` — whose **Change** button is a toast stub, and
+the Account screen has a **Saved addresses: 2** row that is also a stub. So the
+design implies labelled, multiple addresses but never draws the screen for
+them. Agreed: build the labelled address book, mirror the default into
+WooCommerce, and draw the missing screens to match the app's existing design
+language (new tasks 3.7 and 3.8).
+
+WooCommerce models exactly one billing and one shipping address per customer,
+so the book is new storage: entries in `_fmp_app_addresses` user meta with the
+default ID in its own meta key, so "exactly one default" is structurally true
+rather than something every write re-asserts. Fields use WooCommerce's own
+names so the mirror is a straight copy and Phase 6's checkout payload needs no
+translation layer.
+
+### Payload the Flutter client will consume
+```json
+{ "user": { "id": 8, "email": "…", "username": "…", "first_name": "…",
+            "last_name": "…", "display_name": "…", "phone": "…",
+            "avatar_url": "…" },
+  "addresses": [
+    { "id": "11635e347477", "label": "Home", "is_default": true,
+      "first_name": "…", "last_name": "…", "company": "",
+      "address_1": "6391 Elgin St.", "address_2": "Apt 4B",
+      "city": "Celina", "state": "DE", "postcode": "10299",
+      "country": "US", "phone": "…",
+      "locality": "Celina, Delaware 10299" } ] }
+```
+
+`locality` is pre-rendered server-side because only the server can resolve
+`DE` → `Delaware`. `PUT` is partial; `addresses`, when present, replaces the
+whole book.
+
+### What the live run caught
+Two real bugs, both fixed before the PR:
+
+1. **Saving an address silently rewrote the account's contact phone.** The
+   mirror was copying the address phone into `billing_phone`, which is also
+   where `/me` reads `user.phone` from. Postal fields now come from the
+   address, the contact phone stays owned by the profile, and
+   `shipping_phone` takes the address's.
+2. **`display_name` would not follow a rename.** The "was this generated?"
+   check held a `WP_User` snapshot, but that object's magic getters read
+   through the user meta cache that `wp_update_user()` refreshes — so the
+   "before" values came back as the *new* ones. Snapshotted as plain strings
+   instead.
+
+### Verified against the running dev site
+Empty book; two addresses with the design's own data; state accepted as both
+`DE` and `Delaware`; per-country required fields for US/GB/AE/BD; invalid
+state, postcode and country each rejected with the offending `field` and
+`index`; the 20-address cap; partial `PUT` leaving the book intact; IDs stable
+across an edit; default switching re-mirroring to WooCommerce; deletion by
+omission promoting a new default; emptying the book; profile phone surviving an
+address save; all three `display_name` cases; two customers unable to see or
+affect each other's book; and cookie-authenticated admin requests to `wp/v2`
+and the staff `fmp/v1` routes still returning 200.
+
+### Gaps recorded, not fixed
+Changing the account email or password. With password reset from 3.1 that is
+now a cluster of three missing account-security flows, recommended as task 3.9
+in `PLAN.md`.
+
 ## Task 3.1 — Customer auth endpoints (plugin)
 Branch: `mobile-app` on `radiustheme/food-menu-pro`, PR #6. Nothing in this
 repo changes except these docs.

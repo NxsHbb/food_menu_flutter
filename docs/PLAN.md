@@ -20,6 +20,8 @@ Staff/kitchen operations are explicitly out of scope for v1.
 | Wishlist | **In v1, server-backed.** New endpoints on the `mobile-app` branch, favourites stored against the customer's WP user. Depends on Phase 3 accounts |
 | Banners | **WordPress posts in a category.** Reuses `wp/v2/posts`, edited in WordPress today, no plugin code |
 | Search | Names only, with **category suggestions when a search returns nothing** |
+| Saved addresses | **A labelled address book**, stored by the plugin, with the default **mirrored into WooCommerce billing/shipping** so the web account page, order emails and admin all stay correct |
+| Address screens | **Not in the design** — the address list and add/edit form are drawn to match the app's existing design language |
 
 ## Architecture in one paragraph
 The app is a thin client. Menu reads go to WooCommerce's Store API
@@ -69,11 +71,13 @@ so customer auth is new work. No nonce gate on these routes — token only.
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 3.1 | `POST /fmp/v1/app/auth/register`, `/login`, `/refresh`, `/logout` — token issue and rotation, rate limited | pro | done |
-| 3.2 | `GET/PUT /fmp/v1/app/me` — profile and saved addresses | pro | todo |
+| 3.2 | `GET/PUT /fmp/v1/app/me` — profile and saved addresses | pro | done |
 | 3.3 | Flutter auth flow: register, login, validation, error states | app | todo |
 | 3.4 | Secure token storage, auto-refresh, and logout-on-401 across the client | app | todo |
 | 3.5 | `GET/POST/DELETE /fmp/v1/app/wishlist` — favourites against the customer's WP user | pro | todo |
 | 3.6 | Wishlist screen (design 10) and the heart on dish cards and rows | app | todo |
+| 3.7 | Account screen (design 9) and the Edit profile form | app | todo |
+| 3.8 | Address book: list, add/edit form, set default — **designed to match**, since the design stubs both | app | todo |
 
 ## Phase 4 — Cart and add-ons
 Store API `cart/add-item` accepts only `id`, `quantity`, `variation`, so add-on
@@ -165,7 +169,9 @@ them.
   store running the app needs `woocommerce_enable_myaccount_registration` on.
   It is off by default and was off on the dev site. To be confirmed for
   production.
-- **Password reset is not in the plan.** Task 3.1 covers register, login,
-  refresh and logout only. A customer who forgets their password currently has
-  no in-app route back, and the WordPress reset flow is a web page. Say if a
-  `/auth/forgot-password` pair should be added to Phase 3.
+- **Account security endpoints are missing as a group.** Password reset
+  (3.1), and changing the account email or password (3.2), are all absent. They
+  belong together — one task on the Pro plugin plus one Flutter screen. A
+  customer who forgets their password has no in-app route back today, and the
+  WordPress reset flow is a web page. **Recommend adding as task 3.9**; say the
+  word and it goes in.

@@ -191,3 +191,52 @@ on this machine, and its committed `vendor/` holds only the Composer
 autoloader. The new files were written to the plugin's conventions — tabs,
 docblocks, Yoda conditions, sanitised `$_SERVER` reads — and checked with
 `php -l`, but not machine-verified against WordPress-Core.
+
+## The address book, and the two things WordPress does not tell you
+Task 3.2 added `GET|PUT /fmp/v1/app/me`. WooCommerce stores exactly **one**
+billing and **one** shipping address per customer, so the design's labelled
+"Home" address and its "Saved addresses: 2" row are not WooCommerce concepts.
+The book is plugin storage, with the default **mirrored into** WooCommerce's
+billing and shipping fields so the web account page, order emails and the admin
+order screen keep agreeing with the app. The mirror is one-way: the book is the
+source of truth, Woo's fields are a derived copy.
+
+Two things bit during the live run and are worth remembering:
+
+### `billing_phone` is the account's phone, not an address's
+`/me` returns `user.phone` from `billing_phone`, because that is the meta key
+WooCommerce uses for a customer's contact number and the one checkout and order
+emails read. The address book also has a per-address `phone`. Mirroring that
+onto `billing_phone` meant **saving an address silently rewrote the customer's
+contact number**. Postal fields now come from the default address; the contact
+phone stays owned by the profile; `shipping_phone` takes the address's, since a
+per-delivery contact is a real thing.
+
+The underlying point: WooCommerce's customer meta is a flat namespace shared by
+the profile and the address, so any new address store has to decide, per field,
+which side owns it.
+
+### A `WP_User` is not a snapshot
+`display_name` should follow a rename only when it still looks generated, which
+means comparing it against the name it was generated *from*. Holding
+`get_userdata()` across the write does not work: `WP_User`'s magic getters read
+through the user meta cache, and `wp_update_user()` refreshes that cache, so
+the "before" object hands back the **new** values a moment later. The fix is to
+copy the fields out as plain strings first. Anything else that needs a
+before-and-after around a user write has the same trap.
+
+### Address validation belongs to WooCommerce
+`WC()->countries->get_address_fields( $country )` already knows what each
+country requires — the US wants a state and a ZIP, the UK a postcode but no
+state, the UAE neither, Bangladesh a state but no postcode. Hard-coding those
+would be wrong in most of the world. Its field labels are localised too, so a
+US customer is told "ZIP Code" rather than "Postcode".
+
+One API wrinkle: `WC()->countries->get_states( $country )` returns **`false`**,
+not an empty array, for countries with no state list.
+
+### The address screens do not exist in the design
+Checkout's **Change** button and the Account screen's **Saved addresses** row
+are both `toast()` stubs — `'Address book opens here'`. Agreed to draw the list
+and the add/edit form to match the app's existing design language, now tasks
+3.7 and 3.8.
