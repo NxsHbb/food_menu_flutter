@@ -56,15 +56,41 @@ Pro features.
 - Currency USD, taxes off.
 
 ## Demo data
-16 products across 6 categories (Starters, Pizza, Burgers, Main Course,
-Desserts, Drinks), four of them on sale. Seeded with
-`WC_Product_Simple` via wp-cli; the script is idempotent on product title.
+Seeded via wp-cli, idempotent on title, so re-running a seed script is safe.
+
+| What | Count | Notes |
+|---|---|---|
+| Products | 18 | incl. **1 variable** (Build Your Pizza, 3 sizes) and **1 out of stock** (Sold Out Special) |
+| Product categories | 7 | Starters, Pizza, Burgers, Main Course, Desserts, Drinks |
+| Product tags | 7 | Vegetarian, Vegan, Spicy, Gluten Free, Healthy, Popular, Shareable |
+| Banner posts | 2 | in the `app-banners` category, with featured images from `designs/img/` |
+| Ingredient / nutrition / unit terms | 4 each | attached to **Margherita** (product 14) as sample food data |
+
+The awkward cases are deliberate: a variable product exercises price ranges
+and "Choose options", the out-of-stock one exercises `is_purchasable: true`
+alongside `is_in_stock: false`, and Margherita is the only dish carrying
+ingredients and nutrition.
 
 ## Dev-only mu-plugin
 `wp-content/mu-plugins/00-dev-app-passwords.php` forces
 `wp_is_application_passwords_available` to true, because core gates Application
 Passwords behind HTTPS and this site is plain HTTP. **Local only — never ship
 this.**
+
+## Running the app against this site
+```sh
+xcrun simctl list devices available | grep iPhone     # pick one
+xcrun simctl boot <id> && open -a Simulator
+flutter run -d <id> --dart-define=FOOD_MENU_BASE_URL=http://192.168.0.171:8080
+xcrun simctl io booted screenshot /tmp/shot.png
+```
+
+iOS needs `NSAllowsLocalNetworking`, already set in `ios/Runner/Info.plist`,
+or App Transport Security blocks the HTTP site outright. **Android has no
+equivalent yet** and cannot reach this site.
+
+`simctl` cannot tap, so to reach a screen behind navigation, temporarily set
+the router's `initialLocation` to that route, restart, screenshot, and revert.
 
 ## Live reference site
 `https://radiustheme.net/demos/food-menu/` — useful for comparing intended
