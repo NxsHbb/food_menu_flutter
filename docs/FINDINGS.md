@@ -278,3 +278,54 @@ rate-limited customer just spends another attempt against the limit. The
 plugin sends the remaining window as `data.retry_after`, so the banner says how
 long to wait instead. `data.field` is lifted the same way, for the address form
 in task 3.8.
+
+## Running on physical devices
+Both platforms needed configuration that neither simulator nor emulator ever
+exercises, so none of it surfaced until a real device was attached.
+
+### Android could not reach the network at all
+Android has blocked cleartext HTTP by default since API 28, and the dev site is
+plain HTTP on the LAN, so every request failed before leaving the device.
+Fixed with a network security config under **`android/app/src/debug/`**, which
+compiles into the debug build alone — release builds keep Android's HTTPS-only
+default. It is deliberately not scoped to the dev machine's address: the config
+matches domains, not CIDR ranges, and the LAN IP changes between networks, so
+pinning it would only break on the next move. The build type is the boundary
+that matters.
+
+### A release build would have had no network permission
+Flutter's template declares `INTERNET` only in the **debug and profile**
+manifests, which is enough for hot reload. The app is a client for a WordPress
+backend, so it now declares it in the main manifest too. This would not have
+shown up until the first release build in Phase 8.
+
+### `com.foodmenu` is owned by one specific Apple team
+Signing for a physical iPhone failed with *"The app identifier com.foodmenu
+cannot be registered to your development team because it is not available"* on
+team `FAAHP7377L`, and **succeeded on `M34L8S85ZF`**. A two-segment identifier
+this generic is widely contested, so this is not a free choice: **device builds,
+TestFlight and the App Store all require team `M34L8S85ZF`**, now set as
+`DEVELOPMENT_TEAM` in the Xcode project. Anyone building on another account
+will have to change the bundle ID, which has App Store consequences — worth
+knowing before task 8.4.
+
+### What each target can actually verify
+| | Simulator / emulator | Physical Android | Physical iOS |
+|---|---|---|---|
+| Layout and theming | yes | yes | by eye only |
+| Typed input, real keyboard | no | **yes**, via `adb shell input` | no |
+| Screenshots from CLI | `simctl io` | `adb exec-out screencap` | **none** |
+| Platform autofill | no | **yes** | by eye only |
+
+Physical Android is the only target that can be driven end to end from a
+terminal, so it is where the interactive states belong. There is no CLI
+screenshot or input API for a physical iPhone, so iOS visual checks are either
+the simulator or a human looking at the device.
+
+### `adb shell input text` is not reliable
+It silently drops and duplicates characters in longer strings, and the
+device-side shell eats `#` unless the literal is single-quoted
+(`adb shell "input text 'A@2020##'"`). A mangled email produced a genuine 401
+that looked exactly like an app bug. If a login fails unexpectedly, **read the
+field back** — tap the reveal icon on the password — before suspecting the code.
+Typing character by character with a short sleep is the reliable form.

@@ -161,10 +161,13 @@ them.
   badge and no code.
 - **The heart is absent from dish cards and rows until task 3.6**, because
   wishlist is server-backed and depends on Phase 3 accounts.
-- **Android cleartext HTTP** is not configured. iOS now permits local-network
-  HTTP via `NSAllowsLocalNetworking`; Android needs an equivalent debug-only
-  network security config before the app can reach an HTTP dev site there.
-  Task 3.3 is the first task that cannot be verified on Android without it.
+- ~~**Android cleartext HTTP** is not configured.~~ **Resolved** — a debug-only
+  network security config now permits it, and the app runs on a physical
+  Android device against the dev site.
+- **The iOS bundle ID is tied to one Apple team.** `com.foodmenu` can only be
+  registered under `M34L8S85ZF`; another team is refused it outright. Device
+  builds, TestFlight and the App Store all depend on that account. Anyone
+  building elsewhere must change the bundle ID. Confirm before task 8.4.
 - **Customer registration must be enabled on the store.** Task 3.1 follows
   WooCommerce's My Account registration setting rather than overriding it, so a
   store running the app needs `woocommerce_enable_myaccount_registration` on.

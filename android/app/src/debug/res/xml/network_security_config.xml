@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug builds only.
+
+  Android has blocked cleartext HTTP by default since API 28, and the local
+  WordPress site this app develops against is plain HTTP on the LAN, so without
+  this every request on Android fails before it leaves the device.
+
+  This file lives under `src/debug/`, so it is compiled into the debug build
+  alone. Release builds never see it and keep Android's default, which is
+  HTTPS-only. Do not move it to `src/main/`.
+
+  It is deliberately not scoped to the dev machine's address: the network
+  security config matches domains, not CIDR ranges, and the LAN IP changes
+  between networks, so pinning it here would just break on the next move. The
+  build type is the boundary that matters.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
