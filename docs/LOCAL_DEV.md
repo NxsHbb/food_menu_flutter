@@ -137,6 +137,42 @@ Three things to know while testing:
   payload wipes the seeded Home/Work pair. Re-seed with the two addresses in
   the demo data table above.
 
+## Running on physical devices
+Both are more informative than a simulator, and Android is the only target that
+can be driven end to end from a terminal.
+
+```sh
+flutter devices                      # find the ids
+flutter run -d <id> --dart-define=FOOD_MENU_BASE_URL=http://192.168.0.171:8080
+```
+
+The device reaches this Mac over the LAN, so `FOOD_MENU_BASE_URL` must be the
+LAN IP — the same reason `siteurl` is set to it.
+
+### Android
+Debug builds permit cleartext HTTP via
+`android/app/src/debug/res/xml/network_security_config.xml`. Release builds do
+not, by design.
+
+Driving the UI:
+```sh
+adb exec-out screencap -p > /tmp/shot.png
+adb shell input tap <x> <y>
+adb shell input keyevent 67            # backspace
+adb shell "input text 'A@2020##'"      # single-quote, or the device shell eats #
+```
+**`input text` silently drops and duplicates characters** in longer strings.
+Type character by character with a short sleep when the value matters, and read
+the field back before believing a login failure.
+
+### iOS
+Device builds need `DEVELOPMENT_TEAM = M34L8S85ZF` in the Xcode project —
+already set. `com.foodmenu` cannot be registered under any other team, so a
+different account means a different bundle ID. See `FINDINGS.md`.
+
+There is **no CLI screenshot or input API** for a physical iPhone, so visual
+checks there are either the simulator or a person looking at the screen.
+
 ## Live reference site
 `https://radiustheme.net/demos/food-menu/` — useful for comparing intended
 behaviour. Treat it as read-only; do not seed or reconfigure it.

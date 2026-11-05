@@ -19,6 +19,44 @@ Recorded in `PLAN.md`:
   offers the Pizza category instead of an empty screen. Client-side against
   the already-loaded category list. Added as task 2.6.
 
+## Device enablement — Android network config, iOS signing
+Branch: `fix/android-network-config`. Not a planned task: it came out of
+running task 3.3's work on the attached physical devices rather than only the
+simulator.
+
+### What was broken
+- **Android could not reach the network at all.** Cleartext HTTP has been
+  blocked by default since API 28 and the dev site is plain HTTP, so every
+  request failed before leaving the device. The app had never been run on
+  Android. Fixed with a debug-only network security config; release builds
+  keep Android's HTTPS-only default.
+- **A release build would have had no `INTERNET` permission.** Flutter's
+  template declares it only in the debug and profile manifests. Would not have
+  surfaced until Phase 8.
+- **iOS device builds had no development team**, and once set, `com.foodmenu`
+  turned out to be registrable under **only one** of the two Apple teams on this
+  machine. See `FINDINGS.md` — it constrains task 8.4.
+
+### What running on a real device proved that tests could not
+Driving the Android device with `adb shell input`, end to end against the dev
+site: the menu, banners and categories loading over the LAN; a **real rejected
+sign-in** rendering the server's own message in the error banner — the state
+the simulator could not reach, and the one gap called out in task 3.3's PR; a
+successful sign-in; **Google Password Manager offering to save the
+credentials**, which confirms the `autofillHints` are wired correctly and is
+pure platform behaviour no widget test can show; and logout clearing the
+session both on screen and server-side.
+
+The device label also came out right: the session the app created was stored as
+`device="Android"`.
+
+### One scare, and what it was
+A sign-in kept returning 401 with visibly correct credentials on screen, while
+the identical request from curl succeeded. A temporary `rest_pre_dispatch` log
+showed the app's request was **byte-identical** to curl's — so the app was
+fine, and the earlier failures were `adb shell input text` silently corrupting
+the email. Recorded in `FINDINGS.md`, because it looks exactly like an app bug.
+
 ## Task 3.3 — Flutter auth flow
 Branch: `feat/auth-flow`. First app-side task of Phase 3.
 

@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The app is a client for a WordPress backend, so it needs the network
+         in every build type. Flutter's template declares INTERNET only in the
+         debug and profile manifests, which is enough for hot reload but would
+         leave a release build unable to reach the API at all. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="Food Menu"
         android:name="${applicationName}"
