@@ -74,7 +74,7 @@ so customer auth is new work. No nonce gate on these routes — token only.
 | 3.1 | `POST /fmp/v1/app/auth/register`, `/login`, `/refresh`, `/logout` — token issue and rotation, rate limited | pro | done |
 | 3.2 | `GET/PUT /fmp/v1/app/me` — profile and saved addresses | pro | done |
 | 3.3 | Flutter auth flow: register, login, validation, error states | app | done |
-| 3.4 | Secure token storage, auto-refresh, and logout-on-401 across the client | app | todo |
+| 3.4 | Secure token storage, auto-refresh, and logout-on-401 across the client | app | done |
 | 3.5 | `GET/POST/DELETE /fmp/v1/app/wishlist` — favourites against the customer's WP user | pro | todo |
 | 3.6 | Wishlist screen (design 10) and the heart on dish cards and rows | app | todo |
 | 3.7 | Account screen (design 9) and the Edit profile form | app | todo |

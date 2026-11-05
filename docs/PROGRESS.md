@@ -19,6 +19,56 @@ Recorded in `PLAN.md`:
   offers the Pizza category instead of an empty screen. Client-side against
   the already-loaded category list. Added as task 2.6.
 
+## Task 3.4 — Token persistence, auto-refresh, logout on 401
+Branch: `feat/token-persistence`. Completes the client half of Phase 3 auth.
+
+### What shipped
+- **`TokenStore`** — Keychain on iOS, EncryptedSharedPreferences on Android,
+  via `flutter_secure_storage` (the one new dependency). Not
+  `SharedPreferences`: a refresh token is a bearer credential good for thirty
+  days and the server accepts it from anywhere. Expiry is stored as an
+  **absolute** timestamp, because the app may be closed for days and a
+  lifetime captured at issue time would be meaningless on restore.
+- **`AuthController` is now an `AsyncNotifier`.** "We do not know yet" is a
+  real state: at launch the session is being read back, and treating that as
+  signed-out would flash a sign-in prompt at somebody already signed in. The
+  account screen shows a spinner for it.
+- **Single-flight refresh.** Every caller awaits one shared future. This is
+  correctness, not efficiency: the plugin rotates refresh tokens and revokes
+  the session if a spent one is replayed, so two concurrent refreshes would
+  sign the customer out.
+- **`AuthRefreshInterceptor`** — a 401 triggers one refresh and one replay, and
+  the retried request is marked so a second 401 gives up instead of looping.
+- Failed refresh signs out and clears storage; a **network blip does not**,
+  because losing a thirty-day session to a dropped tunnel is worse than
+  retrying on the next request.
+
+### Two bugs found while building it
+1. **A `QueuedInterceptor` deadlocks on retry.** `dio.fetch` re-enters the
+   interceptor chain, and the replayed request waits on the queue slot the
+   error handler is still holding — the test hung for the full 30s timeout.
+   Deduplication belongs in the controller's single-flight future, so the
+   interceptor is a plain `Interceptor` now.
+2. **A cold-start race.** `AuthInterceptor` read the token synchronously, so
+   any request made while the keychain read was still in flight went out
+   without its token. `readToken` is async now and awaits the restore.
+
+### Verified on the Android device, against the local site
+Signed in (session recorded server-side as `device="Android"`), **force-stopped
+the app with `am force-stop` and relaunched** — still signed in, restored from
+encrypted storage, with no sign-in flash. Then logged out, confirmed the server
+session was revoked, force-stopped and relaunched again — still signed out.
+
+**Auto-refresh is not yet observable on a device**, because no screen makes an
+authenticated request until task 3.7 adds the account screen. It is covered by
+17 new tests, including the burst case and the deadlock that broke it.
+
+### Reactive, not pre-emptive
+Refresh happens on a 401 rather than on a token that looks expired. One wasted
+request per hour is cheap, and it keeps a single code path that has to work
+anyway: the server can revoke a session at any time, so "the token looked valid
+but was not" must be handled regardless.
+
 ## iOS on a physical device — what was actually wrong
 Branch: `fix/ios-local-network`. Follows the Android/iOS signing work below.
 

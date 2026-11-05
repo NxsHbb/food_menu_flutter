@@ -20,7 +20,8 @@ class AccountScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(authControllerProvider);
+    final auth = ref.watch(authControllerProvider);
+    final session = auth.value;
     final palette = AppPalette.of(context);
     final theme = Theme.of(context);
 
@@ -29,7 +30,11 @@ class AccountScreen extends ConsumerWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppTokens.space16),
-          child: session == null
+          child: auth.isLoading
+              // Restoring the session from the keychain. Showing the signed-out
+              // prompt here would flash "Sign in" at somebody who already is.
+              ? const Center(child: CircularProgressIndicator())
+              : session == null
               ? _SignedOut(
                   onSignIn: () => context.pushNamed(LoginScreen.routeName),
                 )

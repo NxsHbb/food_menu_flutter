@@ -1,27 +1,39 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../domain/auth_session.dart';
 import 'auth_repository.dart';
+import 'token_store.dart';
 
 /// Who is signed in, if anyone.
 ///
-/// `null` is the signed-out state, so there is no status flag that could
-/// disagree with the session itself.
+/// The state is an [AsyncValue] because "we do not know yet" is a real state:
+/// at launch the session is being read back from the keychain, and treating
+/// that moment as signed-out would flash a sign-in prompt at a customer who is
+/// already signed in.
 ///
-/// **In memory only, for now.** Task 3.4 persists the tokens to secure
-/// storage and restores them at launch; until then a restart signs the
-/// customer out. Nothing outside this class should hold a token, so that
-/// change stays contained here.
-class AuthController extends Notifier<AuthSession?> {
+/// `AsyncData(null)` is signed out. `AsyncData(session)` is signed in.
+/// Failures from [login] and [register] are **thrown**, not stored here — a
+/// rejected password is the form's business, not global state.
+class AuthController extends AsyncNotifier<AuthSession?> {
+  /// The in-flight refresh, if any.
+  ///
+  /// Every caller awaits this same future, so concurrent 401s produce exactly
+  /// one refresh. That is not an optimisation: the server rotates refresh
+  /// tokens and **revokes the session if a spent one is replayed**, so a
+  /// second concurrent refresh would sign the customer out.
+  Future<bool>? _refreshing;
+
   @override
-  AuthSession? build() => null;
+  Future<AuthSession?> build() async {
+    return ref.read(tokenStoreProvider).read();
+  }
 
   /// A label the customer will see in their own session list later.
-  ///
-  /// Not identifying — just enough to tell two devices apart.
   String get _device {
     if (kIsWeb) return 'Web';
     try {
@@ -29,6 +41,13 @@ class AuthController extends Notifier<AuthSession?> {
     } on UnsupportedError {
       return 'Mobile';
     }
+  }
+
+  AuthSession? get session => state.value;
+
+  Future<void> _adopt(AuthSession session) async {
+    await ref.read(tokenStoreProvider).write(session);
+    state = AsyncData(session);
   }
 
   /// Creates an account and signs in. Throws [ApiException] on failure.
@@ -39,7 +58,7 @@ class AuthController extends Notifier<AuthSession?> {
     required String lastName,
     String? phone,
   }) async {
-    state = await ref.read(authRepositoryProvider).register(
+    final session = await ref.read(authRepositoryProvider).register(
           email: email,
           password: password,
           firstName: firstName,
@@ -47,32 +66,74 @@ class AuthController extends Notifier<AuthSession?> {
           phone: phone,
           device: _device,
         );
+    await _adopt(session);
   }
 
   /// Signs in. Throws [ApiException] on failure.
   Future<void> login({required String username, required String password}) async {
-    state = await ref.read(authRepositoryProvider).login(
+    final session = await ref.read(authRepositoryProvider).login(
           username: username,
           password: password,
           device: _device,
         );
+    await _adopt(session);
+  }
+
+  /// Exchanges the refresh token for a new pair.
+  ///
+  /// Returns false when the session could not be renewed, having already
+  /// signed the customer out. Safe to call concurrently — see [_refreshing].
+  Future<bool> refresh() {
+    return _refreshing ??= _doRefresh().whenComplete(() => _refreshing = null);
+  }
+
+  Future<bool> _doRefresh() async {
+    final current = session;
+
+    if (current == null) return false;
+
+    // Nothing to exchange, and sending an expired refresh token would just
+    // spend a request to be told so.
+    if (current.tokens.refreshExpired()) {
+      await signOutLocally();
+      return false;
+    }
+
+    try {
+      final tokens =
+          await ref.read(authRepositoryProvider).refresh(current.tokens.refreshToken);
+      await _adopt(current.copyWith(tokens: tokens));
+      return true;
+    } on ApiException catch (error) {
+      // 401 means the token is spent, revoked, or the session was burned by a
+      // replay. None of those are recoverable, so sign out rather than leave
+      // the customer in a state where every request fails.
+      if (error.statusCode == 401) {
+        await signOutLocally();
+        return false;
+      }
+
+      // A network blip is not a reason to throw away a valid session; the next
+      // request will try again.
+      return false;
+    }
   }
 
   /// Signs out, locally no matter what.
   ///
   /// The server call is best effort: if it fails the customer still expects to
-  /// be signed out on this device, and the session is revoked here either way.
-  /// Leaving them signed in because the network blipped would be the worse
-  /// outcome of the two.
+  /// be signed out on this device. Leaving them signed in because the network
+  /// blipped would be the worse outcome of the two.
   Future<void> logout({bool allDevices = false}) async {
-    final session = state;
-    state = null;
+    final current = session;
 
-    if (session == null) return;
+    await signOutLocally();
+
+    if (current == null) return;
 
     try {
       await ref.read(authRepositoryProvider).logout(
-            refreshToken: session.tokens.refreshToken,
+            refreshToken: current.tokens.refreshToken,
             allDevices: allDevices,
           );
     } on Exception {
@@ -80,14 +141,31 @@ class AuthController extends Notifier<AuthSession?> {
     }
   }
 
+  /// Drops the session on this device without telling the server.
+  ///
+  /// Used when the server has already rejected our credentials, where a logout
+  /// call would be answered with another 401.
+  Future<void> signOutLocally() async {
+    await ref.read(tokenStoreProvider).clear();
+    state = const AsyncData(null);
+  }
+
   /// Replaces the signed-in customer's details, e.g. after a profile edit.
-  void updateUser(AuthSession session) => state = session;
+  Future<void> updateSession(AuthSession session) => _adopt(session);
 }
 
 final authControllerProvider =
-    NotifierProvider<AuthController, AuthSession?>(AuthController.new);
+    AsyncNotifierProvider<AuthController, AuthSession?>(AuthController.new);
+
+/// The current session, or null when signed out **or still restoring**.
+///
+/// For anything that must distinguish "restoring" from "signed out" — the
+/// router, a splash gate — watch [authControllerProvider] itself.
+final currentSessionProvider = Provider<AuthSession?>((ref) {
+  return ref.watch(authControllerProvider).value;
+});
 
 /// Convenience for the many widgets that only care whether anyone is signed in.
 final isSignedInProvider = Provider<bool>((ref) {
-  return ref.watch(authControllerProvider) != null;
+  return ref.watch(currentSessionProvider) != null;
 });

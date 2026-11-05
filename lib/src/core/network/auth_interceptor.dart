@@ -16,15 +16,20 @@ class AuthInterceptor extends Interceptor {
   AuthInterceptor({required this.readToken});
 
   /// Returns the current access token, or null when signed out.
-  final String? Function() readToken;
+  ///
+  /// Asynchronous on purpose. At launch the session is still being read back
+  /// from the keychain, and a synchronous read would report "signed out" to
+  /// every request made in that window — so the first authenticated call after
+  /// a cold start would silently go out without its token.
+  final Future<String?> Function() readToken;
 
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
     // Never on the auth routes themselves: `/login` and `/register` are
     // unauthenticated, and sending a stale token to `/refresh` or `/logout`
     // alongside the body would be at best redundant.
     if (!_isAuthRoute(options.path)) {
-      final token = readToken();
+      final token = await readToken();
       if (token != null && token.isNotEmpty) {
         options.headers['Authorization'] = 'Bearer $token';
       }

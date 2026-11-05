@@ -5,6 +5,7 @@ import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/account/presentation/account_screen.dart';
 import 'package:food_menu/src/features/auth/data/auth_controller.dart';
 import 'package:food_menu/src/features/auth/data/auth_repository.dart';
+import 'package:food_menu/src/features/auth/data/token_store.dart';
 
 import '../auth/fake_auth_repository.dart';
 
@@ -15,7 +16,10 @@ void main() {
     bool signedIn = false,
   }) async {
     final container = ProviderContainer(
-      overrides: [authRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        authRepositoryProvider.overrideWithValue(repo),
+        tokenStoreProvider.overrideWithValue(FakeTokenStore()),
+      ],
     );
     addTearDown(container.dispose);
 
