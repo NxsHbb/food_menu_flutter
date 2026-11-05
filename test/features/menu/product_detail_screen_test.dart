@@ -8,6 +8,7 @@ import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
 import 'package:food_menu/src/features/menu/presentation/product_detail_screen.dart';
+import 'package:food_menu/src/features/menu/presentation/widgets/food_data_section.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/food_tags.dart';
 
 import 'fake_menu_repository.dart';
@@ -238,6 +239,111 @@ void main() {
       await pump(tester, product: fromFixture('product_simple'));
 
       expect(find.byType(FoodTags), findsNothing);
+    });
+  });
+
+  group('ingredients and nutrition', () {
+    testWidgets('renders both sections from the real payload', (tester) async {
+      await pump(tester, product: fromFixture('product_with_food_data'));
+
+      expect(find.text('Ingredients'), findsOneWidget);
+      expect(find.text('Nutrition facts'), findsOneWidget);
+      expect(find.text('Mozzarella'), findsOneWidget);
+      expect(find.text('Calories'), findsOneWidget);
+    });
+
+    testWidgets('joins the value and unit', (tester) async {
+      await pump(tester, product: fromFixture('product_with_food_data'));
+
+      expect(find.text('120 g'), findsOneWidget);
+      expect(find.text('540 kcal'), findsOneWidget);
+    });
+
+    testWidgets('a row with no amount still renders its name',
+        (tester) async {
+      final product = Product.fromJson({
+        'id': 50,
+        'name': 'Herb Salad',
+        'prices': const {
+          'price': '700',
+          'currency_minor_unit': 2,
+          'currency_prefix': r'$',
+        },
+        'extensions': const {
+          'food-menu-pro': {
+            'ingredients': [
+              {'id': 1, 'name': 'Basil', 'value': '', 'unit': ''},
+            ],
+            'nutrition': <dynamic>[],
+          },
+        },
+      });
+      await pump(tester, product: product);
+
+      // Amount is optional in the admin, so a bare name is valid.
+      expect(find.text('Basil'), findsOneWidget);
+      expect(find.text('Nutrition facts'), findsNothing);
+    });
+
+    testWidgets('no sections when a dish has no food data', (tester) async {
+      await pump(tester, product: fromFixture('product_simple'));
+
+      expect(find.byType(FoodDataSection), findsNothing);
+      expect(find.text('Ingredients'), findsNothing);
+    });
+
+    testWidgets('tolerates a site whose plugin predates the extension',
+        (tester) async {
+      // No extensions block at all — must not throw, must show no sections.
+      final product = Product.fromJson({
+        'id': 51,
+        'name': 'Old Site Dish',
+        'prices': const {
+          'price': '500',
+          'currency_minor_unit': 2,
+          'currency_prefix': r'$',
+        },
+      });
+      await pump(tester, product: product);
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(FoodDataSection), findsNothing);
+    });
+
+    testWidgets('skips a malformed row rather than rendering a blank line',
+        (tester) async {
+      final product = Product.fromJson({
+        'id': 52,
+        'name': 'Odd Dish',
+        'prices': const {
+          'price': '500',
+          'currency_minor_unit': 2,
+          'currency_prefix': r'$',
+        },
+        'extensions': const {
+          'food-menu-pro': {
+            'ingredients': [
+              {'id': 1, 'name': '', 'value': '10', 'unit': 'g'},
+              {'id': 2, 'name': 'Olive Oil', 'value': '10', 'unit': 'ml'},
+            ],
+          },
+        },
+      });
+      await pump(tester, product: product);
+
+      expect(find.text('Olive Oil'), findsOneWidget);
+      expect(product.ingredients, hasLength(1));
+    });
+
+    testWidgets('renders in dark mode', (tester) async {
+      await pump(
+        tester,
+        product: fromFixture('product_with_food_data'),
+        theme: AppTheme.dark(),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Mozzarella'), findsOneWidget);
     });
   });
 

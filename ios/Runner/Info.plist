@@ -47,6 +47,15 @@
 			</array>
 		</dict>
 	</dict>
+	<!-- Permits HTTP only to local-network addresses, so a development or
+	     staging WordPress site on the LAN can be reached. This does not relax
+	     App Transport Security for the public internet: production hosts still
+	     require HTTPS. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

@@ -8,6 +8,7 @@ import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/util/html_text.dart';
 import '../../../core/widgets/dish_image_placeholder.dart';
+import 'widgets/food_data_section.dart';
 import 'widgets/food_tags.dart';
 import '../data/menu_repository.dart';
 
@@ -20,15 +21,15 @@ import '../data/menu_repository.dart';
 /// - **special instructions** — a cart line note, task 4.5;
 /// - **the favourite heart** — task 3.6, once wishlist endpoints exist.
 ///
-/// Food tags are shown, from WooCommerce's `product_tag`. **Ingredients and
-/// nutrition are not available for products at all** — the plugin keeps them
-/// as `_ingredient` / `_nutrition` post meta on its own `food-menu` post type,
-/// whose metabox and taxonomies are never registered for `product`. See
-/// `FINDINGS.md`.
+/// Food tags come from WooCommerce's `product_tag`. Ingredients and nutrition
+/// come from the plugin's `food-menu-pro` Store API extension, added in
+/// food-menu-pro#5 — before that they were unreachable for products. Both are
+/// absent on a site running an older plugin, and the sections simply do not
+/// appear.
 class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({required this.productId, super.key});
 
-  static const routePath = 'dish/:id';
+  static const routePath = '/dish/:id';
   static const routeName = 'dish';
 
   final int productId;
@@ -258,6 +259,20 @@ class _Body extends StatelessWidget {
         if (product.tags.isNotEmpty) ...[
           const SizedBox(height: AppTokens.space16),
           FoodTags(tags: product.tags),
+        ],
+        if (product.ingredients.isNotEmpty) ...[
+          const SizedBox(height: AppTokens.space24),
+          FoodDataSection(
+            title: 'Ingredients',
+            rows: product.ingredients,
+          ),
+        ],
+        if (product.nutrition.isNotEmpty) ...[
+          const SizedBox(height: AppTokens.space24),
+          FoodDataSection(
+            title: 'Nutrition facts',
+            rows: product.nutrition,
+          ),
         ],
       ],
     );

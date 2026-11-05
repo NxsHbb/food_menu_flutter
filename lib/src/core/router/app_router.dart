@@ -36,17 +36,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                     name: MenuListScreen.routeName,
                     builder: (context, state) => const MenuListScreen(),
                   ),
-                  GoRoute(
-                    path: ProductDetailScreen.routePath,
-                    name: ProductDetailScreen.routeName,
-                    builder: (context, state) {
-                      // A non-numeric or missing id is a bad link rather than
-                      // a crash: the screen's own 404 handles it.
-                      final id =
-                          int.tryParse(state.pathParameters['id'] ?? '') ?? -1;
-                      return ProductDetailScreen(productId: id);
-                    },
-                  ),
                 ],
               ),
             ],
@@ -79,6 +68,20 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+      // Outside the shell on purpose: the design shows the tab bar only on
+      // home, menu, cart, orders, account and wishlist. A dish is a
+      // full-screen view with its own close button, so it covers the bar.
+      // Checkout, order received and order tracking will sit here too.
+      GoRoute(
+        path: ProductDetailScreen.routePath,
+        name: ProductDetailScreen.routeName,
+        builder: (context, state) {
+          // A non-numeric or missing id is a bad link rather than a crash:
+          // the screen's own not-found state handles it.
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? -1;
+          return ProductDetailScreen(productId: id);
+        },
       ),
     ],
   );

@@ -86,6 +86,13 @@ are entity-escaped on top — an ampersand reaches the app as `&#038;`. Pass
 anything displayed through `plainText()` in `core/util/html_text.dart`; never
 render an API string directly.
 
+### Ingredients and nutrition
+Supplied by the plugin's `food-menu-pro` **Store API extension** on the
+product response, not by WooCommerce. Added in food-menu-pro#5; before that
+they were unreachable for products. Every level of the extension block is
+treated as optional, so a site running an older plugin shows no sections
+rather than erroring.
+
 ### Banners
 The landing carousel reads WordPress posts in the **`app-banners`** category:
 post title, excerpt, featured image, and the first post tag as a badge. The
@@ -125,6 +132,12 @@ test pins it.
 
 The only invented token is light-mode `ring`, because the design's value for it
 is self-referential. It is flagged in `AppTokens`.
+
+## Transport security
+iOS blocks cleartext HTTP, so `Info.plist` sets `NSAllowsLocalNetworking`,
+permitting HTTP to **local-network addresses only** — a dev or staging
+WordPress site on the LAN. Production hosts still require HTTPS. Android has
+no equivalent configured yet and cannot reach an HTTP dev site.
 
 ## Configuration
 The backend URL is a compile-time define, never hard-coded to a machine:

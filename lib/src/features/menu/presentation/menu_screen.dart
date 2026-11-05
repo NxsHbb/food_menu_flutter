@@ -164,7 +164,7 @@ class MenuScreen extends ConsumerWidget {
                   final product = value[index];
                   return DishCard(
                     product: product,
-                    onTap: () => context.goNamed(
+                    onTap: () => context.pushNamed(
                       ProductDetailScreen.routeName,
                       pathParameters: {'id': '${product.id}'},
                     ),

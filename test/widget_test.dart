@@ -47,6 +47,34 @@ void main() {
     }
   });
 
+  testWidgets('a dish opens full screen, without the tab bar', (tester) async {
+    await pumpApp(tester);
+
+    // The design shows the tab bar only on home, menu, cart, orders, account
+    // and wishlist — not on a dish, which is a full-screen view with its own
+    // close button. The route therefore sits outside the shell.
+    expect(find.byType(NavigationBar), findsOneWidget);
+
+    await tester.tap(find.text('Margherita').first);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byIcon(Icons.close), findsOneWidget);
+  });
+
+  testWidgets('closing a dish returns to the menu with its tab bar',
+      (tester) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.text('Margherita').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.text('What are you craving?'), findsOneWidget);
+  });
+
   testWidgets('each shell branch keeps its own state', (tester) async {
     await pumpApp(tester);
 
