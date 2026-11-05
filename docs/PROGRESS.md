@@ -19,6 +19,66 @@ Recorded in `PLAN.md`:
   offers the Pizza category instead of an empty screen. Client-side against
   the already-loaded category list. Added as task 2.6.
 
+## Task 3.1 — Customer auth endpoints (plugin)
+Branch: `mobile-app` on `radiustheme/food-menu-pro`, PR #6. Nothing in this
+repo changes except these docs.
+
+Opens Phase 3. `fmp/v1/app/*` is now a real namespace with a bearer layer
+underneath it, which 3.2 (profile) and 3.5 (wishlist) build on directly.
+
+### What shipped
+Four routes, all public by permission and gated on rate limiting and transport
+instead:
+
+| Route | Limit |
+|---|---|
+| `POST /fmp/v1/app/auth/register` | 5/hour per IP |
+| `POST /fmp/v1/app/auth/login` | 20/15min per IP, 15/15min per account |
+| `POST /fmp/v1/app/auth/refresh` | 60/5min per IP |
+| `POST /fmp/v1/app/auth/logout` | idempotent, `all_devices` option |
+
+- `AppAuthentication` filters `determine_current_user`, so a bearer token makes
+  capability checks, WooCommerce customer sessions and `get_current_user_id()`
+  behave as they do for a logged-in browser. This is the piece that unblocks
+  every later authenticated route. A cookie session still wins, so the plugin's
+  React dashboards are untouched.
+- `AppTokens` mints opaque `fmpa_{user_id}_{session_id}_{secret}` tokens and
+  stores only HMAC-SHA256 hashes of the secrets in `_fmp_app_sessions` user
+  meta. Refresh rotates the pair and detects reuse: replaying a spent refresh
+  token revokes the session.
+- `AppRateLimit` holds fixed-window counters in transients, keyed on
+  `REMOTE_ADDR`.
+- `AppApiFns` carries the shared user payload, the HTTPS check and the
+  `no-store` header, ready for 3.2 and 3.5.
+
+### Response shape the Flutter client will consume
+```json
+{ "token_type": "Bearer", "access_token": "fmpa_…", "expires_in": 3600,
+  "refresh_token": "fmpa_…", "refresh_expires_in": 2592000,
+  "user": { "id": 8, "email": "…", "username": "…", "first_name": "…",
+            "last_name": "…", "display_name": "…", "phone": "…",
+            "avatar_url": "…" } }
+```
+
+### Verified against the running dev site
+Register returning 201 with the `customer` role and the phone in
+`billing_phone`; login by email; a bearer token resolving `wp/v2/users/me`;
+rotation issuing a new pair and killing the old access token; replay of a spent
+refresh token revoking the session and both rotated tokens; single-session and
+all-devices logout; logout idempotent on an already-dead token; the 10-session
+cap evicting oldest-first; an expired access token rejected while its refresh
+token still recovers the session; both login buckets and the register bucket
+tripping at their stated thresholds; `no-store` on every token response;
+registration refused when the WooCommerce setting is off; a non-`fmpa_` bearer
+token left unclaimed; and cookie-authenticated admin requests to both `wp/v2`
+and the staff `fmp/v1` routes still returning 200.
+
+### Gaps recorded, not fixed
+Password reset, email verification and social sign-in are outside 3.1 as
+planned — see the open dependency in `PLAN.md`. PHPCS could not be run: the
+plugin's `composer cs` needs a `phpcs` binary that is not installed, and
+`vendor/` holds only the autoloader.
+
 ## Task 2.7 — Ingredients and nutrition (plugin + app)
 Branches: `mobile-app` on `radiustheme/food-menu-pro` (merged as #5), and
 `feat/dish-food-data` here.

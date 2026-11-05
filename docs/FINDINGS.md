@@ -47,6 +47,12 @@ Consequence: a staff-side app needs an auth path added on the plugin's
 accepts Application Passwords (or a token), keeping the nonce as one accepted
 credential so the existing React dashboards keep working.
 
+> **Customer side resolved** by food-menu-pro#6 (task 3.1), which takes the
+> other route: rather than relax the gate on 34 handler sites, it adds a
+> `fmp/v1/app/*` prefix that never had one. The staff routes are untouched and
+> still unreachable from a mobile client — which is fine, because the app is
+> customer-facing. See *Bearer tokens, not a relaxed nonce gate* below.
+
 ## Customer-side ordering has a real headless path, via WooCommerce
 The plugin exposes no customer menu/cart/checkout REST API — that flow is PHP
 templates plus `admin-ajax` calls. But WooCommerce's own Store API
@@ -124,3 +130,64 @@ it, a separate self-contained metabox writes the same `_ingredient` /
 `_nutrition` rows on products, and a Store API extension returns them under
 the `food-menu-pro` namespace. Storage is byte-identical to the post type's,
 so `FnsPro::get_fm_ingredient_list()` was untouched.
+
+## Bearer tokens, not a relaxed nonce gate
+Task 3.1 added `fmp/v1/app/auth/{register,login,refresh,logout}` plus the layer
+the rest of the app API sits on. The decisions behind it, because several were
+close calls:
+
+- **A new prefix, not a relaxed gate.** Editing the nonce check on 34 existing
+  handler sites would have put every staff route one mistake away from being
+  public. The app's routes are new files that never had a nonce.
+- **`determine_current_user`, not a custom permission callback per route.**
+  Resolving the token into the actual WordPress current user means capability
+  checks, WooCommerce customer sessions and `get_current_user_id()` all work
+  untouched, which is what lets Phase 4's cart and Phase 6's checkout run
+  against WooCommerce's own Store API rather than re-implementing them. The
+  filter must be attached before anything first asks who is logged in, so it is
+  booted from `FMP::init_hooks()` rather than the plugin's `controllers()` list,
+  which runs on `init` and is skipped in debug mode.
+- **No JWT.** `vendor/` is committed in both plugins, so a dependency would
+  mean committing a library to ship four routes. Opaque tokens
+  (`fmpa_{user_id}_{session_id}_{secret}`) carry the ids in plain text so a
+  token resolves in one `get_user_meta()` read instead of a meta query, and only
+  HMAC-SHA256 hashes of the secrets are stored — a leaked database row is not
+  replayable. HMAC rather than `wp_hash_password()` because the secret is 256
+  random bits, so there is nothing to brute force, and bcrypt on every
+  authenticated request would be a self-inflicted denial of service.
+- **Refresh reuse revokes the session.** Standard OAuth 2.0 BCP, and it has a
+  direct consequence for task 3.4: **the Flutter client must serialise
+  refreshes behind a single mutex.** Two concurrent 401s each triggering their
+  own refresh will sign the user out. A 401 from `/refresh` means logout, not
+  retry.
+- **The per-account login limit is looser than the per-IP one.** Counting
+  failures against the account being *targeted* is what stops a distributed
+  attack on one customer, but a tight limit there lets anyone lock a known
+  customer out by guessing badly on their behalf. 15/15min per account against
+  20/15min per IP is the compromise.
+- **`REMOTE_ADDR` only.** `X-Forwarded-For` is client-supplied, so trusting it
+  by default would let anyone defeat every limit by sending a new value per
+  request. Sites behind a proxy opt in through `fmp_app_client_ip`.
+- **Registration follows WooCommerce's setting.** It is off by default — and
+  was off on the dev site — so this is a real deployment step, now recorded as
+  an open dependency in `PLAN.md`. Overriding it would mean the app creating
+  users on a store whose owner deliberately turned registration off.
+- **HTTPS is required only when the site is already HTTPS.** Enforcing it
+  unconditionally would break the plain-HTTP dev site; not enforcing it at all
+  would let a real install be downgraded into leaking passwords.
+
+Every failed sign-in returns one identical error. `wp_authenticate`
+distinguishes an unknown user from a wrong password, and passing that through
+would have made the route an account enumeration oracle.
+
+### Still missing
+Password reset, email verification and social sign-in. None were in the plan
+for 3.1, but password reset is the one a real store will notice: a customer who
+forgets their password has no in-app route back today.
+
+### PHPCS could not be run
+The plugin's `composer cs` shells out to a `phpcs` binary that is not installed
+on this machine, and its committed `vendor/` holds only the Composer
+autoloader. The new files were written to the plugin's conventions — tabs,
+docblocks, Yoda conditions, sanitised `$_SERVER` reads — and checked with
+`php -l`, but not machine-verified against WordPress-Core.

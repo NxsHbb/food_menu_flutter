@@ -54,6 +54,9 @@ Pro features.
 - Enabled: product add-ons, kitchen monitor, custom order statuses, QR table
   ordering, timed products, order timeline, pickup, delivery, dine-in.
 - Currency USD, taxes off.
+- `woocommerce_enable_myaccount_registration = yes`. **Off by default**, and
+  task 3.1's register endpoint follows this setting rather than overriding it,
+  so registration returns 403 without it.
 
 ## Demo data
 Seeded via wp-cli, idempotent on title, so re-running a seed script is safe.
@@ -65,6 +68,7 @@ Seeded via wp-cli, idempotent on title, so re-running a seed script is safe.
 | Product tags | 7 | Vegetarian, Vegan, Spicy, Gluten Free, Healthy, Popular, Shareable |
 | Banner posts | 2 | in the `app-banners` category, with featured images from `designs/img/` |
 | Ingredient / nutrition / unit terms | 4 each | attached to **Margherita** (product 14) as sample food data |
+| Customer account | 1 | `customer@foodmenu.test` / `Customer@2020##`, created through the app's own register endpoint |
 
 The awkward cases are deliberate: a variable product exercises price ranges
 and "Choose options", the out-of-stock one exercises `is_purchasable: true`
@@ -91,6 +95,28 @@ equivalent yet** and cannot reach this site.
 
 `simctl` cannot tap, so to reach a screen behind navigation, temporarily set
 the router's `initialLocation` to that route, restart, screenshot, and revert.
+
+## Exercising the auth endpoints
+The four routes from task 3.1 need no nonce and no cookie:
+
+```sh
+B='http://192.168.0.171:8080/?rest_route='
+
+# Sign in and keep the tokens.
+curl -s -X POST "$B/fmp/v1/app/auth/login" -H 'Content-Type: application/json' \
+  -d '{"username":"customer@foodmenu.test","password":"Customer@2020##"}'
+
+# Use the access token anywhere the current user matters.
+curl -s "$B/wp/v2/users/me" -H "Authorization: Bearer <access_token>"
+```
+
+Two things to know while testing:
+
+- **Rate limits are real and keyed on your IP.** Repeated failed logins will
+  start returning 429. Clear them with `wp transient delete --all`.
+- **Do not replay a refresh token.** Rotation is one-shot; sending a spent
+  refresh token revokes the whole session on purpose. Mint a new session with
+  `/login` rather than reusing an old response.
 
 ## Live reference site
 `https://radiustheme.net/demos/food-menu/` — useful for comparing intended
