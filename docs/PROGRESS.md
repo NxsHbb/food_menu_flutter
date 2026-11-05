@@ -19,6 +19,68 @@ Recorded in `PLAN.md`:
   offers the Pizza category instead of an empty screen. Client-side against
   the already-loaded category list. Added as task 2.6.
 
+## Task 3.3 — Flutter auth flow
+Branch: `feat/auth-flow`. First app-side task of Phase 3.
+
+### The design has no auth screens
+Its ten screens are home, menu, product, cart, checkout, success, orders,
+order, account and wishlist. There is no sign-in, no register and no password
+screen anywhere, and the account screen simply assumes somebody is signed in —
+its **Log out** is a `toast()` stub like the rest. Both screens here are
+therefore drawn from the design's own vocabulary: the `page` background, 16px
+gutters, the `field` input fill with a `line` hairline, and the full-width
+48px brand-red call to action from checkout. Recorded as an agreed decision in
+`PLAN.md`, matching the one already taken for the address screens.
+
+### What shipped
+- `features/auth/domain/` — `AuthUser`, `AuthTokens`, `AuthSession` and
+  `AuthValidation`. The validators are pure and Flutter-free, and **mirror the
+  server's rules rather than inventing stricter ones**, so a form that passes
+  locally is not then rejected by the API.
+- `features/auth/data/auth_repository.dart` — the four auth routes.
+- `features/auth/data/auth_controller.dart` — the session. `null` *is* the
+  signed-out state, so no status flag can disagree with it. **In memory only**;
+  task 3.4 persists it.
+- `features/auth/presentation/` — `LoginScreen`, `RegisterScreen`, and the
+  shared `AuthShell`, `AuthField` and `AuthErrorBanner`.
+- `core/network/auth_interceptor.dart` — attaches the bearer token to every
+  request except the auth routes themselves.
+- The account screen now shows who is signed in and can sign out. Deliberately
+  minimal — the design's full account screen is task 3.7.
+
+### Decisions worth knowing
+- **Both names are required at registration** even though the API treats them
+  as optional, because WooCommerce requires `first_name` and `last_name` on
+  every address and the design's checkout requires a full name. Collecting them
+  once at signup avoids asking again at the first order.
+- **Auth is pushed, not navigated to.** The customer is sent there mid-task, so
+  the screens pop back with a result and the gated action resumes. There is no
+  tab or destination for them, which also matches the design having none.
+- **Logout always succeeds locally**, even if the server call fails. Leaving
+  someone signed in because the network blipped is the worse of the two
+  outcomes.
+- **A 429 is not "retryable".** It will succeed eventually but not now, so the
+  banner reports the wait from `data.retry_after` instead of offering a button
+  that would spend another attempt.
+
+### Core changes this needed
+`ApiException` gained `retryAfter` and `field`, both lifted from the server's
+`data` object, plus `isRateLimited`. `ApiClient` gained `put`, which task 3.7
+needs for `/me`.
+
+### Verified
+`flutter analyze` clean, **209 tests pass** (51 new). Run on the iPhone 17 Pro
+simulator against the dev site and looked at: sign-in and register in light and
+dark, and the signed-out account screen. Field alignment, the brand red, the
+`field` fill and the dark ramp all render as intended. The error banner is
+covered by widget test rather than on-device, because `simctl` cannot tap and
+reaching a populated error state needs input.
+
+### Still missing
+Password reset, and changing the account email or password — see the task 3.9
+recommendation in `PLAN.md`. The sign-in screen deliberately ships **without** a
+"Forgot password?" link rather than with one that goes nowhere.
+
 ## Task 3.2 — Profile and address book (plugin)
 Branch: `mobile-app-me` on `radiustheme/food-menu-pro`, PR #7. Nothing in this
 repo changes except these docs.

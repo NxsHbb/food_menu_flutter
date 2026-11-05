@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/account/presentation/account_screen.dart';
+import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/register_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/menu/presentation/menu_list_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
@@ -73,6 +75,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       // home, menu, cart, orders, account and wishlist. A dish is a
       // full-screen view with its own close button, so it covers the bar.
       // Checkout, order received and order tracking will sit here too.
+      // Auth sits outside the shell and is pushed, not navigated to: the
+      // customer is sent here mid-task — placing an order, saving a
+      // favourite — and popping returns them to it. The design has no auth
+      // screens, so there is no tab or destination for them either.
+      GoRoute(
+        path: LoginScreen.routePath,
+        name: LoginScreen.routeName,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: RegisterScreen.routePath,
+        name: RegisterScreen.routeName,
+        builder: (context, state) => const RegisterScreen(),
+      ),
       GoRoute(
         path: ProductDetailScreen.routePath,
         name: ProductDetailScreen.routeName,

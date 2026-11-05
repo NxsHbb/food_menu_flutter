@@ -240,3 +240,41 @@ Checkout's **Change** button and the Account screen's **Saved addresses** row
 are both `toast()` stubs — `'Address book opens here'`. Agreed to draw the list
 and the add/edit form to match the app's existing design language, now tasks
 3.7 and 3.8.
+
+## The design has no auth screens, and never did
+Its ten screens are home, menu, product, cart, checkout, success, orders,
+order, account and wishlist. There is no sign-in, no register, no password
+screen. The account screen assumes a signed-in customer — "Richard Davis" is
+hard-coded — and its **Log out** is a `toast('Logged out (demo)')` stub, as are
+**Edit profile**, **Saved addresses**, **Payment methods** and **Help**.
+
+So task 3.3's screens, like the address screens before them, are drawn from the
+design's own vocabulary rather than copied from it: `page` background, 16px
+gutters, `field` input fill with a `line` hairline, brand red only on focus and
+error, and the full-width 48px call to action from checkout. The design's
+account screen does use a full-width button (`width: calc(100% - 32px)`), which
+is why the empty state's **Sign in** is full width too.
+
+Worth remembering when the remaining stub rows come up in task 3.7: the design
+shows what each row *says*, never where it goes.
+
+## Validate like the server, not more strictly
+`AuthValidation` mirrors the plugin's rules — eight characters, a password that
+is not the email address — and deliberately stops there. A client that rejects
+input the server would have accepted is a worse failure than one that lets the
+server have the last word, because the customer has no way to argue with it.
+The email pattern is loose for the same reason: the real grammar is not worth
+encoding, and a false rejection is unrecoverable from the user's side.
+
+The one place the app is **stricter** than the API is registration requiring a
+first and last name, and that is not stylistic: WooCommerce requires both on
+every address, and the design's checkout requires a full name, so an account
+without them would just be asked again at the first order.
+
+## A 429 is not a retryable error
+`ApiException.isRetryable` deliberately excludes 429. It will succeed
+eventually, but not now, and offering an immediate "Try again" to a
+rate-limited customer just spends another attempt against the limit. The
+plugin sends the remaining window as `data.retry_after`, so the banner says how
+long to wait instead. `data.field` is lifted the same way, for the address form
+in task 3.8.
