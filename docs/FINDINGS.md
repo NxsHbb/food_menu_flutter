@@ -329,3 +329,66 @@ device-side shell eats `#` unless the literal is single-quoted
 that looked exactly like an app bug. If a login fails unexpectedly, **read the
 field back** — tap the reveal icon on the password — before suspecting the code.
 Typing character by character with a short sleep is the reliable form.
+
+## A debug build will not launch from the iOS home screen
+Tapping the app icon on a physical iPhone shows a black screen reading *"In
+iOS 14+, debug mode Flutter apps can only be launched from Flutter tooling,
+IDEs with Flutter plugins or from Xcode."* The Dart code never runs.
+
+This cost real time, because it is indistinguishable from a broken app: the
+screen is not the app's own error state, so "no products, could not reach
+server" looked like a networking fault when nothing was running at all. Worse,
+`xcrun devicectl device process launch` **reports success** for a debug build
+and the process genuinely exists — it is just sitting on that placeholder. Do
+not treat a successful launch command as evidence the app is running.
+
+**Use `flutter run --profile` for anything on a physical iPhone.** A profile
+build launches from the home screen like a normal app.
+
+## iOS needs two separate permissions to reach a LAN server
+`NSAllowsLocalNetworking` only relaxes App Transport Security. Since iOS 14 a
+connection to a local-network address *also* needs the **Local Network privacy
+permission**, which requires `NSLocalNetworkUsageDescription` in `Info.plist`.
+Without a purpose string the system denies it outright, **silently, with no
+packets leaving the device** — so the server sees nothing and there is nothing
+to debug from either end. Simulators do not enforce it, which is why the app
+worked there for weeks.
+
+The key is now set. It costs production nothing, because the prompt is
+triggered by actually touching the local network rather than by the key
+existing, so a build pointed at a public HTTPS host never asks.
+
+Honest caveat: adding it did **not** by itself make the handset reach the LAN
+dev site. The symptom was resolved by pointing the app at the live HTTPS site
+instead, so the residual LAN-on-iPhone problem is unproven — most likely stale
+privacy state from the installs that predated the key. The key is correct
+regardless, which is why it stays.
+
+## Prove the app is running before debugging the network
+Three separate false trails came from measuring the wrong thing:
+
+1. PHP's built-in server **does not log requests handled by `router.php`**, so
+   the access log shows only static files and makes a working REST API look
+   silent. A one-line `muplugins_loaded` logger writing `REMOTE_ADDR` and
+   `REQUEST_URI` gives ground truth.
+2. An ATS experiment that "proved" ATS was innocent had actually run on a debug
+   build that was never executing.
+3. `adb shell input text` corrupting an email produced a genuine 401 that
+   looked exactly like an auth bug.
+
+The order that works: confirm the app is *running*, then that its packets
+*arrive*, then look at the response. Checking Safari on the same handset
+separates network from app in one step.
+
+## Testing targets, after the live site was opened up
+`https://radiustheme.net/demos/food-menu` runs the merged Pro plugin over
+HTTPS, which makes it the **only practical target for a physical iPhone**: a
+public HTTPS host needs neither cleartext ATS nor the Local Network permission.
+It is seeded to mirror the local site — 16 products, 6 categories, 7 tags, one
+variable product, one out of stock, three on sale, and two banner posts in
+`app-banners`.
+
+Note it began as a **non-WooCommerce** install, which usefully exercised the
+fallback paths: registration fell back to `wp_insert_user`, and the address
+endpoints returned a clean `503 fmp_app_woocommerce_missing` rather than
+crashing. WooCommerce is installed there now.

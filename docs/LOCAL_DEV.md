@@ -170,9 +170,39 @@ Device builds need `DEVELOPMENT_TEAM = M34L8S85ZF` in the Xcode project —
 already set. `com.foodmenu` cannot be registered under any other team, so a
 different account means a different bundle ID. See `FINDINGS.md`.
 
+**Always use `--profile` on a physical iPhone.** A debug build cannot be
+launched from the home screen on iOS 14+; tapping the icon shows a black
+placeholder and the Dart code never runs, which looks exactly like a broken
+app.
+
+**Point the iPhone at the live site, not the LAN.** Reaching a LAN address from
+a handset needs the Local Network privacy permission on top of ATS, and it
+fails silently when denied:
+
+```sh
+flutter run --profile -d <iphone-id> \
+  --dart-define=FOOD_MENU_BASE_URL=https://radiustheme.net/demos/food-menu
+```
+
 There is **no CLI screenshot or input API** for a physical iPhone, so visual
 checks there are either the simulator or a person looking at the screen.
 
-## Live reference site
-`https://radiustheme.net/demos/food-menu/` — useful for comparing intended
-behaviour. Treat it as read-only; do not seed or reconfigure it.
+## Live site — the iOS testing target
+`https://radiustheme.net/demos/food-menu/`. **No longer read-only**: it runs the
+merged Pro plugin over HTTPS, which makes it the only practical backend for a
+physical iPhone, and it has been seeded to mirror the local demo data.
+
+| What | Count |
+|---|---|
+| Products | 16, incl. **Build Your Pizza** (variable, 3 sizes) and **Sold Out Special** (out of stock) |
+| On sale | 3 — Biryani, Pepperoni Feast, Chicken Wings |
+| Categories / tags | 6 / 7 |
+| Banner posts | 2, in `app-banners` (category 29) |
+| Test customer | `claude.devicetest@foodmenu.test` / `DeviceTest@2026##` |
+
+Currency is **BDT** and the store country **BD**, so prices there read
+differently from the local site's USD.
+
+Seeding was done over the REST API with a `wp-login.php` cookie plus a
+`rest-nonce`, since the site has no Application Password set up. The scripts
+are idempotent on name, so re-running them is safe.
