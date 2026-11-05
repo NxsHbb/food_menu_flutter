@@ -69,6 +69,7 @@ Seeded via wp-cli, idempotent on title, so re-running a seed script is safe.
 | Banner posts | 2 | in the `app-banners` category, with featured images from `designs/img/` |
 | Ingredient / nutrition / unit terms | 4 each | attached to **Margherita** (product 14) as sample food data |
 | Customer account | 1 | `customer@foodmenu.test` / `Customer@2020##`, created through the app's own register endpoint |
+| Saved addresses | 2 | `Home` (default, Celina DE) and `Work` (Dover DE) on that customer, matching the design's data |
 
 The awkward cases are deliberate: a variable product exercises price ranges
 and "Choose options", the out-of-stock one exercises `is_purchasable: true`
@@ -110,13 +111,26 @@ curl -s -X POST "$B/fmp/v1/app/auth/login" -H 'Content-Type: application/json' \
 curl -s "$B/wp/v2/users/me" -H "Authorization: Bearer <access_token>"
 ```
 
-Two things to know while testing:
+Read and edit the profile and address book:
+
+```sh
+curl -s "$B/fmp/v1/app/me" -H "Authorization: Bearer <access_token>"
+
+# PUT is partial, but `addresses` replaces the whole book.
+curl -s -X PUT "$B/fmp/v1/app/me" -H "Authorization: Bearer <access_token>" \
+  -H 'Content-Type: application/json' -d '{"phone":"+8801700000000"}'
+```
+
+Three things to know while testing:
 
 - **Rate limits are real and keyed on your IP.** Repeated failed logins will
   start returning 429. Clear them with `wp transient delete --all`.
 - **Do not replay a refresh token.** Rotation is one-shot; sending a spent
   refresh token revokes the whole session on purpose. Mint a new session with
   `/login` rather than reusing an old response.
+- **A `PUT` with an `addresses` key replaces the book**, so a careless test
+  payload wipes the seeded Home/Work pair. Re-seed with the two addresses in
+  the demo data table above.
 
 ## Live reference site
 `https://radiustheme.net/demos/food-menu/` — useful for comparing intended
