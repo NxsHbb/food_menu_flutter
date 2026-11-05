@@ -392,3 +392,36 @@ Note it began as a **non-WooCommerce** install, which usefully exercised the
 fallback paths: registration fell back to `wp_insert_user`, and the address
 endpoints returned a clean `503 fmp_app_woocommerce_missing` rather than
 crashing. WooCommerce is installed there now.
+
+## A dio QueuedInterceptor cannot retry its own request
+The obvious shape for refresh-on-401 is a `QueuedInterceptor`, so dio
+serialises the callbacks and a burst of 401s cannot each start a refresh. It
+deadlocks. `dio.fetch` re-enters the interceptor chain, so the replayed
+request's callbacks queue behind the error handler that is still waiting for
+them. The test hung for its full 30-second timeout rather than failing.
+
+`AuthRefreshInterceptor` is therefore a plain `Interceptor`, and
+deduplication lives where it belongs: a single-flight future in
+`AuthController.refresh` that every caller awaits. The retried request carries
+an `extra` marker so a second 401 gives up instead of looping.
+
+That split is worth keeping in mind generally — the interceptor handles *one*
+request, the controller owns what is true for the *session*.
+
+## Reading auth state synchronously races the keychain
+`AuthInterceptor` originally read the access token synchronously. At a cold
+start the session is still being read back from secure storage, so every
+request made in that window went out unauthenticated — silently, and only on a
+real launch, which no widget test reproduces.
+
+`readToken` is async now and awaits the controller's restore before deciding
+there is no token. The cost is that early public requests wait a few
+milliseconds on a keychain read; the alternative is a first authenticated
+request that fails for no visible reason.
+
+## Store token expiry as an absolute time
+The server sends `expires_in` — a lifetime in seconds. Persisting that is
+useless: the app may be closed for days, and on restore the number says nothing
+about whether the token is still good. `AuthTokens` resolves lifetimes against
+the clock at issue time and `TokenStore` writes the resulting absolute
+timestamps.

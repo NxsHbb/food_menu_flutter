@@ -1,4 +1,5 @@
 import 'package:food_menu/src/features/auth/data/auth_repository.dart';
+import 'package:food_menu/src/features/auth/data/token_store.dart';
 import 'package:food_menu/src/features/auth/domain/auth_session.dart';
 import 'package:food_menu/src/features/auth/domain/auth_tokens.dart';
 import 'package:food_menu/src/features/auth/domain/auth_user.dart';
@@ -37,6 +38,7 @@ class FakeAuthRepository implements AuthRepository {
     this.loginError,
     this.registerError,
     this.logoutError,
+    this.refreshError,
     this.delay = Duration.zero,
   });
 
@@ -44,6 +46,7 @@ class FakeAuthRepository implements AuthRepository {
   Object? loginError;
   Object? registerError;
   Object? logoutError;
+  Object? refreshError;
   final Duration delay;
 
   final List<Map<String, Object?>> calls = [];
@@ -86,12 +89,49 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<AuthTokens> refresh(String refreshToken) async {
     calls.add({'call': 'refresh', 'refresh_token': refreshToken});
-    return (session ?? sessionFor()).tokens;
+    if (delay > Duration.zero) await Future<void>.delayed(delay);
+    if (refreshError != null) throw refreshError!;
+    final base = session ?? sessionFor();
+    return AuthTokens(
+      accessToken: '${base.tokens.accessToken}_rotated',
+      refreshToken: '${base.tokens.refreshToken}_rotated',
+      accessExpiresAt: DateTime.now().add(const Duration(hours: 1)),
+      refreshExpiresAt: DateTime.now().add(const Duration(days: 30)),
+    );
   }
 
   @override
   Future<void> logout({String? refreshToken, bool allDevices = false}) async {
     calls.add({'call': 'logout', 'refresh_token': refreshToken, 'all_devices': allDevices});
     if (logoutError != null) throw logoutError!;
+  }
+}
+
+/// A [TokenStore] backed by a plain field, so tests never touch the keychain.
+class FakeTokenStore implements TokenStore {
+  FakeTokenStore({this.stored});
+
+  AuthSession? stored;
+
+  /// Every call made, so a test can assert the session was persisted or wiped
+  /// rather than only that the in-memory state changed.
+  final List<String> calls = [];
+
+  @override
+  Future<AuthSession?> read() async {
+    calls.add('read');
+    return stored;
+  }
+
+  @override
+  Future<void> write(AuthSession session) async {
+    calls.add('write');
+    stored = session;
+  }
+
+  @override
+  Future<void> clear() async {
+    calls.add('clear');
+    stored = null;
   }
 }

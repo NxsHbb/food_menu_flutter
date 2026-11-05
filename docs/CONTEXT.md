@@ -107,11 +107,25 @@ The plugin side landed in task 3.1 (food-menu-pro#6); the Flutter half is tasks
 `features/auth/` holds the whole of it, in the project's usual
 domain/data/presentation split.
 
-- **`AuthController` is the session.** `null` means signed out, so there is no
-  status enum that could disagree with the session object. `isSignedInProvider`
-  is there for the many widgets that only need the boolean.
-- **Nothing outside `AuthController` holds a token.** Task 3.4 swaps in-memory
-  storage for secure storage, and that change stays contained because of it.
+- **`AuthController` holds the session as an `AsyncValue`.** `AsyncLoading` is
+  the keychain restore at launch, `AsyncData(null)` is signed out,
+  `AsyncData(session)` is signed in. Watch `currentSessionProvider` when you
+  only want the session, `isSignedInProvider` for the boolean, and the
+  controller itself when you must distinguish *restoring* from *signed out* —
+  showing a sign-in prompt during the restore flashes it at someone who is
+  already signed in.
+- **Nothing outside `AuthController` holds a token.** `TokenStore` persists it
+  to the Keychain / EncryptedSharedPreferences, and only the controller talks
+  to that.
+- **Refresh is single-flight.** `AuthController.refresh()` returns one shared
+  future to every caller. This is correctness, not efficiency: the server
+  rotates refresh tokens and revokes the session when a spent one is replayed,
+  so two concurrent refreshes sign the customer out. **Never call the
+  repository's `refresh` directly** — go through the controller.
+- **`AuthRefreshInterceptor` turns a 401 into one refresh and one replay.** It
+  is a plain `Interceptor`, not a `QueuedInterceptor`: a queued one deadlocks,
+  because the retry re-enters the chain and waits on the queue slot the error
+  handler still holds. A failed refresh signs out; a network blip does not.
 - **`AuthInterceptor` adds the bearer header to everything except
   `fmp/v1/app/auth/*`.** It is blanket rather than opt-in because the plugin
   resolves the token into the real WordPress current user, so the same token

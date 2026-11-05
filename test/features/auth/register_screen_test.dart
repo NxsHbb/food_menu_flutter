@@ -5,6 +5,7 @@ import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/auth/data/auth_controller.dart';
 import 'package:food_menu/src/features/auth/data/auth_repository.dart';
+import 'package:food_menu/src/features/auth/data/token_store.dart';
 import 'package:food_menu/src/features/auth/presentation/register_screen.dart';
 
 import 'fake_auth_repository.dart';
@@ -15,7 +16,10 @@ void main() {
     FakeAuthRepository repo,
   ) async {
     final container = ProviderContainer(
-      overrides: [authRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        authRepositoryProvider.overrideWithValue(repo),
+        tokenStoreProvider.overrideWithValue(FakeTokenStore()),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -57,7 +61,7 @@ void main() {
     await tester.tap(find.text('Create account'));
     await tester.pumpAndSettle();
 
-    expect(container.read(authControllerProvider)?.user.email, 'new@foodmenu.test');
+    expect(container.read(currentSessionProvider)?.user.email, 'new@foodmenu.test');
     final call = repo.calls.single;
     expect(call['first_name'], 'Test');
     expect(call['phone'], '+1 302 555 0148');

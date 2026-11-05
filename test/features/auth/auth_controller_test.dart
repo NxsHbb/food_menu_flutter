@@ -3,13 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/features/auth/data/auth_controller.dart';
 import 'package:food_menu/src/features/auth/data/auth_repository.dart';
+import 'package:food_menu/src/features/auth/data/token_store.dart';
 
 import 'fake_auth_repository.dart';
 
 void main() {
   ProviderContainer containerWith(FakeAuthRepository repo) {
     final container = ProviderContainer(
-      overrides: [authRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        authRepositoryProvider.overrideWithValue(repo),
+        tokenStoreProvider.overrideWithValue(FakeTokenStore()),
+      ],
     );
     addTearDown(container.dispose);
     return container;
@@ -17,7 +21,7 @@ void main() {
 
   test('starts signed out', () {
     final container = containerWith(FakeAuthRepository());
-    expect(container.read(authControllerProvider), isNull);
+    expect(container.read(currentSessionProvider), isNull);
     expect(container.read(isSignedInProvider), isFalse);
   });
 
@@ -29,7 +33,7 @@ void main() {
         .login(username: 'customer@foodmenu.test', password: 'pw');
 
     expect(container.read(isSignedInProvider), isTrue);
-    expect(container.read(authControllerProvider)?.tokens.accessToken,
+    expect(container.read(currentSessionProvider)?.tokens.accessToken,
         'fmpa_8_abc_access');
   });
 
@@ -49,7 +53,7 @@ void main() {
           .login(username: 'a@b.co', password: 'pw'),
       throwsA(isA<ApiException>()),
     );
-    expect(container.read(authControllerProvider), isNull);
+    expect(container.read(currentSessionProvider), isNull);
   });
 
   test('logout clears the session and tells the server which one', () async {
@@ -60,7 +64,7 @@ void main() {
     await notifier.login(username: 'customer@foodmenu.test', password: 'pw');
     await notifier.logout();
 
-    expect(container.read(authControllerProvider), isNull);
+    expect(container.read(currentSessionProvider), isNull);
     final logout = repo.calls.last;
     expect(logout['call'], 'logout');
     expect(logout['refresh_token'], 'fmpa_8_abc_refresh');
@@ -77,7 +81,7 @@ void main() {
     // the worse of the two outcomes.
     await notifier.logout();
 
-    expect(container.read(authControllerProvider), isNull);
+    expect(container.read(currentSessionProvider), isNull);
   });
 
   test('logout while already signed out does not call the server', () async {

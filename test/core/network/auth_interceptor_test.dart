@@ -12,7 +12,7 @@ void main() {
     final dio = Dio(BaseOptions(baseUrl: 'http://example.test'));
     adapter = FakeAdapter((_) => FakeResponse(body: const {'ok': true}));
     dio.httpClientAdapter = adapter;
-    dio.interceptors.add(AuthInterceptor(readToken: () => token));
+    dio.interceptors.add(AuthInterceptor(readToken: () async => token));
     return dio;
   }
 

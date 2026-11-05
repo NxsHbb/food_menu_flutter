@@ -5,6 +5,7 @@ import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/auth/data/auth_controller.dart';
 import 'package:food_menu/src/features/auth/data/auth_repository.dart';
+import 'package:food_menu/src/features/auth/data/token_store.dart';
 import 'package:food_menu/src/features/auth/presentation/login_screen.dart';
 
 import 'fake_auth_repository.dart';
@@ -15,7 +16,10 @@ void main() {
     FakeAuthRepository repo,
   ) async {
     final container = ProviderContainer(
-      overrides: [authRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        authRepositoryProvider.overrideWithValue(repo),
+        tokenStoreProvider.overrideWithValue(FakeTokenStore()),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -46,7 +50,7 @@ void main() {
     await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
 
-    expect(container.read(authControllerProvider)?.user.email,
+    expect(container.read(currentSessionProvider)?.user.email,
         'customer@foodmenu.test');
     expect(repo.calls.single['username'], 'customer@foodmenu.test');
   });
@@ -82,7 +86,7 @@ void main() {
       find.text('That email address and password do not match an account.'),
       findsOne,
     );
-    expect(container.read(authControllerProvider), isNull);
+    expect(container.read(currentSessionProvider), isNull);
   });
 
   testWidgets('a rate limit says how long to wait and offers no instant retry',

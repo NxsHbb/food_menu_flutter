@@ -5,6 +5,7 @@ import '../../features/auth/data/auth_controller.dart';
 import '../config/app_config.dart';
 import 'api_exception.dart';
 import 'auth_interceptor.dart';
+import 'auth_refresh_interceptor.dart';
 import 'paged.dart';
 import 'store_session.dart';
 import 'store_session_interceptor.dart';
@@ -37,8 +38,30 @@ final dioProvider = Provider<Dio>((ref) {
     AuthInterceptor(
       // `read`, not `watch`: rebuilding dio on every sign-in would discard the
       // Store API session headers it is holding.
-      readToken: () =>
-          ref.read(authControllerProvider)?.tokens.accessToken,
+      readToken: () async {
+        try {
+          // Awaits the keychain restore on a cold start, then reads the
+          // session that is current *now* — `.future` resolves to the value at
+          // build time, which a sign-in during startup would already have
+          // replaced.
+          await ref.read(authControllerProvider.future);
+        } on Object {
+          // A failed restore means signed out, not a failed request.
+        }
+        return ref.read(currentSessionProvider)?.tokens.accessToken;
+      },
+    ),
+  );
+
+  dio.interceptors.add(
+    AuthRefreshInterceptor(
+      hasSession: () => ref.read(currentSessionProvider) != null,
+      refresh: () => ref.read(authControllerProvider.notifier).refresh(),
+      accessToken: () => ref.read(currentSessionProvider)?.tokens.accessToken,
+      // `dio.fetch` re-sends through the adapter without re-entering this
+      // interceptor's queue, which would otherwise deadlock: a QueuedInterceptor
+      // cannot wait on a request that is itself waiting for the same queue.
+      retry: (options) => dio.fetch<dynamic>(options),
     ),
   );
 
