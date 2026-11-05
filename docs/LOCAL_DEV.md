@@ -96,6 +96,11 @@ equivalent yet** and cannot reach this site.
 
 `simctl` cannot tap, so to reach a screen behind navigation, temporarily set
 the router's `initialLocation` to that route, restart, screenshot, and revert.
+The sign-in and register screens are *pushed*, so this is the only way to see
+them. Dark mode is `xcrun simctl ui booted appearance dark`.
+
+A state that needs typed input — a validation error, a rejected sign-in — cannot
+be reached this way at all. Those are covered by widget tests instead.
 
 ## Exercising the auth endpoints
 The four routes from task 3.1 need no nonce and no cookie:

@@ -33,6 +33,8 @@ class ApiException implements Exception {
     required this.message,
     this.statusCode,
     this.code,
+    this.retryAfter,
+    this.field,
   });
 
   final ApiFailure failure;
@@ -46,11 +48,30 @@ class ApiException implements Exception {
   /// The WordPress error code, e.g. `woocommerce_rest_missing_nonce`.
   final String? code;
 
+  /// How long to wait before retrying, from `data.retry_after` on a 429.
+  ///
+  /// The plugin's rate limiter reports the remaining window, which is the only
+  /// way the UI can say "try again in two minutes" rather than just refusing.
+  final Duration? retryAfter;
+
+  /// The offending input, from `data.field`.
+  ///
+  /// The plugin's address validation names the field it rejected, so a form
+  /// can put the message against the right input instead of in a banner.
+  final String? field;
+
   /// True when retrying the identical request could plausibly succeed.
+  ///
+  /// A 429 is deliberately excluded: it will succeed eventually, but not now,
+  /// and offering an immediate "try again" to a rate-limited customer just
+  /// spends another attempt. [retryAfter] carries the wait instead.
   bool get isRetryable =>
       failure == ApiFailure.network ||
       failure == ApiFailure.timeout ||
       (statusCode != null && statusCode! >= 500);
+
+  /// True when the server is throttling us.
+  bool get isRateLimited => statusCode == 429;
 
   /// True when the caller should re-authenticate rather than retry.
   bool get isAuthFailure => statusCode == 401 || statusCode == 403;
@@ -97,11 +118,23 @@ class ApiException implements Exception {
 
     String? serverCode;
     String? serverMessage;
+    Duration? retryAfter;
+    String? field;
     if (body is Map) {
       final code = body['code'];
       final message = body['message'];
       if (code is String && code.isNotEmpty) serverCode = code;
       if (message is String && message.isNotEmpty) serverMessage = message;
+
+      final data = body['data'];
+      if (data is Map) {
+        final seconds = data['retry_after'];
+        if (seconds is num && seconds > 0) {
+          retryAfter = Duration(seconds: seconds.toInt());
+        }
+        final name = data['field'];
+        if (name is String && name.isNotEmpty) field = name;
+      }
     }
 
     return ApiException(
@@ -109,6 +142,8 @@ class ApiException implements Exception {
       message: serverMessage ?? _genericFor(status),
       statusCode: status,
       code: serverCode,
+      retryAfter: retryAfter,
+      field: field,
     );
   }
 

@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/auth/data/auth_controller.dart';
 import '../config/app_config.dart';
 import 'api_exception.dart';
+import 'auth_interceptor.dart';
 import 'paged.dart';
 import 'store_session.dart';
 import 'store_session_interceptor.dart';
@@ -28,6 +30,15 @@ final dioProvider = Provider<Dio>((ref) {
       // We classify statuses ourselves, so let dio surface them all as errors
       // except the 2xx range.
       validateStatus: (status) => status != null && status >= 200 && status < 300,
+    ),
+  );
+
+  dio.interceptors.add(
+    AuthInterceptor(
+      // `read`, not `watch`: rebuilding dio on every sign-in would discard the
+      // Store API session headers it is holding.
+      readToken: () =>
+          ref.read(authControllerProvider)?.tokens.accessToken,
     ),
   );
 
@@ -121,6 +132,22 @@ class ApiClient {
   }) {
     return _send<T>(
       () => _dio.post<T>(
+        url,
+        data: body,
+        queryParameters: query,
+        cancelToken: cancelToken,
+      ),
+    );
+  }
+
+  Future<T> put<T>(
+    String url, {
+    Object? body,
+    Map<String, dynamic>? query,
+    CancelToken? cancelToken,
+  }) {
+    return _send<T>(
+      () => _dio.put<T>(
         url,
         data: body,
         queryParameters: query,

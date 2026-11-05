@@ -103,6 +103,29 @@ The plugin side landed in task 3.1 (food-menu-pro#6); the Flutter half is tasks
 - `429` responses carry `data.retry_after` in seconds.
 - There is no password reset endpoint yet.
 
+### The auth feature
+`features/auth/` holds the whole of it, in the project's usual
+domain/data/presentation split.
+
+- **`AuthController` is the session.** `null` means signed out, so there is no
+  status enum that could disagree with the session object. `isSignedInProvider`
+  is there for the many widgets that only need the boolean.
+- **Nothing outside `AuthController` holds a token.** Task 3.4 swaps in-memory
+  storage for secure storage, and that change stays contained because of it.
+- **`AuthInterceptor` adds the bearer header to everything except
+  `fmp/v1/app/auth/*`.** It is blanket rather than opt-in because the plugin
+  resolves the token into the real WordPress current user, so the same token
+  authenticates the Store API cart and checkout calls too. It only ever adds a
+  header — refreshing and signing out on a 401 are task 3.4, kept out because a
+  refresh has to be serialised across the whole app, which an interceptor
+  cannot do alone.
+- **`AuthValidation` mirrors the server, and is not the gate.** It exists to
+  save a round trip and to put the message next to the field. Where the two
+  could drift the server wins. It is pure Dart with no Flutter imports, so it
+  is tested directly.
+- The auth screens are **pushed**, not navigated to: the customer reaches them
+  mid-task and pops back with a result.
+
 ### Profile and saved addresses
 `GET|PUT fmp/v1/app/me` (task 3.2). The Flutter side is tasks 3.7 and 3.8.
 
