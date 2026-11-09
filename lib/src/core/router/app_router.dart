@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/account/presentation/account_screen.dart';
 import '../../features/account/presentation/edit_profile_screen.dart';
+import '../../features/address/presentation/address_book_screen.dart';
+import '../../features/address/presentation/address_form_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
@@ -81,6 +83,24 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: EditProfileScreen.routePath,
                     name: EditProfileScreen.routeName,
                     builder: (context, state) => const EditProfileScreen(),
+                  ),
+                  GoRoute(
+                    path: AddressBookScreen.routePath,
+                    name: AddressBookScreen.routeName,
+                    builder: (context, state) => const AddressBookScreen(),
+                  ),
+                  // Before `:id`, or "new" would be read as an address id.
+                  GoRoute(
+                    path: AddressFormScreen.newRoutePath,
+                    name: AddressFormScreen.newRouteName,
+                    builder: (context, state) => const AddressFormScreen(),
+                  ),
+                  GoRoute(
+                    path: AddressFormScreen.routePath,
+                    name: AddressFormScreen.routeName,
+                    builder: (context, state) => AddressFormScreen(
+                      addressId: state.pathParameters['id'],
+                    ),
                   ),
                 ],
               ),

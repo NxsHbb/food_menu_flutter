@@ -2,6 +2,85 @@
 
 Newest first. One entry per completed task.
 
+## Task 3.9 — Address book
+Branch: `feat/address-book`. Consumes the endpoint from task 3.8 and closes
+Phase 3.
+
+### What shipped
+`features/address/` — `SavedAddress` and `AddressField` models, a repository
+over the address half of `/me` plus `/address-fields`, the controller, the
+book screen, the add/edit form and its two widgets. The Account screen gained
+its third row.
+
+### The form is not written in Dart
+Which inputs exist, in what order, under what label, required or not, and
+whether a state is a picker or free text all come from the server. On the dev
+store (base country Bangladesh) the form draws **District** as a 64-option
+picker and **Postcode / ZIP** with no required marker — a hard-coded US form
+would have shown "State" and a required "ZIP Code", both wrong there.
+
+`AddressFieldInput` picks its widget from `type` and `options`: a `country` is
+a picker over the response's `countries` map, a `state` with options is a
+picker and without them a text field, `tel` gets a phone keyboard. **A field
+the server omits is not drawn at all** — `company` is absent in most locales.
+Changing country refetches, and clears the state, because a state code from
+the old country is meaningless under the new one.
+
+Required-ness is the only validation the app does. Format is the server's
+business: it knows a US ZIP from a UK postcode, and checking here would encode
+that twice and get it wrong.
+
+### Whole-book replace, kept in one place
+`PUT /me` replaces the entire address book, so an omitted address is deleted.
+Every screen writing its own list would eventually drop one, so
+`AddressController` owns it: it holds the book, applies one change to a copy,
+and sends the result. Add, edit, delete and set-default are all that one
+operation underneath.
+
+**Exactly one default is decided in the controller, not hoped for.** The
+server promotes the first entry when nothing is marked, so sending two
+defaults would silently pick one rather than honouring the choice.
+
+### Telling "your input is wrong" from "another address is"
+The server rejects with `fmp_app_invalid_address`, the offending field, **and
+its index in the submitted book**. Because the book goes up whole, that index
+is not necessarily the address being edited — an entry stored before the store
+changed country can fail a save of a different one.
+
+Only the controller knows where it put the address it was given, so it
+resolves that and throws an `AddressSaveException` carrying
+`isThisAddress`. The form lights up its own input only when that is true, and
+otherwise says another saved address needs fixing. `ApiException` gained an
+`index` field to carry it.
+
+### Writes are not optimistic here
+Unlike the wishlist. The server rewrites what it stores — a state code
+resolved from a name, a formatted postcode, a `locality` only it can build
+("Banani, Chattogram"). Showing a local guess and then correcting it would be
+worse than waiting for the real answer.
+
+### Two smaller things
+- The wishlist and address book headers were identical, so the back button and
+  title moved to `core/widgets/screen_header.dart` and the wishlist now uses
+  it. Its tests passed unchanged.
+- The form's submit button says **"Save address"** in both modes. It first
+  said "Add address", which is also the screen title — a button repeating the
+  heading reads as a second heading, and it made the widget test ambiguous.
+
+### Verified on the Android device
+Opened the book (two seeded addresses, no default, no badge — handled), added
+one against the Bangladesh form including picking a district from the server's
+list, and saw it saved with `country=BD`, `state=BD-10` resolved from the
+name, and the server-built locality. Deleted it and **confirmed the other two
+survived**, which is the whole-book replace working. The server promoted Home
+to default on the first write, as documented.
+
+34 new tests (319 total): the controller's add/edit/delete/set-default
+preserving the book, both sides of the error-index split, and the screens'
+list, empty, signed-out, error-retry, per-address actions and dark mode —
+plus the form drawing the US and UK shapes differently, honouring an optional
+field, and refetching on a country change.
+
 ## Task 3.8 — Address field metadata (plugin)
 Branch: `mobile-app-address-fields` on `food-menu-pro`, PR food-menu-pro#9.
 **A new task, agreed before building**, split out of what was task 3.8; the

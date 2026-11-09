@@ -79,7 +79,7 @@ so customer auth is new work. No nonce gate on these routes — token only.
 | 3.6 | Wishlist screen (design 10) and the heart on dish cards and rows | app | done |
 | 3.7 | Account screen (design 9) and the Edit profile form | app | done |
 | 3.8 | `GET /fmp/v1/app/address-fields` — allowed countries, their states, which fields are required and WooCommerce's own labels, so the form is not hard-coded | pro | done |
-| 3.9 | Address book: list, add/edit form, set default — **designed to match**, since the design stubs both | app | todo |
+| 3.9 | Address book: list, add/edit form, set default — **designed to match**, since the design stubs both | app | done |
 
 ## Phase 4 — Cart and add-ons
 Store API `cart/add-item` accepts only `id`, `quantity`, `variation`, so add-on

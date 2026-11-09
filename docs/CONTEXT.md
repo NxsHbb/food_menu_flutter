@@ -160,6 +160,28 @@ domain/data/presentation split.
 - The default address is mirrored into WooCommerce's billing and shipping
   fields server-side, so Phase 6 checkout does not need to send it again.
 
+### The address book
+`features/address/` (task 3.9), over the `addresses` half of `/me` and the
+field metadata below.
+
+- **`PUT /me` replaces the whole book**, so an omitted address is deleted.
+  Never build that list in a screen — `AddressController` holds the book,
+  applies one change to a copy and sends the result. Add, edit, delete and
+  set-default are all that one operation underneath.
+- **It also decides the single default.** The server promotes the first entry
+  when nothing is marked, so sending two defaults silently picks one.
+- **Writes are not optimistic**, unlike the wishlist: the server resolves a
+  state code from a name, formats the postcode and builds `locality`, so the
+  saved answer is not what was sent.
+- A rejection names the field **and its index in the submitted book**, which
+  may be a different address than the one being edited. The controller
+  resolves that into `AddressSaveException.isThisAddress`; the form only
+  blames its own input when that is true.
+- `SavedAddress.locality` is **read-only and never rebuilt in Dart** — only
+  the server can turn `DE` into `Delaware`.
+- The form is generated from the field metadata; see below. `AddressRepository`
+  also calls `/me`, as `ProfileRepository` does, each parsing its own half.
+
 ### Address fields
 `GET fmp/v1/app/address-fields[?country=XX]` (task 3.8). **How to draw the
 address form** — do not hard-code any of it.

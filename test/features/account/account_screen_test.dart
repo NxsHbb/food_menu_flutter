@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/account/data/profile_repository.dart';
+import 'package:food_menu/src/features/address/data/address_repository.dart';
 import 'package:food_menu/src/features/account/presentation/account_screen.dart';
 import 'package:food_menu/src/features/account/presentation/edit_profile_screen.dart';
 import 'package:food_menu/src/features/account/presentation/widgets/account_row.dart';
@@ -16,6 +17,7 @@ import 'package:go_router/go_router.dart';
 
 import '../auth/fake_auth_repository.dart';
 import '../menu/fake_menu_repository.dart';
+import '../address/fake_address_repository.dart';
 import '../wishlist/fake_wishlist_repository.dart';
 import 'fake_profile_repository.dart';
 
@@ -25,6 +27,7 @@ void main() {
     required FakeAuthRepository repo,
     bool signedIn = false,
     FakeWishlistRepository? wishlist,
+    FakeAddressRepository? addresses,
     ThemeData? theme,
   }) async {
     // The reported-device width. The account header is a row of avatar, two
@@ -41,6 +44,8 @@ void main() {
         wishlistRepositoryProvider
             .overrideWithValue(wishlist ?? FakeWishlistRepository()),
         profileRepositoryProvider.overrideWithValue(FakeProfileRepository()),
+        addressRepositoryProvider
+            .overrideWithValue(addresses ?? FakeAddressRepository()),
       ],
     );
     addTearDown(container.dispose);
@@ -116,15 +121,14 @@ void main() {
 
     expect(find.text('My orders'), findsOne);
     expect(find.text('Wishlist'), findsOne);
+    expect(find.text('Saved addresses'), findsOne);
 
     // The design's other three have no backend in v1 — rendering them would
     // mean inventing "Visa 4242" and a help centre. See the class docblock.
     expect(find.text('Payment methods'), findsNothing);
     expect(find.text('Notifications'), findsNothing);
     expect(find.text('Help & support'), findsNothing);
-    // Saved addresses arrives with task 3.8.
-    expect(find.text('Saved addresses'), findsNothing);
-    expect(find.byType(AccountRow), findsExactly(2));
+    expect(find.byType(AccountRow), findsExactly(3));
   });
 
   testWidgets('the wishlist row carries its real count', (tester) async {
@@ -140,6 +144,25 @@ void main() {
     final row = tester.widget<AccountRow>(
       find.ancestor(
         of: find.text('Wishlist'),
+        matching: find.byType(AccountRow),
+      ),
+    );
+    expect(row.value, '2');
+  });
+
+  testWidgets('the addresses row carries its real count', (tester) async {
+    await pumpAccount(
+      tester,
+      repo: FakeAuthRepository(),
+      signedIn: true,
+      addresses: FakeAddressRepository(
+        book: [buildAddress(id: 'a'), buildAddress(id: 'b')],
+      ),
+    );
+
+    final row = tester.widget<AccountRow>(
+      find.ancestor(
+        of: find.text('Saved addresses'),
         matching: find.byType(AccountRow),
       ),
     );
@@ -239,6 +262,6 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(AccountRow), findsExactly(2));
+    expect(find.byType(AccountRow), findsExactly(3));
   });
 }
