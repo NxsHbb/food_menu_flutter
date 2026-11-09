@@ -2,6 +2,56 @@
 
 Newest first. One entry per completed task.
 
+## Task 4.5 — The cart
+Branch: `feat/cart`, PR #32. Task 4.6 adds the floating mini cart and makes a
+cart survive an app restart.
+
+### What works now
+The dish screen's Add button posts: `AddonSelection.toPayload()` goes straight
+into `cart/add-item` under the plugin's extension key, the dish closes, and a
+refusal is shown **in the server's own words**, which name the group. The cart
+screen lists each line with what was chosen under the dish name, a quantity
+stepper, a bin, the totals and the amount due. Empty is the design's own empty
+state, not a blank screen, and "Clear all" asks first.
+
+### Mutations are deliberately not optimistic
+The wishlist's hearts update before the server replies, and that is right for
+an idempotent flag. A cart line carries money: only the server knows what a
+quantity change costs once the plugin's discounts and the add-on pricing have
+had their say. Showing a total the server has not agreed to is the one thing a
+cart must not do, so the line being changed is marked busy instead and the
+screen redraws from the response. Every cart route returns the whole cart, so
+that is one round trip, not two.
+
+A failed change rethrows for the screen to show but leaves the cart as the
+server last described it — a cart the customer is reading must not blank out
+because one tap was refused.
+
+### Read add-ons from the extension, not from `item_data`
+`item_data` is the website's display copy, with the quantity baked into the
+string as `x2` and no ids or prices. `item.addons` is task 4.3's block. The
+row falls back to `item_data` only for a store too old to send the extension,
+so an older plugin still shows something under the dish name.
+
+### Verified on the Android device, against the dev store
+Fresh Lemonade, `Large 15"` chosen, quantity 2 → added with the toast naming
+it, dish closed. The cart showed `Large 15"` under the name, the line at
+**$14.50** (2 × $7.25) and the same figure as subtotal, total and on the
+checkout button. Stepping down to 1 redrew everything at **$7.25** and the
+header at "1 item".
+
+### Not built, on purpose
+The **coupon field** and the **"Complete your meal"** carousel are in the
+design and are v2 per `PLAN.md`. The discount row still appears when the
+server applies one of its own. Checkout is Phase 6, so the button says so.
+
+### Three things in FINDINGS
+`DELETE cart/items` is the one route that answers with the items list rather
+than the cart. A dish opened by deep link has nothing to pop, which `closeDish`
+now handles for the close button too. And a test fake that fails "the next
+call" fails the controller's own first read rather than the mutation under
+test.
+
 ## Task 4.4 — Add-on selection on the dish screen
 Branch: `feat/addon-selection`, PR #31. The first app-side consumer of the
 add-ons endpoint (4.1) and the groundwork for sending selections (4.5).

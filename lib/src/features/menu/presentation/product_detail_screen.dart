@@ -9,7 +9,9 @@ import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/util/html_text.dart';
 import '../../../core/widgets/dish_image_placeholder.dart';
+import '../../cart/data/cart_controller.dart';
 import '../../wishlist/presentation/widgets/wishlist_heart.dart';
+import 'menu_list_screen.dart';
 import 'widgets/addon_group_card.dart';
 import 'widgets/food_data_section.dart';
 import 'widgets/food_tags.dart';
@@ -80,7 +82,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       ref.read(productAddonsProvider(widget.productId)).value?.groups ??
       const [];
 
-  void _onAdd(BuildContext context) {
+  /// True while the add is in flight, so the button cannot be pressed twice
+  /// and put the dish in the cart twice.
+  bool _adding = false;
+
+  Future<void> _onAdd(BuildContext context, Product product) async {
     final unanswered = _selection.unanswered(_groups);
 
     if (unanswered.isNotEmpty) {
@@ -91,7 +97,30 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       return;
     }
 
-    _say(context, 'Add to cart arrives in task 4.5.');
+    if (_adding) return;
+    setState(() => _adding = true);
+
+    try {
+      await ref.read(cartControllerProvider.notifier).add(
+            productId: product.id,
+            quantity: _quantity,
+            addons: _selection.toPayload(_groups),
+          );
+
+      if (!context.mounted) return;
+      // Closes back to where the dish was opened from, which is what the
+      // design does — the cart is a tab away, and a tap on the dish again is
+      // how a second one gets added.
+      _say(context, '$_quantity× ${plainText(product.name)} added');
+      closeDish(context);
+    } on ApiException catch (error) {
+      if (!context.mounted) return;
+      // The server validates the add-on rules again, and its message names
+      // the group — so it is shown rather than replaced with a generic one.
+      _say(context, error.message);
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
   }
 
   void _say(BuildContext context, String message) {
@@ -134,10 +163,24 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               context,
               'Select up to ${group.choiceLimit} ${group.title.toLowerCase()}.',
             ),
-            onAdd: () => _onAdd(context),
+            onAdd: _adding ? null : () => _onAdd(context, value),
           ),
       },
     );
+  }
+}
+
+/// Leaves the dish screen.
+///
+/// A dish is normally pushed over the menu, so popping is right. It is not
+/// always on top of anything, though: a deep link opens the app *on* a dish,
+/// and popping that throws. Falling back to the menu means the close button
+/// and a successful add both work however the screen was reached.
+void closeDish(BuildContext context) {
+  if (context.canPop()) {
+    context.pop();
+  } else {
+    context.goNamed(MenuListScreen.routeName);
   }
 }
 
@@ -166,7 +209,9 @@ class _Detail extends StatelessWidget {
   final void Function(AddonGroup group, AddonOption option, int qty) onQuantity;
   final void Function(AddonGroup group, String text) onText;
   final void Function(AddonGroup group) onLimitReached;
-  final VoidCallback onAdd;
+
+  /// Null while an add is in flight, which disables the button.
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -284,7 +329,7 @@ class _CircleButton extends StatelessWidget {
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
-        onTap: () => context.pop(),
+        onTap: () => closeDish(context),
         child: SizedBox(
           width: 38,
           height: 38,
@@ -480,7 +525,9 @@ class _AddBar extends StatelessWidget {
   final AddonSelection selection;
   final int quantity;
   final ValueChanged<int> onQuantityChanged;
-  final VoidCallback onAdd;
+
+  /// Null while an add is in flight.
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -662,7 +709,7 @@ class _DetailError extends StatelessWidget {
             ),
             const SizedBox(height: AppTokens.space16),
             OutlinedButton(
-              onPressed: () => context.pop(),
+              onPressed: () => closeDish(context),
               child: const Text('Back to the menu'),
             ),
           ],

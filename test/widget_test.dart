@@ -5,8 +5,12 @@ import 'package:food_menu/src/app.dart';
 import 'package:food_menu/src/features/auth/data/token_store.dart';
 import 'package:food_menu/src/features/menu/data/banner_repository.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
+import 'package:food_menu/src/features/cart/data/cart_repository.dart';
+import 'package:food_menu/src/features/menu/data/addons_repository.dart';
 
 import 'features/auth/fake_auth_repository.dart';
+import 'features/cart/fake_cart_repository.dart';
+import 'features/menu/fake_addons_repository.dart';
 import 'features/menu/fake_banner_repository.dart';
 import 'features/menu/fake_menu_repository.dart';
 
@@ -24,6 +28,10 @@ void main() {
             ),
           ),
           bannerRepositoryProvider.overrideWithValue(FakeBannerRepository()),
+          // The cart and the dish screen are both real now, so the shell
+          // tests would otherwise reach for the network.
+          cartRepositoryProvider.overrideWithValue(FakeCartRepository()),
+          addonsRepositoryProvider.overrideWithValue(FakeAddonsRepository()),
           // Without this the account tab would wait forever on a keychain read
           // that never answers under the test binding, and `pumpAndSettle`
           // would time out on its spinner.
@@ -86,10 +94,7 @@ void main() {
 
     await tester.tap(find.text('Cart'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Your cart and add-on choices arrive in Phase 4.'),
-      findsOneWidget,
-    );
+    expect(find.text('Your cart is empty'), findsOneWidget);
 
     await tester.tap(find.text('Menu'));
     await tester.pumpAndSettle();

@@ -389,6 +389,35 @@ holds what the customer has chosen, and
   predates the route 404s, and a dish that cannot be customised is still a
   dish. Widget tests override `addonsRepositoryProvider`.
 
+### The cart
+`features/cart/data/cart_repository.dart` wraps the Store API's four cart
+routes; `cart_controller.dart` holds the cart for the session.
+
+- **Every route answers with the whole cart**, so a mutation is one round trip
+  and its response *is* the new state. Never read after a write.
+- **Mutations are not optimistic**, unlike the wishlist's hearts. A cart line
+  carries money, and only the server knows what a change costs once the
+  plugin's discounts and the add-on pricing have had their say. The line being
+  changed is marked busy instead — `controller.isPending(key)`.
+- **Lines are addressed by `key`, never by product id.** The same dish ordered
+  two ways is two lines sharing one id.
+- A failed change **rethrows but leaves the cart intact**: the screen shows
+  the server's own message, and a cart the customer is reading never blanks
+  out over one refused tap.
+- `clear()` is the odd one: `DELETE cart/items` answers with the items list
+  (`[]`), not the cart, so the totals are read back.
+- `cartCountProvider` is the unit count for badges, zero while the first read
+  is in flight.
+
+The screen reads a line's add-ons from `item.addons` — the extension block —
+and falls back to `item_data` only for a store too old to send it. The coupon
+field and the "Complete your meal" carousel the design draws are **v2**; the
+discount row still appears when the server applies one of its own.
+
+Adding happens from the dish screen: `AddonSelection.toPayload()` goes
+straight into `cart/add-item` under the extension key, the dish closes, and
+the server's wording is what a refusal shows — it names the group.
+
 #### Reading them back off a cart item
 Task 4.3 put them on every Store API cart item, under the same extension key:
 
