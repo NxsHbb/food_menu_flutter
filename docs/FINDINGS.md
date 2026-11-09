@@ -2,6 +2,30 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## An open day with no hours is not a closed day
+The plugin stores a weekly schedule as `{ day: { is_open, slots: [{start,
+end}] } }`, and a day can legitimately be **open with no slots at all** —
+which the website reads as no time restriction, not as closed. The dev store
+is in exactly that state out of the box.
+
+So "closed" cannot be derived from an empty slot list. `get_offday_schedule()`
+is the only thing entitled to decide it, and it has a second rule worth
+knowing: a day whose slots are *all* malformed — a start with no end — counts
+as closed, while a day with no slots at all does not.
+
+## A silent fallback can send someone to a closed door
+`GET /app/order-types?branch=<id>` first answered an unknown branch with the
+store-wide schedule, because the helper it leans on returns null both for "no
+such branch" and for "this branch has no schedule of its own" — and the second
+of those *must* fall back.
+
+Those two cases needed separating. A branch that no longer exists is now a
+404; a real branch without its own hours still falls back, per type, so a
+location with custom pickup hours and no delivery hours does not lose
+delivery. The failure mode of getting this wrong is not an error message —
+it is a customer shown the wrong opening hours standing outside a shut
+branch.
+
 ## Restoring a cart has to beat the first request to the server
 The `Cart-Token` identifies a guest cart, and the Store API issues a fresh one
 to any request that arrives without it. So reading the stored token
