@@ -2,6 +2,58 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## An add-on group's id is its key, not its position
+This one had no symptom. `addon_lists()` returns a dish's add-on groups, and a
+group has two numbers attached to it:
+
+- its **array key**, which is the id `GET /fmp/v1/app/products/{id}/addons`
+  publishes and therefore the id the app sends back, and
+- its **position** in that array, which is what the website counts with when
+  it builds the `field_name` stamped on every cart entry.
+
+They agree for a dish carrying its own add-ons, because that is a plain list.
+They do not agree for **global** add-ons: `get_global_addon_data()` filters the
+stored groups by their targeting and assigns into `$addons[ $key ]`, so a dish
+matched by the second and fourth global group gets back keys 1 and 3 sitting at
+positions 0 and 1.
+
+Task 4.2 read the position. A selection sent with the id the app was given
+landed on the wrong group, or on no group at all, and **nothing in the response
+said so** — no error, no missing field, just a cart line without the add-on.
+On the dev store `Cutlery` is global group 1, so every `group_id: "1"` the app
+sent was silently discarded. Found in task 4.3, because the read path has to
+publish truthful group ids; fixed there, with `AppAddonGroups` now the one
+place that holds both identities.
+
+The lesson that generalises: an id the plugin hands out and an index the plugin
+counts with are not the same thing, even when they match on the data in front
+of you. The seeded dev data had them matching for product-level add-ons, which
+is why 4.2 looked right.
+
+## A cart line is not always base price plus add-ons
+The obvious way to give the app a price breakdown — send the add-on deltas and
+let the app subtract — is wrong on this plugin. `price_calculate()` runs every
+cart item through `Fns::discount_price()`, which takes a percentage off the
+dish, and off the add-ons as well when `fmp_applicable_discount` is
+`addon_total`. So `prices.price` can be less than base + the deltas, and by
+different amounts depending on a setting the app cannot see.
+
+Task 4.3 publishes two numbers instead of one:
+
+- `addons_total` — the stored deltas added up. This is what the order line item
+  records and what the website labels "Addons price".
+- `addons_total_charged` — the add-on part of the price actually charged.
+
+and derives `base_price` by asking `price_calculate()` what the line would cost
+**with its add-ons removed**, then taking the add-on part as the remainder of
+what the cart charged. That keeps
+`base_price + addons_total_charged == prices.price` true by construction,
+through any pricing rule, and parks rounding residue on the add-on side rather
+than letting it break the sum. Distributing a percentage across the individual
+add-ons and summing would have been the natural-looking alternative, and would
+drift by a minor unit against the server's single-shot calculation — the same
+class of bug as the 100-short total in task 4.2.
+
 ## Bundle ID is two-segment
 `com.foodmenu` has no third segment, so `flutter create --org` could not
 produce it (it always appends the project name). The IDs were set by hand in
