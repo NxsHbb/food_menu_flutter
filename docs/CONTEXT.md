@@ -333,9 +333,28 @@ render an API string directly.
   zero-priced options when it is true. Do not re-derive it.
 - Whether a dish uses its own add-ons or the store's global ones is settled
   server-side; the app just renders what comes back.
-- **Nothing here is submitted yet.** `cart/add-item` takes only `id`,
-  `quantity` and `variation`, so sending selections is task 4.2's job on the
-  plugin. Until then this is read-only.
+- **Selections go back under the extension key** (task 4.2):
+
+  ```json
+  "extensions": { "food-menu-pro": { "addons": [
+      { "group_id": "0", "option_ids": ["1"] },
+      { "group_id": "1", "option_ids": ["0"], "quantities": { "0": 2 } },
+      { "group_id": "2", "text": "No ice please" }
+  ] } }
+  ```
+
+  **Send ids, never labels.** The ids are the ones this endpoint returned.
+  `quantities` is keyed by option id and only applies where
+  `option_quantity` is true; `text` is for `text` and `textarea` groups.
+- **The server validates and prices.** Do not compute a line total locally
+  beyond a preview — the cart response carries the real one. Refusals come
+  back as `fmp_app_addon_required`, `fmp_app_addon_too_few`,
+  `fmp_app_addon_too_many`, `fmp_app_addon_too_long` and
+  `fmp_app_addon_unknown_option`, each naming the group in its message.
+- An **unknown option id is refused**, so a stale menu produces an error
+  rather than a wrong charge — reload the add-ons and ask again.
+- Two different selections on the same dish are **two cart lines**, which is
+  what the cart screen should expect.
 
 ### Ingredients and nutrition
 Supplied by the plugin's `food-menu-pro` **Store API extension** on the

@@ -54,13 +54,15 @@ Pro features.
 - Enabled: product add-ons, kitchen monitor, custom order statuses, QR table
   ordering, timed products, order timeline, pickup, delivery, dine-in.
 - Currency USD, taxes off.
-- **Add-on test data** (task 4.1): three groups on *Build Your Pizza* — a
+- **Add-on test data** (tasks 4.1 and 4.2): three groups on *Fresh Lemonade* — a
   required radio with price deltas, a checkbox with `max_selection` 3 and a
   deliberately non-numeric price, and a textarea with a placeholder and char
   limit — plus two entries in `global_addon_settings`, one targeted at *Iced
-  Latte* and one applying to every dish. The pizza also has
+  Latte* and one applying to every dish. The lemonade also has
   `_fmp_pa_global_override` set, so it uses its own groups and ignores the
-  globals; that is the either/or the endpoint reproduces.
+  globals; that is the either/or the endpoint reproduces. **On a simple
+  product deliberately** — the website never renders add-ons on a variable
+  one, so *Build Your Pizza* was the wrong home for them.
 - `woocommerce_enable_myaccount_registration = yes`. **Off by default**, and
   task 3.1's register endpoint follows this setting rather than overriding it,
   so registration returns 403 without it.
