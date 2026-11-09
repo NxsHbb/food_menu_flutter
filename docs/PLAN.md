@@ -85,12 +85,14 @@ so customer auth is new work. No nonce gate on these routes — token only.
 
 ## Phase 4 — Cart and add-ons
 Store API `cart/add-item` accepts only `id`, `quantity`, `variation`, so add-on
-selections cannot be submitted as-is. Add-on definitions live in the
-`fmp_product_addons` option and are not exposed anywhere.
+selections cannot be submitted as-is. Add-on definitions live in
+`_fmp_product_addons` **product meta**, or in the `global_addon_settings`
+option for store-wide ones — not in a single option as first assumed — and
+were not exposed anywhere until task 4.1.
 
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 4.1 | `GET /fmp/v1/app/products/{id}/addons` — add-on groups, field types, required flags, price deltas | pro | todo |
+| 4.1 | `GET /fmp/v1/app/products/{id}/addons` — add-on groups, field types, required flags, price deltas | pro | done |
 | 4.2 | Accept add-on selections on Store API add-to-cart via `woocommerce_store_api_add_to_cart_data`, validating required groups server-side | pro | todo |
 | 4.3 | Surface chosen add-ons and their price effect in Store API cart item responses | pro | todo |
 | 4.4 | Flutter add-on selection UI on the product detail screen, with live price preview | app | todo |
