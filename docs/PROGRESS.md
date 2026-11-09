@@ -2,6 +2,58 @@
 
 Newest first. One entry per completed task.
 
+## Task 4.3 — Add-ons on Store API cart items (plugin)
+Branch: `mobile-app-cart-item-addons`, PR food-menu-pro#13. The Flutter sides
+are tasks 4.4 and 4.5.
+
+### The gap, measured before fixing
+Task 4.2 got selections **into** the cart; nothing came back **out**. A cart
+item carried `item_data` — the website's own name/value display strings, with
+the quantity baked into the text as `x2` — and `extensions: {}`. So the app
+could not tell which group a line belonged to, which option was chosen, what
+the option cost, or what the dish cost before any of it. Confirmed against the
+dev store first.
+
+### Ids are recovered, not stored
+A stored `fmp_addons` row holds only what the website needs to print it: the
+group title, the chosen label, a price, a `field_name` and the field type. So
+the group is looked up by its `field_name` and the option by matching the row's
+value against the group's labels. That has a useful side effect — a cart filled
+from the **web page** reads back through the app's own vocabulary too.
+
+A group reworded after the line went into the cart gives `group_id: null`
+rather than a guess, and the row is still reported, because its price effect is
+real either way.
+
+### Two totals, because one would be a lie
+`addons_total` is the sum of the stored deltas, which is what the order line
+item records. `addons_total_charged` is the add-on part of what was actually
+charged. They diverge when the plugin's discount is set to `addon_total`.
+`base_price` comes from asking the website's own `price_calculate()` what the
+line would cost with its add-ons removed, so
+`base_price + addons_total_charged == prices.price` holds by construction
+rather than by arithmetic the app has to trust. See `FINDINGS.md`.
+
+### A silent bug from 4.2, found by doing the read path
+A group's id is its **key** in the stored add-on list, not its **position**,
+and for global add-ons those differ. Task 4.2 read the position, so a selection
+sent with the id the app was given landed on the wrong group or on none — with
+nothing in the response to say so. On the dev store `Cutlery` is global group 1,
+so every `group_id: "1"` the app sent was dropped. `AppAddonGroups` now carries
+both identities and is the only place that reads them.
+
+### Verified on the dev store
+Dish with radio + checkbox ×2 + textarea: ids and per-option prices correct,
+325 + 400 = 725 = `prices.price`. 20% on the dish only: base 260, charged 400,
+sum 660. 20% on dish and add-ons: base 260, `addons_total` still 400, charged
+320, sum 580. Global add-on by its published id: recorded, where before it was
+dropped. Group renamed with the line already in the cart: ids null, price
+effect intact, sum still closes. Item with no add-ons: `addons: []`,
+`base_price` equal to the line price. Dropdown add-on over `GET /cart`:
+395 + 325 = 720.
+
+No Dart changed in this task.
+
 ## Task 4.2 — Add-on selections at add-to-cart (plugin)
 Branch: `mobile-app-cart-addons`, PR food-menu-pro#12. The Flutter side is
 task 4.4.

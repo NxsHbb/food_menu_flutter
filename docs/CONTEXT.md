@@ -356,6 +356,41 @@ render an API string directly.
 - Two different selections on the same dish are **two cart lines**, which is
   what the cart screen should expect.
 
+#### Reading them back off a cart item
+Task 4.3 put them on every Store API cart item, under the same extension key:
+
+```json
+"extensions": { "food-menu-pro": {
+  "addons": [
+    { "group_id": "0", "group_title": "Choose your size", "field_type": "radio",
+      "option_id": "1", "value": "Medium 12\"", "quantity": 1,
+      "price_type": "quantity_based", "price": "250", "price_single": "250" }
+  ],
+  "addons_total": "400",
+  "addons_total_charged": "400",
+  "base_price": "325",
+  "currency_code": "USD", "currency_minor_unit": 2
+} }
+```
+
+- Read the add-ons from **here**, not from `item_data`. That array is the
+  website's own display copy, with the quantity baked into the string as
+  `x2` and no ids or prices at all.
+- `group_id` and `option_id` are the same ids `GET …/addons` publishes, so
+  the add-on sheet can be reopened on a cart line with its selections
+  already ticked.
+- Both can be **null**: `option_id` always is for `text` and `textarea`, and
+  either is when the group or label was reworded after the line went into the
+  cart. `value`, `price` and the totals are still right, so render the line
+  and just don't offer "edit".
+- **`base_price + addons_total_charged == prices.price`**, always — that is
+  how to draw the "dish + extras" breakdown. Use `addons_total` only to
+  label what the add-ons cost before any discount; it is not necessarily
+  what was charged.
+- `price` includes the option's quantity; `price_single` is one of them.
+- An item with no add-ons still has the keys, with `addons: []` and
+  `base_price` equal to the line price. No null-checking the block itself.
+
 ### Ingredients and nutrition
 Supplied by the plugin's `food-menu-pro` **Store API extension** on the
 product response, not by WooCommerce. Added in food-menu-pro#5; before that
