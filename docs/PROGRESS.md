@@ -2,6 +2,69 @@
 
 Newest first. One entry per completed task.
 
+## Task 3.10 — Account security endpoints (plugin)
+Branch: `mobile-app-account-security`, PR food-menu-pro#10. **Agreed after
+being raised in 3.1, 3.2, 3.7 and 3.9**; the Flutter half is task 3.11.
+
+### What shipped
+`forgot-password`, `reset-password`, `change-password` and `change-email`,
+plus `AppPasswordReset` for the code itself.
+
+### A 6-digit emailed code, not WordPress's reset link
+`retrieve_password()` emails a URL to `wp-login.php`, which drops a mobile
+customer onto a web page mid-flow and leaves them to find their way back.
+Finishing in the app needs something typeable, and a 40-character key is not.
+
+The trade is a million-value secret, so the defences are **time and attempts**
+rather than length: 15 minutes, 5 guesses, either limit destroys the code, and
+both routes are rate limited per IP and per account on top. Only an HMAC is
+stored, which is worth less here than for an access token — a leaked row
+brute-forces in a million hashes — but it keeps the plaintext out of the
+database for the quarter hour it exists.
+
+### The ordering bug the live test caught
+The password was being validated **after** the code, and `verify()` consumes
+the code on success. So a password that failed the length rule spent the code
+and sent the customer back to their inbox for a new one. The first version
+papered over it by issuing and emailing a replacement; the fix was to move the
+validation ahead of the check, since nothing in it depends on the code. Both
+orderings were exercised against the dev site.
+
+### Not an account oracle
+`forgot-password` answers identically whether or not the address is
+registered, and swallows email failures for the same reason.
+`reset-password` returns one error for an unknown address, a wrong code and an
+expired one.
+
+### Every one of them replaces the session
+All four revoke every session and issue a fresh pair. The old password may be
+exactly what is being reset *because* somebody else knows it, so other devices
+lose their tokens; re-issuing keeps the app in hand signed in. **Task 3.11
+must expect its token to be swapped by these calls** rather than treating the
+response as a plain success.
+
+`change-password` and `change-email` also require the current password on top
+of a valid token — a token proves the phone, not the person.
+
+### Written down rather than hidden
+- **`change-email` sends no confirmation to the new address.** A typo locks
+  the customer out of an address they can no longer prove they own. The
+  current password is the bar instead.
+- `validate_password()` is duplicated from `AuthApi` rather than shared,
+  because that method is private and widening it would make a registration
+  rule look like a shared contract.
+
+### Verified against the dev site
+Every route driven with curl: identical answers for known and unknown
+addresses, the code stored hashed with its expiry, a wrong code incrementing
+attempts, a weak password leaving the code pending and the same code then
+working, the code consumed and all prior sessions revoked, change-password
+refusing a wrong current password (403) / an unchanged one (400) /
+anonymous (401) and then killing the old token, change-email refusing a wrong
+password / an unchanged address / one already taken (409), the `billing_email`
+mirror both updating a derived value and leaving a deliberate one alone, and
+the limiter returning 429. Test account restored afterwards. No Dart changed.
+
 ## Task 3.9 — Address book
 Branch: `feat/address-book`. Consumes the endpoint from task 3.8 and closes
 Phase 3.
