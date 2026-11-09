@@ -6,6 +6,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/store_api/models/product.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/screen_header.dart';
 import '../../account/presentation/account_screen.dart';
 import '../../auth/data/auth_controller.dart';
 import '../../auth/presentation/login_screen.dart';
@@ -34,7 +35,11 @@ class WishlistScreen extends ConsumerWidget {
       backgroundColor: palette.page,
       body: Column(
         children: [
-          const _Header(),
+          ScreenHeader(
+            title: 'Wishlist',
+            // A deep link can land here with nothing to pop.
+            onBack: () => context.goNamed(AccountScreen.routeName),
+          ),
           Expanded(
             child: !signedIn
                 ? _SignedOut(
@@ -55,74 +60,6 @@ class WishlistScreen extends ConsumerWidget {
                   ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// White bar with a back button and the title, per the design.
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final text = Theme.of(context).textTheme;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: palette.card,
-        border: Border(bottom: BorderSide(color: palette.line)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTokens.space16,
-            AppTokens.space10,
-            AppTokens.space16,
-            AppTokens.space14,
-          ),
-          child: Row(
-            children: [
-              _BackButton(),
-              const SizedBox(width: AppTokens.space12),
-              Text('Wishlist', style: text.titleLarge),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BackButton extends StatelessWidget {
-  const _BackButton();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppTokens.radiusButton),
-      side: BorderSide(color: palette.line),
-    );
-
-    return Material(
-      color: palette.card,
-      shape: shape,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        // The wishlist is reached from the Account screen, but a deep link
-        // could land here with nothing to pop — go to the tab it belongs to
-        // rather than leaving the customer with a dead back button.
-        onTap: () => context.canPop()
-            ? context.pop()
-            : context.goNamed(AccountScreen.routeName),
-        child: SizedBox(
-          width: 42,
-          height: 42,
-          child: Icon(Icons.chevron_left_rounded, size: 24, color: palette.ink),
-        ),
       ),
     );
   }

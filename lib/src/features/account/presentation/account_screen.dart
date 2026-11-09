@@ -6,6 +6,8 @@ import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../auth/data/auth_controller.dart';
 import '../../auth/domain/auth_user.dart';
+import '../../address/data/address_controller.dart';
+import '../../address/presentation/address_book_screen.dart';
 import '../../auth/presentation/login_screen.dart';
 import '../../orders/presentation/orders_screen.dart';
 import '../../wishlist/data/wishlist_controller.dart';
@@ -20,8 +22,7 @@ import 'widgets/account_row.dart';
 /// "Visa 4242", Notifications shows "On" and Help & support goes to a help
 /// centre — none of which exist. Card payment is deferred to v2, and
 /// notifications and help are not in the plan at all, so rendering them would
-/// mean inventing values and a destination. The rows that work are here; task
-/// 3.8 adds Saved addresses.
+/// mean inventing values and a destination. The other three are here.
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
 
@@ -56,6 +57,7 @@ class _SignedIn extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final wishlistCount = ref.watch(wishlistCountProvider);
+    final addressCount = ref.watch(addressCountProvider);
 
     return ListView(
       padding: const EdgeInsets.only(bottom: AppTokens.space24),
@@ -92,6 +94,13 @@ class _SignedIn extends ConsumerWidget {
                       value: '$wishlistCount',
                       onTap: () =>
                           context.pushNamed(WishlistScreen.routeName),
+                    ),
+                    AccountRow(
+                      mono: 'AD',
+                      label: 'Saved addresses',
+                      value: '$addressCount',
+                      onTap: () =>
+                          context.pushNamed(AddressBookScreen.routeName),
                     ),
                   ],
                 ),

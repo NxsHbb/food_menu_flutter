@@ -35,6 +35,7 @@ class ApiException implements Exception {
     this.code,
     this.retryAfter,
     this.field,
+    this.index,
   });
 
   final ApiFailure failure;
@@ -59,6 +60,13 @@ class ApiException implements Exception {
   /// The plugin's address validation names the field it rejected, so a form
   /// can put the message against the right input instead of in a banner.
   final String? field;
+
+  /// Which item of a submitted list [field] belongs to, from `data.index`.
+  ///
+  /// The address book is saved as a whole list, so the server has to say
+  /// *which* address it rejected. Without this a form editing one address
+  /// would put the message on its own input when the fault was elsewhere.
+  final int? index;
 
   /// True when retrying the identical request could plausibly succeed.
   ///
@@ -120,6 +128,7 @@ class ApiException implements Exception {
     String? serverMessage;
     Duration? retryAfter;
     String? field;
+    int? index;
     if (body is Map) {
       final code = body['code'];
       final message = body['message'];
@@ -134,6 +143,8 @@ class ApiException implements Exception {
         }
         final name = data['field'];
         if (name is String && name.isNotEmpty) field = name;
+        final position = data['index'];
+        if (position is num) index = position.toInt();
       }
     }
 
@@ -144,6 +155,7 @@ class ApiException implements Exception {
       code: serverCode,
       retryAfter: retryAfter,
       field: field,
+      index: index,
     );
   }
 
