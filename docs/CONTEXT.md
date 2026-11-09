@@ -160,6 +160,27 @@ domain/data/presentation split.
 - The default address is mirrored into WooCommerce's billing and shipping
   fields server-side, so Phase 6 checkout does not need to send it again.
 
+### Account and profile
+`features/account/` holds the design's account screen (task 3.7) and the form
+behind its Edit button, over `GET|PUT fmp/v1/app/me`.
+
+- **`PUT` is partial, and the repository keeps it that way** — only the fields
+  the form owns are sent. The endpoint treats an absent key as "leave alone"
+  and a present one as "replace", so sending a whole object would let the
+  profile form wipe the address book it does not show.
+- **A successful save is written back into the session** via
+  `AuthController.updateSession`, which also persists it. The header reads the
+  session, not a provider over `/me`, so without that write-back it would show
+  the old name until the next sign-in.
+- **Only rows that lead somewhere are rendered.** The design lists six; Payment
+  methods, Notifications and Help & support have no backend in v1 and would
+  need invented values, so they are absent. Saved addresses arrives with task
+  3.8. `AccountRow` and `AccountRowCard` exist for it to drop into.
+- **My orders carries no count** until task 7.1 — a `0` would say "you have
+  never ordered" rather than "we have not asked".
+- The email is shown on the edit form but **not editable**: no endpoint exists
+  for it. See task 3.9.
+
 ### Wishlist
 `GET|POST fmp/v1/app/wishlist` and `DELETE fmp/v1/app/wishlist/{product_id}`
 (task 3.5), with the screen, the hearts and the controller in
