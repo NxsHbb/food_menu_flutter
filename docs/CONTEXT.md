@@ -446,6 +446,30 @@ a new cart and orphan the saved one.
   this build has never seen.
 - `clear()` wipes the stored copy too, so a paid-for cart cannot come back.
 
+### Order types
+`GET fmp/v1/app/order-types[?branch=<term_id>]` (task 5.1). The Flutter side
+is task 5.4.
+
+- **Public**, like the add-ons route: the design puts the delivery/pickup
+  choice in the header of the first screen, before sign-in.
+- Returns `{ branch, timezone, today, preorder_max_days, slot_limits_enabled,
+  types }`. Only **pickup and delivery** ever appear — the plugin has dine-in
+  and the app has no screen for it.
+- `enabled` is the store's own switch. `time_required` is separate: when
+  false the customer picks **no date or time at all** and the order is as soon
+  as possible, so skip the slot list rather than showing an empty one.
+- `first_date` already has `lead_days` applied. `last_date` is **null for no
+  bound**, not "today".
+- **An open day with no `windows` is a day with no stated hours**, not a
+  closed one. Only `open: false` means closed.
+- `max_orders_per_slot` is 0 for no cap, and only means anything when
+  `slot_limits_enabled` is true.
+- Pass `branch` once branches exist (5.3). A branch overrides the store **per
+  type**: one with its own pickup hours but no delivery hours falls back to
+  the store's for delivery. An **unknown branch is a 404**; a store not
+  running branches answers store-wide with `branch: 0`, so check what came
+  back rather than assuming the parameter was honoured.
+
 #### Reading them back off a cart item
 Task 4.3 put them on every Store API cart item, under the same extension key:
 

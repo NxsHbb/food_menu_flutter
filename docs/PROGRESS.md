@@ -2,6 +2,41 @@
 
 Newest first. One entry per completed task.
 
+## Task 5.1 — Order types and their schedules (plugin)
+Branch: `mobile-app-order-types`, PR food-menu-pro#14. The Flutter side is
+task 5.4. First of Phase 5.
+
+### The gap
+The **write** path already existed — Pro registers a `food-menu-pro` Store API
+checkout extension carrying `fmp_order_time_type` and the pickup/delivery
+dates and times. Nothing exposed the **read** side, so the app could not tell
+which types a store offers, never mind which days it is open.
+
+### Read the settings the way the website reads them
+An absent `enable_pickup` means **on**, so a store that has never opened the
+settings screen offers both types. `lead_days` is `delivery_preparation_day`
+for delivery and always zero for pickup. `last_date` is null when there is no
+preorder bound rather than collapsing to today. And `time_required` is a
+separate switch from `enabled`: with it off the customer picks no date or time
+at all, so the app must skip the slot list rather than draw an empty one.
+
+### Two things that would have been wrong to guess
+An **open day with no windows** is a day with no stated hours, not a closed
+one — and that is the dev store's own default state. And an **unknown branch**
+now 404s instead of quietly returning the store-wide schedule, which would
+have handed a deleted branch's customer the wrong opening hours. Both in
+`FINDINGS.md`.
+
+### Verified on the dev store
+A seeded schedule with two pickup windows a day and Sunday closed; delivery
+with Monday closed, a one-day lead and a seven-day preorder window; per-type
+intervals and slot caps; both enable toggles; a branch with its own pickup
+schedule falling back to the store's delivery one; and a 404 for a branch that
+does not exist. Settings, the test branch and the multi-location toggle were
+all restored afterwards.
+
+No Dart changed in this task.
+
 ## Task 4.6 — Floating cart bar, and a cart that survives a restart
 Branch: `feat/mini-cart`, PR #33. Phase 4 is complete with this.
 

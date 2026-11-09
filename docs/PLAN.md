@@ -107,7 +107,7 @@ pickup/delivery dates and times. Only the **read** path is missing.
 
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 5.1 | `GET /fmp/v1/app/order-types` — whether pickup and delivery are enabled, with their weekly schedules | pro | todo |
+| 5.1 | `GET /fmp/v1/app/order-types` — whether pickup and delivery are enabled, with their weekly schedules | pro | done |
 | 5.2 | `GET /fmp/v1/app/slots` — selectable slots for a type and branch, respecting slot limits and timed products. Returns the design's flat list (`ASAP (15 min)`, `12:45`, …) rather than a date+time matrix | pro | todo |
 | 5.3 | `GET /fmp/v1/app/branches` — branch list with per-branch rules | free | todo |
 | 5.4 | Flutter pickup/delivery toggle and slot list, driven by server availability | app | todo |
