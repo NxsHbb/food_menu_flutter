@@ -97,7 +97,7 @@ were not exposed anywhere until task 4.1.
 | 4.3 | Surface chosen add-ons and their price effect in Store API cart item responses | pro | done |
 | 4.4 | Flutter add-on selection UI on the product detail screen, with live price preview | app | done |
 | 4.5 | Flutter cart: add, update quantity, remove, totals, empty state | app | done |
-| 4.6 | Floating mini cart, persisted across app restarts via the `Cart-Token` | app | todo |
+| 4.6 | Floating mini cart, persisted across app restarts via the `Cart-Token` | app | done |
 
 ## Phase 5 — Order type and time slots
 Pickup and delivery only — the design has no dine-in, which also makes QR

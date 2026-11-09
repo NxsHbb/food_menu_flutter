@@ -17,7 +17,7 @@ void main() {
       ..httpClientAdapter = adapter
       ..interceptors.add(
         StoreSessionInterceptor(
-          read: () => session,
+          read: () async => session,
           write: ({String? nonce, String? cartToken}) {
             session = session.copyWith(nonce: nonce, cartToken: cartToken);
           },

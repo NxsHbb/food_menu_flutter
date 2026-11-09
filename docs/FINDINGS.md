@@ -2,6 +2,42 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## Restoring a cart has to beat the first request to the server
+The `Cart-Token` identifies a guest cart, and the Store API issues a fresh one
+to any request that arrives without it. So reading the stored token
+*asynchronously while the app starts* is not enough: whichever request goes
+out first decides which cart the session belongs to, and a restore that lands
+a moment later is already too late — the saved cart is orphaned and the
+customer sees an empty one.
+
+`StoreSessionNotifier` is therefore an `AsyncNotifier` whose `build()` does the
+restore, and `StoreSessionInterceptor.read` is async and awaits it. That
+mirrors what `AuthInterceptor` already does with the keychain, for the same
+reason.
+
+Only the cart token is persisted. The nonce comes back on every response and
+is short-lived, so storing it buys nothing and risks replaying a stale one.
+
+## A Stack sized to a Text puts a floating bar where nothing can tap it
+The floating cart bar is `Positioned(bottom: 0)` inside the shell's `Stack`,
+whose other child is `navigationShell` and therefore fills. A widget test that
+stood in a bare `Text` for that child got a Stack sized to the text, which put
+the bar outside the viewport — and `tester.tap()` reported only a hit-test
+*warning* before failing on the assertion afterwards.
+
+The harness now uses `Positioned.fill`. Worth watching for generally: a tap
+that silently misses reads exactly like a widget that ignored it.
+
+## A test helper that takes an object can be handed a different one
+Three of the store-session tests passed a freshly built fake into the
+container helper and then asserted on the `setUp` instance. One failed
+honestly; the other two **passed for the wrong reason**, asserting an empty
+write log on a store nothing had ever written to.
+
+The helper now builds the fake itself and keeps it, so a test can only assert
+on the instance actually in use. Any fake reachable by two names is one
+refactor away from this.
+
 ## Clearing the cart is the one Store API route that does not return a cart
 `GET /cart`, `cart/add-item`, `cart/update-item` and `cart/remove-item` all
 answer with the whole cart, which is why a mutation never needs a follow-up

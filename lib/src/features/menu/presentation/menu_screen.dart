@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../cart/presentation/widgets/cart_bar.dart';
 import '../data/banner_repository.dart';
 import '../data/menu_repository.dart';
 import 'menu_list_screen.dart';
@@ -103,8 +104,10 @@ class MenuScreen extends ConsumerWidget {
               ),
             ),
             ..._dishSlivers(context, products),
-            const SliverToBoxAdapter(
-              child: SizedBox(height: AppTokens.space24),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: AppTokens.space24 + ref.watch(cartBarInsetProvider),
+              ),
             ),
           ],
         ),

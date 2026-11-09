@@ -2,6 +2,50 @@
 
 Newest first. One entry per completed task.
 
+## Task 4.6 — Floating cart bar, and a cart that survives a restart
+Branch: `feat/mini-cart`, PR #33. Phase 4 is complete with this.
+
+### What was added
+The design's floating bar — count, "View cart", subtotal — over the menu
+branch only, because that is where a customer is while they fill a cart. A
+badge on the Cart tab counting the same units. And the `Cart-Token` is now
+kept in secure storage, so closing the app no longer empties the cart.
+
+### The restore has to win the race
+The Store API hands a fresh cart token to any request that arrives without
+one, so restoring asynchronously "while the app starts" is not enough —
+whichever request goes out first decides which cart the session is. A restore
+landing a moment later orphans the saved cart.
+
+`StoreSessionNotifier` became an `AsyncNotifier` whose `build()` reads the
+token, and `StoreSessionInterceptor.read` is async and awaits it. That is the
+same shape `AuthInterceptor` already uses for the keychain.
+
+Only the cart token is stored: the nonce comes back on every response and is
+short-lived. An expired token is dropped before it is sent; one that cannot be
+decoded is kept, because the server is entitled to judge a shape this build
+has never seen.
+
+### The bar floats, so the screens make room
+`cartBarInsetProvider` is the space to leave, and it is zero when there is no
+bar — nothing is reserved for a bar that is not there. Both menu screens add
+it to their bottom padding.
+
+`HomeShell` watching `cartCountProvider` for the badge is also what triggers
+the cart load at launch, which is what the restore needs.
+
+### Verified on the Android device
+A cart left with one Fresh Lemonade (`Large 15"`, $7.25) was still there after
+a full stop and a cold start: the bar read "1 · View cart · $7.25", the tab
+carried a badge of 1, and opening it showed the same line with its add-on. The
+bar is absent on the cart screen and on a dish, as the design has it.
+
+### Three things in FINDINGS
+Why the restore must beat the first request. A widget test whose `Stack` was
+sized to a `Text`, putting the bar where nothing could tap it — a miss that
+reads like a widget ignoring the tap. And three tests that asserted on a
+different fake from the one in use, two of which passed for the wrong reason.
+
 ## Task 4.5 — The cart
 Branch: `feat/cart`, PR #32. Task 4.6 adds the floating mini cart and makes a
 cart survive an app restart.

@@ -12,7 +12,9 @@ import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
+import '../../features/cart/data/cart_controller.dart';
 import '../../features/cart/presentation/cart_screen.dart';
+import '../../features/cart/presentation/widgets/cart_bar.dart';
 import '../../features/menu/presentation/menu_list_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/menu/presentation/product_detail_screen.dart';
@@ -178,15 +180,35 @@ final routerProvider = Provider<GoRouter>((ref) {
 ///
 /// The destinations themselves are provisional — the supplied design decides
 /// the final navigation, and this exists so routing is wired and testable.
-class HomeShell extends StatelessWidget {
+class HomeShell extends ConsumerWidget {
   const HomeShell({required this.navigationShell, super.key});
+
+  /// The branch the floating cart bar belongs over — the menu, which is where
+  /// a customer is while they fill the cart.
+  static const _menuBranch = 0;
 
   final StatefulNavigationShell navigationShell;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(cartCountProvider);
+
     return Scaffold(
-      body: navigationShell,
+      body: Stack(
+        children: [
+          navigationShell,
+          // Floats over the menu rather than pushing it up, as the design
+          // has it. The screens underneath reserve room for it through
+          // `cartBarInsetProvider`, so it never covers the last dish.
+          if (navigationShell.currentIndex == _menuBranch)
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: CartBar(),
+            ),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) => navigationShell.goBranch(
@@ -194,23 +216,32 @@ class HomeShell extends StatelessWidget {
           // Tapping the current tab again returns it to its first screen.
           initialLocation: index == navigationShell.currentIndex,
         ),
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.restaurant_menu_outlined),
             selectedIcon: Icon(Icons.restaurant_menu),
             label: 'Menu',
           ),
           NavigationDestination(
-            icon: Icon(Icons.shopping_bag_outlined),
-            selectedIcon: Icon(Icons.shopping_bag),
+            // The badge counts units, so three of one dish reads as three.
+            icon: Badge.count(
+              count: count,
+              isLabelVisible: count > 0,
+              child: const Icon(Icons.shopping_bag_outlined),
+            ),
+            selectedIcon: Badge.count(
+              count: count,
+              isLabelVisible: count > 0,
+              child: const Icon(Icons.shopping_bag),
+            ),
             label: 'Cart',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
             label: 'Orders',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
             label: 'Account',
