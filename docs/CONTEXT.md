@@ -140,6 +140,32 @@ domain/data/presentation split.
 - The auth screens are **pushed**, not navigated to: the customer reaches them
   mid-task and pops back with a result.
 
+### Account security
+`POST fmp/v1/app/auth/{forgot-password,reset-password,change-password,change-email}`
+(task 3.10). The Flutter side is task 3.11.
+
+- Reset is a **6-digit code emailed to the customer**, not a link to a web
+  page: `forgot-password` sends it, `reset-password` takes
+  `{email, code, password}`. It lasts 15 minutes and allows 5 guesses.
+- **`forgot-password` always answers the same way**, account or not, so the
+  screen must not say "we sent it to you" in a way that implies the address is
+  registered. `reset-password` returns one `fmp_app_invalid_reset_code` for an
+  unknown address, a wrong code and an expired one.
+- **All four routes return a fresh session and revoke the old one.** Treat the
+  response exactly like a login: hand it to `AuthController.updateSession` (or
+  adopt it) rather than ignoring the body. **The token in hand is dead
+  afterwards** — a success that is not adopted signs the customer out on their
+  next request.
+- A successful `reset-password` signs the customer straight in.
+- `change-password` and `change-email` need the **current password** as well
+  as the token, and answer `fmp_app_incorrect_password` (403) without it.
+- Errors worth wording: `fmp_app_weak_password`,
+  `fmp_app_password_unchanged`, `fmp_app_email_unchanged`,
+  `fmp_app_email_exists` (409), and a 429 whose `retry_after` the client
+  already understands.
+- **Changing the email sends no confirmation to the new address**, so the form
+  should make the customer look at what they typed.
+
 ### Profile and saved addresses
 `GET|PUT fmp/v1/app/me` (task 3.2). The Flutter side is tasks 3.7 and 3.8.
 

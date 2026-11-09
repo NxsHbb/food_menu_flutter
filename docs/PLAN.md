@@ -80,6 +80,8 @@ so customer auth is new work. No nonce gate on these routes — token only.
 | 3.7 | Account screen (design 9) and the Edit profile form | app | done |
 | 3.8 | `GET /fmp/v1/app/address-fields` — allowed countries, their states, which fields are required and WooCommerce's own labels, so the form is not hard-coded | pro | done |
 | 3.9 | Address book: list, add/edit form, set default — **designed to match**, since the design stubs both | app | done |
+| 3.10 | `POST /fmp/v1/app/auth/{forgot-password,reset-password,change-password,change-email}` — the account-security group, agreed after it came up in 3.1, 3.2, 3.7 and 3.9 | pro | done |
+| 3.11 | Forgot password on sign-in, and a Security section on the account screen — **designed to match**, since the design has no auth screens | app | todo |
 
 ## Phase 4 — Cart and add-ons
 Store API `cart/add-item` accepts only `id`, `quantity`, `variation`, so add-on
@@ -175,9 +177,5 @@ them.
   store running the app needs `woocommerce_enable_myaccount_registration` on.
   It is off by default and was off on the dev site. To be confirmed for
   production.
-- **Account security endpoints are missing as a group.** Password reset
-  (3.1), and changing the account email or password (3.2), are all absent. They
-  belong together — one task on the Pro plugin plus one Flutter screen. A
-  customer who forgets their password has no in-app route back today, and the
-  WordPress reset flow is a web page. **Recommend adding as task 3.10**; say the
-  word and it goes in.
+- ~~**Account security endpoints are missing as a group.**~~ **Agreed and
+  scheduled** as tasks 3.10 and 3.11, after coming up in 3.1, 3.2, 3.7 and 3.9.
