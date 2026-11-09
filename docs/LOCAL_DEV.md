@@ -126,6 +126,18 @@ curl -s -X PUT "$B/fmp/v1/app/me" -H "Authorization: Bearer <access_token>" \
   -H 'Content-Type: application/json' -d '{"phone":"+8801700000000"}'
 ```
 
+Read and edit the wishlist:
+
+```sh
+curl -s "$B/fmp/v1/app/wishlist" -H "Authorization: Bearer <access_token>"
+
+curl -s -X POST "$B/fmp/v1/app/wishlist" -H "Authorization: Bearer <access_token>" \
+  -H 'Content-Type: application/json' -d '{"product_id":26}'
+
+# The ID goes in the path, not the body.
+curl -s -X DELETE "$B/fmp/v1/app/wishlist/26" -H "Authorization: Bearer <access_token>"
+```
+
 Three things to know while testing:
 
 - **Rate limits are real and keyed on your IP.** Repeated failed logins will
