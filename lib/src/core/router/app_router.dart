@@ -10,6 +10,7 @@ import '../../features/menu/presentation/menu_list_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/menu/presentation/product_detail_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
+import '../../features/wishlist/presentation/wishlist_screen.dart';
 
 /// The app's router.
 ///
@@ -66,6 +67,16 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: AccountScreen.routePath,
                 name: AccountScreen.routeName,
                 builder: (context, state) => const AccountScreen(),
+                routes: [
+                  // Nested under Account, not a tab of its own: the design
+                  // shows the tab bar on the wishlist with Account still
+                  // highlighted, and reaches it from the Account row list.
+                  GoRoute(
+                    path: WishlistScreen.routePath,
+                    name: WishlistScreen.routeName,
+                    builder: (context, state) => const WishlistScreen(),
+                  ),
+                ],
               ),
             ],
           ),

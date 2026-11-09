@@ -4,17 +4,14 @@ import '../../../../core/store_api/models/product.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/widgets/dish_image_placeholder.dart';
+import '../../../wishlist/presentation/widgets/wishlist_heart.dart';
 
-/// The design's dish card: image, name, rating row, price and an add button.
+/// The design's dish card: image, name, rating row, price and an add button,
+/// with the favourite heart over the top-right of the photo.
 ///
-/// Two things the design shows are **not rendered**, because no data source
-/// exists for them yet:
-///
-/// - the favourite heart, which needs the wishlist decision; and
-/// - the per-dish prep time, which no Store API field supplies.
-///
-/// Both are left out rather than faked, so the screen never shows a number
-/// the backend cannot stand behind.
+/// One thing the design shows is **not rendered**: the per-dish prep time, for
+/// which no Store API field exists. It is left out rather than faked, so the
+/// card never shows a number the backend cannot stand behind.
 class DishCard extends StatelessWidget {
   const DishCard({
     required this.product,
@@ -51,9 +48,13 @@ class DishCard extends StatelessWidget {
             // the image takes whatever height is left. A fixed ratio here
             // overflowed the card by 11px at the default scale.
             Expanded(
-              child: image == null
-                  ? const DishImagePlaceholder()
-                  : Image.network(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (image == null)
+                    const DishImagePlaceholder()
+                  else
+                    Image.network(
                       image.src,
                       fit: BoxFit.cover,
                       // A dish whose photo fails to load still has to look
@@ -64,6 +65,13 @@ class DishCard extends StatelessWidget {
                               ? child
                               : const DishImagePlaceholder(),
                     ),
+                  Positioned(
+                    top: AppTokens.space8,
+                    right: AppTokens.space8,
+                    child: WishlistHeart(product: product),
+                  ),
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(AppTokens.space12),

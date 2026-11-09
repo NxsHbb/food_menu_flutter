@@ -6,6 +6,8 @@ import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../auth/data/auth_controller.dart';
 import '../../auth/presentation/login_screen.dart';
+import '../../wishlist/data/wishlist_controller.dart';
+import '../../wishlist/presentation/wishlist_screen.dart';
 
 /// Account tab.
 ///
@@ -71,6 +73,18 @@ class AccountScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: AppTokens.space20),
+                    // One row, not the design's full list: that list is task
+                    // 3.7. This is here so the wishlist screen from task 3.6
+                    // is reachable, and it is built to drop straight into the
+                    // list when 3.7 assembles it.
+                    _AccountRow(
+                      mono: 'WL',
+                      label: 'Wishlist',
+                      value: '${ref.watch(wishlistCountProvider)}',
+                      onTap: () =>
+                          context.pushNamed(WishlistScreen.routeName),
+                    ),
                     const Spacer(),
                     SizedBox(
                       height: AppTokens.buttonHeight,
@@ -82,6 +96,77 @@ class AccountScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One row of the design's account list: a lettered tile, a label, a value and
+/// a chevron.
+///
+/// Built here rather than in a shared widget because task 3.7 owns the full
+/// list and will decide where this lives.
+class _AccountRow extends StatelessWidget {
+  const _AccountRow({
+    required this.mono,
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  /// The design's two-letter tile, e.g. `WL` for Wishlist.
+  final String mono;
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final text = Theme.of(context).textTheme;
+
+    return Material(
+      color: palette.card,
+      borderRadius: BorderRadius.circular(AppTokens.radiusSheet),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTokens.radiusSheet),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTokens.space16,
+            vertical: AppTokens.space14,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: palette.tint,
+                  borderRadius:
+                      BorderRadius.circular(AppTokens.radiusControl),
+                ),
+                child: Text(
+                  mono,
+                  style: text.labelMedium?.copyWith(color: palette.brand),
+                ),
+              ),
+              const SizedBox(width: AppTokens.space14),
+              Expanded(child: Text(label, style: text.bodyLarge)),
+              Text(
+                value,
+                style: text.bodySmall?.copyWith(color: palette.muted),
+              ),
+              const SizedBox(width: AppTokens.space6),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: palette.muted,
+              ),
+            ],
+          ),
         ),
       ),
     );

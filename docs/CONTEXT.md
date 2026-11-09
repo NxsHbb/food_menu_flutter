@@ -162,30 +162,49 @@ domain/data/presentation split.
 
 ### Wishlist
 `GET|POST fmp/v1/app/wishlist` and `DELETE fmp/v1/app/wishlist/{product_id}`
-(task 3.5). Server-backed, so favourites follow the customer between devices.
-The Flutter side is task 3.6.
+(task 3.5), with the screen, the hearts and the controller in
+`features/wishlist/` (task 3.6). Server-backed, so favourites follow the
+customer between devices.
 
 - `GET` returns `{ items, product_ids }`. **`items` are full Store API product
-  payloads** — map `Product.fromJson` straight over them and reuse the menu's
-  own `DishCard`. Newest favourite first.
-- `product_ids` is the IDs of what is in `items`, for deciding which hearts are
-  filled. Fetch the wishlist once after sign-in, hold the ID set in a provider,
-  and let the cards read it — do not call the API per card.
-- `POST` takes `{ "product_id": N }`; `DELETE` puts the ID **in the path**.
-  Both are idempotent, so a replayed tap is not an error: `POST` answers 201
-  when it added and 200 when the dish was already there, `DELETE` always 200.
-  Both return `{ product_id, in_wishlist }` and nothing else — optimistic UI is
-  the intended pattern, with a revert on failure.
-- There is no `count`. A favourited dish that is currently off the menu is
-  absent from both lists while remaining saved server-side, so a count would
-  have had to mean either "saved" or "showable" and would mislead for the
-  other. Use `product_ids.length`.
-- Refusals worth handling: `fmp_app_wishlist_full` (409, the 100-dish cap),
-  `fmp_app_product_unavailable` and `fmp_app_product_not_found` (404 — the dish
-  left the menu, so drop the heart and refresh the list),
-  `fmp_app_wishlist_variation` (400 — favourite the product, not a variation).
-- Everything needs the bearer token, so **the heart must only be shown to a
-  signed-in customer**; a 401 means sign in, not "not favourited".
+  payloads**, so `WishlistRepository` maps `Product.fromJson` over them and no
+  second fetch is needed. Newest favourite first.
+- **`WishlistController` holds the list for the whole session**, loaded once
+  per sign-in. `wishlistIdsProvider` derives the id set from it and every heart
+  watches that — with a grid of dishes on screen, asking per card would be a
+  request per card for something one request already carries.
+- The id set is derived from `items` rather than read from `product_ids`,
+  because they are the same thing and deriving it cannot drift. A favourite
+  whose dish is off the menu is in neither.
+- `build()` watches `isSignedInProvider`, so signing in loads the wishlist and
+  signing out drops it with **no explicit invalidation anywhere**. Signed out
+  is an empty list, not an error.
+- **Writes are optimistic.** `toggle()` updates the list, then calls the
+  server, and puts the whole previous list back on failure. It `await`s the
+  first load before touching state, so a heart tapped during the opening
+  request still applies rather than doing nothing.
+- A 404 from a write also **invalidates the controller**: the dish has left the
+  menu, so the held list is stale in more ways than that one heart.
+- **Riverpod's automatic retry is switched off** on this provider. The screen
+  offers "Try again", and the default backoff otherwise keeps a timer firing
+  while the customer sits on the error — and stops `.future` ever completing
+  with the error.
+- **The heart is shown to everyone**, signed in or not. Tapping it while signed
+  out pushes the sign-in screen rather than calling the API, which is the
+  journey the router was already built for. Hiding it would leave a signed-out
+  customer no way to discover that dishes can be saved.
+- `WishlistHeart` takes a `HeartStyle` — `onImage` (card and detail), `bare`
+  (menu row) and `tinted` (the wishlist screen's own filled button) — because
+  the design dresses it differently in each place.
+- The wishlist screen uses its own compact **`WishlistRow`**, not `DishRow`:
+  the design drops the description, rating and add button here, since the list
+  is decisions already made rather than a menu to browse.
+- It is **nested under the Account tab**, so the tab bar stays and Account
+  stays highlighted, matching the design.
+- Error codes worth handling are already handled in `WishlistHeart._message`:
+  409 is the cap and its wording is passed straight through, 401 is reworded
+  because the server's "you must be signed in" reads as a bug on a signed-in
+  screen, and 404 means the dish is gone.
 
 ### Text from WordPress
 Every text field from both APIs arrives as rendered HTML, and `wp/v2` fields

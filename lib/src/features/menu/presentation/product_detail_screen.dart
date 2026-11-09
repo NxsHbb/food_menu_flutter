@@ -8,6 +8,7 @@ import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/util/html_text.dart';
 import '../../../core/widgets/dish_image_placeholder.dart';
+import '../../wishlist/presentation/widgets/wishlist_heart.dart';
 import 'widgets/food_data_section.dart';
 import 'widgets/food_tags.dart';
 import '../data/menu_repository.dart';
@@ -142,10 +143,19 @@ class _Hero extends StatelessWidget {
             ),
             child: SizedBox.expand(),
           ),
+          // The design pairs the close button with the heart across the top of
+          // the photo, so they share one row.
           Positioned(
             top: top + AppTokens.space8,
             left: AppTokens.space16,
-            child: const _CircleButton(icon: Icons.close),
+            right: AppTokens.space16,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const _CircleButton(icon: Icons.close),
+                WishlistHeart(product: product, size: 38),
+              ],
+            ),
           ),
         ],
       ),
