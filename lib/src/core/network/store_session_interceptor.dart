@@ -14,7 +14,7 @@ import 'store_session.dart';
 /// from its first write.
 class StoreSessionInterceptor extends Interceptor {
   StoreSessionInterceptor({
-    required StoreSession Function() read,
+    required Future<StoreSession> Function() read,
     required void Function({String? nonce, String? cartToken}) write,
   })  : _read = read,
         _write = write;
@@ -22,15 +22,18 @@ class StoreSessionInterceptor extends Interceptor {
   static const nonceHeader = 'Nonce';
   static const cartTokenHeader = 'Cart-Token';
 
-  final StoreSession Function() _read;
+  /// Async because the cart token is restored from storage on a cold start,
+  /// and the first request must carry it or the server hands out a new cart
+  /// and the saved one is orphaned.
+  final Future<StoreSession> Function() _read;
   final void Function({String? nonce, String? cartToken}) _write;
 
   @override
-  void onRequest(
+  Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
-  ) {
-    final session = _read();
+  ) async {
+    final session = await _read();
     final nonce = session.nonce;
     final cartToken = session.cartToken;
 

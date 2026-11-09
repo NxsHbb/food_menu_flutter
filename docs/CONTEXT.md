@@ -418,6 +418,34 @@ Adding happens from the dish screen: `AddonSelection.toPayload()` goes
 straight into `cart/add-item` under the extension key, the dish closes, and
 the server's wording is what a refusal shows — it names the group.
 
+#### The floating bar and the badge (task 4.6)
+`CartBar` is the design's floating bar — count, "View cart", subtotal — shown
+by `HomeShell` over the **menu branch only**, because that is where a customer
+is while they fill a cart. The cart screen is what it leads to and a dish has
+its own bottom bar, so neither gets one.
+
+It floats rather than pushing content up, so the screens underneath add
+`cartBarInsetProvider` to their bottom padding. That provider is zero when
+there is no bar, so nothing is reserved for a bar that is not there.
+
+The tab badge counts **units**, the same number the bar shows. `HomeShell`
+watching `cartCountProvider` is also what loads the cart at launch.
+
+#### A cart survives the app closing
+`StoreSessionNotifier` is an `AsyncNotifier`: its `build()` restores the
+`Cart-Token` from secure storage, and `StoreSessionInterceptor` **awaits**
+that before the first Store API request — otherwise the server would hand out
+a new cart and orphan the saved one.
+
+- **Only the cart token is stored.** The nonce comes back on every response
+  and is short-lived, so keeping it buys nothing.
+- Secure storage, reusing the auth session's dependency: not a login, but
+  anyone holding it can read and change that cart.
+- A token whose own `exp` has passed is dropped before it is sent. One that
+  cannot be decoded is **kept** — the server is entitled to judge a shape
+  this build has never seen.
+- `clear()` wipes the stored copy too, so a paid-for cart cannot come back.
+
 #### Reading them back off a cart item
 Task 4.3 put them on every Store API cart item, under the same extension key:
 

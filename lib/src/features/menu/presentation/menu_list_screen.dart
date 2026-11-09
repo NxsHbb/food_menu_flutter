@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../cart/presentation/widgets/cart_bar.dart';
 import '../data/menu_list_controller.dart';
 import '../data/menu_repository.dart';
 import 'package:go_router/go_router.dart';
@@ -176,11 +177,11 @@ class _Results extends ConsumerWidget {
               ),
       AsyncData(:final value) => ListView.separated(
           controller: scroll,
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             AppTokens.space16,
             AppTokens.space12,
             AppTokens.space16,
-            AppTokens.space24,
+            AppTokens.space24 + ref.watch(cartBarInsetProvider),
           ),
           // One header row, the dishes, then a footer when more can load.
           itemCount: value.products.length + (value.hasMore ? 2 : 1),

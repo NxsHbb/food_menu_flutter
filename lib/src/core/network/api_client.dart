@@ -67,7 +67,17 @@ final dioProvider = Provider<Dio>((ref) {
 
   dio.interceptors.add(
     StoreSessionInterceptor(
-      read: () => ref.read(storeSessionProvider),
+      // Awaits the cart-token restore on a cold start, then reads what is
+      // current *now* — a response that landed during startup would already
+      // have replaced the value `.future` resolved to.
+      read: () async {
+        try {
+          await ref.read(storeSessionProvider.future);
+        } on Object {
+          // A failed restore means a new cart, not a failed request.
+        }
+        return ref.read(storeSessionProvider).value ?? const StoreSession();
+      },
       write: ({String? nonce, String? cartToken}) => ref
           .read(storeSessionProvider.notifier)
           .absorb(nonce: nonce, cartToken: cartToken),
