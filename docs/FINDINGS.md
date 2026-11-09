@@ -2,6 +2,35 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## Clearing the cart is the one Store API route that does not return a cart
+`GET /cart`, `cart/add-item`, `cart/update-item` and `cart/remove-item` all
+answer with the whole cart, which is why a mutation never needs a follow-up
+read. `DELETE /cart/items` does not: it answers with the **items list**, which
+after a clear is `[]`. Taking that as the new state would leave the totals
+showing the old amount on an empty cart, so `CartRepository.clear()` reads the
+cart back.
+
+## A dish opened by deep link has nothing to pop
+`context.pop()` throws `GoError: There is nothing to pop` when the dish is the
+first route in the stack — which is what a deep link, a notification tap or a
+cold start on a dish URL produces. The dish is normally pushed over the menu,
+so this never showed up in the app itself; it surfaced in a widget test that
+pumped the dish as the router's initial location.
+
+`closeDish()` pops when it can and otherwise goes to the menu. It is used by
+the close button, the error screen's "Back to the menu" and the add-to-cart
+success path alike.
+
+## A fake that fails "the next call" fails the wrong one
+`FakeCartRepository.failNext` was spent on the controller's own first read
+rather than on the mutation the test meant to fail: a controller reads the
+cart the moment it is first touched, and in a widget test that happens inside
+the tap being tested. The symptom is a test that sees no error anywhere and no
+obvious reason why.
+
+Hence `failNextWrite`, which only fires on a mutating call. Worth copying into
+any fake whose subject loads lazily.
+
 ## The add-ons endpoint nests its currency; the Store API does not
 `GET /fmp/v1/app/products/{id}/addons` returns `{ product_id, currency: {…},
 groups }`, with the `currency_*` keys **inside** a `currency` object. Every

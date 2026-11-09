@@ -4,12 +4,17 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
+import 'package:food_menu/src/features/cart/data/cart_repository.dart';
 import 'package:food_menu/src/features/menu/data/addons_repository.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
+import 'package:food_menu/src/features/menu/presentation/menu_list_screen.dart';
 import 'package:food_menu/src/features/menu/presentation/product_detail_screen.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/addon_group_card.dart';
 
+import '../cart/fake_cart_repository.dart';
 import 'fake_addons_repository.dart';
 import 'fake_menu_repository.dart';
 
@@ -285,6 +290,8 @@ void main() {
     });
   });
 
+  _addToCartTests();
+
   testWidgets('groups render in dark mode without error', (tester) async {
     await pump(
       tester,
@@ -294,5 +301,126 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(AddonGroupCard), findsNWidgets(3));
+  });
+}
+
+/// The add button posting what the customer chose. Task 4.5.
+///
+/// Pumped behind a real router, because adding closes the dish — so the test
+/// has somewhere to close to.
+void _addToCartTests() {
+  late FakeCartRepository cartRepo;
+
+  Future<void> pumpWithRouter(
+    WidgetTester tester, {
+    required ProductAddons addons,
+  }) async {
+    final menu = FakeMenuRepository()..single = productFixture('product_simple');
+    cartRepo = FakeCartRepository();
+
+    final router = GoRouter(
+      initialLocation: '/dish',
+      routes: [
+        GoRoute(
+          path: '/',
+          name: MenuListScreen.routeName,
+          builder: (_, _) => const Scaffold(body: Text('menu')),
+        ),
+        GoRoute(
+          path: '/dish',
+          builder: (_, _) => const ProductDetailScreen(productId: 25),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          menuRepositoryProvider.overrideWithValue(menu),
+          addonsRepositoryProvider
+              .overrideWithValue(FakeAddonsRepository(addons: addons)),
+          cartRepositoryProvider.overrideWithValue(cartRepo),
+        ],
+        child: MaterialApp.router(
+          theme: AppTheme.light(),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  group('adding to the cart', () {
+    testWidgets('sends the chosen ids, quantities and text', (tester) async {
+      await pumpWithRouter(tester, addons: addonsFromFixture('product_addons'));
+
+      await tapInBody(tester, find.text('Medium 12"'));
+      await tapInBody(tester, find.text('Mushrooms'));
+      await tapInBody(tester, find.byIcon(Icons.add).first);
+      await tester.ensureVisible(find.byType(TextField));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'No ice please');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Add to cart'));
+      await tester.pumpAndSettle();
+
+      // The id posted is the dish that loaded, not the route's parameter.
+      expect(cartRepo.calls.last, 'add 26 x1');
+      expect(cartRepo.addonPayloads.single, [
+        {'group_id': '0', 'option_ids': ['1']},
+        {
+          'group_id': '1',
+          'option_ids': ['0'],
+          'quantities': {'0': 2},
+        },
+        {'group_id': '2', 'text': 'No ice please'},
+      ]);
+    });
+
+    testWidgets('confirms and closes the dish', (tester) async {
+      await pumpWithRouter(tester, addons: addonsFromFixture('product_addons'));
+
+      await tester.tap(find.text('Add to cart'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1× Iced Latte added'), findsOneWidget);
+      expect(find.text('menu'), findsOneWidget);
+    });
+
+    testWidgets('a required group still open is not sent at all',
+        (tester) async {
+      await pumpWithRouter(tester, addons: withoutDefaults('product_addons'));
+
+      await tester.tap(find.text('Select choose your size'));
+      await tester.pumpAndSettle();
+
+      expect(cartRepo.calls, isNot(contains(startsWith('add'))));
+    });
+
+    testWidgets('a refusal from the server is shown as it was worded',
+        (tester) async {
+      await pumpWithRouter(tester, addons: addonsFromFixture('product_addons'));
+
+      cartRepo.failNextWrite = const ApiException(
+        failure: ApiFailure.http,
+        message: 'Please choose an option for Choose your size.',
+        statusCode: 400,
+        code: 'fmp_app_addon_required',
+      );
+
+      await tester.tap(find.text('Add to cart'));
+      await tester.pumpAndSettle();
+
+      // The plugin names the group; replacing that with a generic message
+      // would make the error useless.
+      expect(
+        find.text('Please choose an option for Choose your size.'),
+        findsOneWidget,
+      );
+      // And the dish stays open, so the choices are not lost.
+      expect(find.text('Choose your size'), findsOneWidget);
+    });
   });
 }

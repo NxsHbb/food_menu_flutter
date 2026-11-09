@@ -1,0 +1,155 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/store_api/models/cart.dart';
+import 'cart_repository.dart';
+
+/// The customer's cart, held for the session.
+///
+/// Every Store API cart route answers with the **whole cart**, so a mutation
+/// is a single round trip and its response is the new state — there is no
+/// read-after-write anywhere here.
+///
+/// Mutations are **not** optimistic, unlike the wishlist's hearts. A cart line
+/// carries money, and the server is the only thing that knows what a quantity
+/// change costs once the plugin's discounts and the add-on pricing have had
+/// their say. Showing a total the server has not agreed to, even for a few
+/// hundred milliseconds, is the one thing a cart must not do. Instead the line
+/// being changed is marked [pending] so the row can show it is working.
+class CartController extends AsyncNotifier<Cart> {
+  @override
+  Future<Cart> build() {
+    return ref.read(cartRepositoryProvider).cart();
+  }
+
+  /// Line keys with a request in flight.
+  final _pending = <String>{};
+
+  bool isPending(String key) => _pending.contains(key);
+
+  /// Adds a dish with its chosen add-ons.
+  ///
+  /// Returns the line the server created, which is **not** necessarily a new
+  /// one: adding the same dish with the same choices again raises the
+  /// quantity of the line already there, as the website does.
+  Future<CartItem?> add({
+    required int productId,
+    int quantity = 1,
+    List<Map<String, Object>> addons = const [],
+  }) async {
+    final before = state.value;
+
+    final cart = await ref.read(cartRepositoryProvider).addItem(
+          productId: productId,
+          quantity: quantity,
+          addons: addons,
+        );
+
+    state = AsyncData(cart);
+
+    return _addedLine(before, cart, productId);
+  }
+
+  /// Sets a line's quantity, within the limits the server published for it.
+  ///
+  /// A quantity of zero removes the line, which is what the stepper's minus
+  /// does on its last step.
+  Future<void> setQuantity(CartItem item, int quantity) async {
+    if (quantity <= 0) return remove(item);
+
+    final wanted = item.quantityLimits.clamp(quantity);
+    if (wanted == item.quantity) return;
+
+    await _mutate(
+      item.key,
+      () => ref.read(cartRepositoryProvider).updateItem(
+            key: item.key,
+            quantity: wanted,
+          ),
+    );
+  }
+
+  Future<void> remove(CartItem item) {
+    return _mutate(
+      item.key,
+      () => ref.read(cartRepositoryProvider).removeItem(key: item.key),
+    );
+  }
+
+  /// Empties the cart.
+  Future<void> clear() async {
+    final cart = await ref.read(cartRepositoryProvider).clear();
+    state = AsyncData(cart);
+  }
+
+  /// Re-reads the cart, for pull-to-refresh and for recovering from an error.
+  Future<void> reload() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(cartRepositoryProvider).cart(),
+    );
+  }
+
+  /// Runs a mutation with [key] marked as busy.
+  ///
+  /// The error is rethrown for the screen to show, but the cart is left as the
+  /// server last described it rather than being dropped into an error state:
+  /// a failed quantity change should not blank a cart the customer is reading.
+  Future<void> _mutate(String key, Future<Cart> Function() request) async {
+    _pending.add(key);
+    // Re-emitting the current value is what makes the busy flag visible, since
+    // `_pending` is not itself part of the state.
+    _touch();
+
+    try {
+      state = AsyncData(await request());
+    } finally {
+      _pending.remove(key);
+      _touch();
+    }
+  }
+
+  void _touch() {
+    final current = state.value;
+    if (current != null) state = AsyncData(current);
+  }
+
+  /// The line this add landed on, found by comparing before and after.
+  ///
+  /// A key that was not there before is the new line. Failing that — the add
+  /// raised an existing line's quantity — it is the line for this product
+  /// whose quantity grew, and if even that is ambiguous, the last line for
+  /// the product. Used only to say "added" with the right line, so a wrong
+  /// guess costs nothing.
+  CartItem? _addedLine(Cart? before, Cart after, int productId) {
+    final known = {for (final item in before?.items ?? const []) item.key};
+
+    for (final item in after.items) {
+      if (!known.contains(item.key)) return item;
+    }
+
+    CartItem? fallback;
+    for (final item in after.items.where((i) => i.id == productId)) {
+      fallback = item;
+      final previous = before?.itemByKey(item.key);
+      if (previous != null && item.quantity > previous.quantity) return item;
+    }
+
+    return fallback;
+  }
+}
+
+final cartControllerProvider = AsyncNotifierProvider<CartController, Cart>(
+  CartController.new,
+  // The cart screen offers "Try again", and a background retry would keep
+  // firing while the customer reads the error — and would stop `.future`
+  // completing, hiding a failed load from anything that awaits it.
+  retry: (retryCount, error) => null,
+);
+
+/// How many units are in the cart, for the tab badge and the mini cart.
+///
+/// Zero while the first read is in flight, so a badge is never drawn on a
+/// guess.
+final cartCountProvider = Provider<int>((ref) {
+  return ref.watch(cartControllerProvider).value?.itemsCount ?? 0;
+});
