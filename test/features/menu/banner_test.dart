@@ -104,6 +104,65 @@ void main() {
       );
     }
 
+    /// The device this was reported on: a 360dp-wide phone. The default test
+    /// surface is 800x600, which is wider than any phone and hid the bug.
+    Future<void> pumpPhone(
+      WidgetTester tester,
+      List<PromoBanner> banners,
+    ) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await pump(tester, banners);
+      await tester.pump();
+    }
+
+    testWidgets('at phone width the copy does not run under the artwork',
+        (tester) async {
+      await pumpPhone(
+        tester,
+        bannerFixture().map(PromoBanner.fromJson).toList(),
+      );
+
+      final title = tester.getRect(find.text('BBQ Crispy Chicken'));
+      final artwork = tester.getRect(find.byType(Image).first);
+
+      expect(
+        title.right,
+        lessThanOrEqualTo(artwork.left),
+        reason: 'the title overlapped the artwork by '
+            '${title.right - artwork.left}px',
+      );
+    });
+
+    testWidgets('the artwork fills its band rather than letterboxing',
+        (tester) async {
+      await pumpPhone(
+        tester,
+        bannerFixture().map(PromoBanner.fromJson).toList(),
+      );
+
+      final image = tester.widget<Image>(find.byType(Image).first);
+
+      // `contain` leaves the card's red showing around the artwork, so it
+      // reads as a floating rectangle rather than art bleeding off the edge.
+      expect(image.fit, BoxFit.cover);
+    });
+
+    testWidgets('survives a very narrow card without a layout error',
+        (tester) async {
+      // A 280pt phone is narrower than anything shipping, but the copy width
+      // is derived by subtraction and would go negative before it goes small.
+      tester.view.physicalSize = const Size(840, 2000);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      await pump(tester, bannerFixture().map(PromoBanner.fromJson).toList());
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('renders copy and badge', (tester) async {
       await pump(tester, bannerFixture().map(PromoBanner.fromJson).toList());
       await tester.pump();
