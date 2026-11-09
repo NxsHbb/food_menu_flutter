@@ -425,3 +425,71 @@ useless: the app may be closed for days, and on restore the number says nothing
 about whether the token is still good. `AuthTokens` resolves lifetimes against
 the clock at issue time and `TokenStore` writes the resulting absolute
 timestamps.
+
+## A serialized meta list cannot be amended safely
+Task 3.5 started out storing the wishlist as one serialized list in user meta,
+which is how `_fmp_app_addresses` works. That is fine for an address book —
+the app holds the whole list and PUTs it back — but wrong for a heart, which is
+tapped one dish at a time and fast. Two taps 200ms apart are two requests that
+both read the old list; the second write discards the first favourite, and the
+customer sees a filled heart that is gone on refresh.
+
+Compare-and-swap was the obvious fix and does not work. `update_user_meta()`
+takes a `$prev_value`, but applies it under `! empty( $prev_value )`:
+
+```php
+if ( ! empty( $prev_value ) ) {
+    $where['meta_value'] = maybe_serialize( $prev_value );
+}
+```
+
+An empty array is `empty()`, so the guard is silently skipped exactly when the
+previous value is the empty list — the first-favourite case, which is the one
+that races. Nor does WordPress offer any other atomic amend for a serialized
+value, and `add_metadata` is reached before the `$prev_value` clause when no
+row exists yet, so two simultaneous first writes create two rows.
+
+**Use a repeated meta key instead.** One row per item makes adding a single
+INSERT and removing a single DELETE-by-value, so there is no read-modify-write
+and nothing to guard. Ten simultaneous adds from an empty wishlist kept all
+ten. Two further things come free: `umeta_id` is monotonic, so insertion order
+needs no stored timestamp, and `delete_user_meta( $id, $key, $value )` deletes
+*every* matching row, so a duplicate left by a race disappears on the next
+removal.
+
+The trade is that `get_user_meta()` primes the whole user-meta cache, so N rows
+load whenever anything touches that user's meta. At a 100-item cap that is
+negligible. Reach for this pattern whenever single items are written
+independently; keep the serialized list when the client always owns the whole
+collection.
+
+## Hydrate through `rest_do_request()`, not a second serializer
+The wishlist screen draws the same dish cards as the menu, so the endpoint has
+to return products, not IDs. Writing a product serializer in the plugin would
+have meant a second payload shape to keep in step with the Store API's — and
+it would have missed the `food-menu-pro` extension block that task 2.7 added.
+
+Dispatching the Store API's own route internally avoids both:
+
+```php
+$request = new WP_REST_Request( 'GET', '/wc/store/v1/products' );
+$request->set_query_params( [ 'include' => $ids, 'orderby' => 'include', … ] );
+$response = rest_do_request( $request );
+```
+
+`include` + `orderby` → `include` maps to `post__in`, so the Store API returns
+the dishes in the order they were asked for and nothing needs re-sorting in
+PHP. `per_page` tops out at 100, which is why the wishlist cap is 100 — a full
+wishlist hydrates in one pass. The products route takes no nonce (only the
+cart routes do), so an internal dispatch needs no special handling.
+
+## The Store API hides out-of-stock products when the store says to
+`ProductQuery` checks `woocommerce_hide_out_of_stock_items` and, when it is
+`yes`, adds `AND wc_product_meta_lookup.stock_status NOT IN ('outofstock')`.
+It is `no` on the dev site, so this does not show up in local testing.
+
+It matters for the wishlist: favouriting an out-of-stock dish is allowed and is
+rather the point, but on a store with that setting on, such a favourite will
+not come back from hydration — the same as it not appearing in the menu. The
+behaviour is consistent either way; just do not read a missing wishlist item as
+a bug without checking the setting first.

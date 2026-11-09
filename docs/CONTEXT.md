@@ -14,7 +14,7 @@ v1 — see `PLAN.md`.
 |---|---|---|
 | `wc/store/v1` | menu reads, cart writes | public for reads; `Nonce` + `Cart-Token` headers for cart |
 | `fmp/v1` | the one public route, `GET /track/{token}` | none |
-| `fmp/v1/app/*` | add-ons, order types, slots, branches, accounts — **built by this project** | bearer token |
+| `fmp/v1/app/*` | add-ons, order types, slots, branches, accounts, wishlist — **built by this project** | bearer token |
 | `wp/v2` | landing-screen banner posts | none |
 
 The existing `fmp/v1` routes are nonce-gated and unusable from a mobile client;
@@ -159,6 +159,33 @@ domain/data/presentation split.
   `data.index`, which is what the form should highlight.
 - The default address is mirrored into WooCommerce's billing and shipping
   fields server-side, so Phase 6 checkout does not need to send it again.
+
+### Wishlist
+`GET|POST fmp/v1/app/wishlist` and `DELETE fmp/v1/app/wishlist/{product_id}`
+(task 3.5). Server-backed, so favourites follow the customer between devices.
+The Flutter side is task 3.6.
+
+- `GET` returns `{ items, product_ids }`. **`items` are full Store API product
+  payloads** — map `Product.fromJson` straight over them and reuse the menu's
+  own `DishCard`. Newest favourite first.
+- `product_ids` is the IDs of what is in `items`, for deciding which hearts are
+  filled. Fetch the wishlist once after sign-in, hold the ID set in a provider,
+  and let the cards read it — do not call the API per card.
+- `POST` takes `{ "product_id": N }`; `DELETE` puts the ID **in the path**.
+  Both are idempotent, so a replayed tap is not an error: `POST` answers 201
+  when it added and 200 when the dish was already there, `DELETE` always 200.
+  Both return `{ product_id, in_wishlist }` and nothing else — optimistic UI is
+  the intended pattern, with a revert on failure.
+- There is no `count`. A favourited dish that is currently off the menu is
+  absent from both lists while remaining saved server-side, so a count would
+  have had to mean either "saved" or "showable" and would mislead for the
+  other. Use `product_ids.length`.
+- Refusals worth handling: `fmp_app_wishlist_full` (409, the 100-dish cap),
+  `fmp_app_product_unavailable` and `fmp_app_product_not_found` (404 — the dish
+  left the menu, so drop the heart and refresh the list),
+  `fmp_app_wishlist_variation` (400 — favourite the product, not a variation).
+- Everything needs the bearer token, so **the heart must only be shown to a
+  signed-in customer**; a 401 means sign in, not "not favourited".
 
 ### Text from WordPress
 Every text field from both APIs arrives as rendered HTML, and `wp/v2` fields

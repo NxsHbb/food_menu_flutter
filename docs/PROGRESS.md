@@ -2,6 +2,80 @@
 
 Newest first. One entry per completed task.
 
+## Task 3.5 — Wishlist endpoints (plugin)
+Branch: `mobile-app-wishlist` on `food-menu-pro`. Opens the server half of the
+wishlist; the Flutter half is task 3.6.
+
+### What shipped
+`GET|POST /fmp/v1/app/wishlist` and `DELETE /fmp/v1/app/wishlist/{product_id}`,
+token-authenticated like the rest of `fmp/v1/app/*`. Two new files,
+`app/Api/App/AppWishlist.php` (storage) and `app/Api/App/WishlistApi.php`
+(routes), plus one line in `FMP::controllers()`.
+
+### One meta row per favourite, not a serialized list
+The decision the task turned on. A stored list would make every heart tap a
+read-modify-write, and hearts are tapped fast — two taps 200ms apart are two
+requests that both read the old list, and the second write silently discards
+the first favourite. The customer sees a filled heart that is gone on refresh.
+
+`_fmp_app_wishlist` is therefore a **repeated** meta key: adding is one INSERT,
+removing is one DELETE, and there is no lost update to guard against — no
+compare-and-swap, no lock, no retry. **Verified: ten simultaneous adds from an
+empty wishlist kept all ten rows.**
+
+Compare-and-swap was the first idea and does not work here. WordPress applies
+`update_user_meta()`'s `$prev_value` guard under `! empty( $prev_value )`, so
+the guard is skipped exactly when the previous value is an empty array — the
+first-favourite case, which is the one that matters.
+
+Ordering falls out of `umeta_id`, which is monotonic, so **no timestamp is
+stored**; `all()` reverses the rows to put the newest favourite first. Nothing
+in design 10 shows a date.
+
+### GET returns products, not IDs
+The wishlist screen draws the same dish cards as the menu, so bare IDs would
+force a second round trip and hand the app a list it cannot render. The route
+hydrates by dispatching `wc/store/v1/products` internally through
+`rest_do_request()`, with `include` + `orderby=include` so the Store API
+returns them in wishlist order. No second product serializer to keep in step,
+and the `food-menu-pro` extension fields come along free — **confirmed in the
+response**.
+
+### What happens when a favourited dish leaves the menu
+Hydration asks for `catalog_visibility=catalog`, the same visibility the app's
+menu screens use, so the wishlist can never show a dish the menu hides. That
+splits into two cases, both verified end to end:
+
+- **Hidden, or unpublished** — drops out of the response but **stays in
+  storage**, and comes back when the dish does. A dish pulled from the menu for
+  an afternoon should not cost the customer their favourite.
+- **Deleted outright** — pruned on read, since nothing will bring it back.
+
+So `product_ids` is the IDs of what is in `items`, not of what is in storage:
+the app uses it to decide which hearts are filled, and a heart it cannot show
+must not be in the list. There is deliberately no `count` field, which would
+have had to mean one or the other.
+
+### Verified against the dev site
+Every route driven with curl as a real token-holding customer: empty list, add,
+add again (200, not an error), newest-first ordering, delete, delete again,
+delete a dish never favourited, 401 unauthenticated on every method. Refusals:
+unknown product and a page ID (404), a variation (400 — the heart is on the
+dish, not an option), a hidden product (404), `product_id` missing or 0 (400).
+Cap behaviour through the `fmp_app_wishlist_max_items` filter: over the cap is
+409, and **re-tapping a filled heart still succeeds on a full wishlist**,
+because the already-present check runs before the cap check. Two customers'
+wishlists stay separate. Forced duplicate rows collapse on read and one DELETE
+clears all of them.
+
+Out of stock is deliberately allowed — saving a dish that has sold out is the
+point of a wishlist. Not rate limited: the routes are token-gated, each write
+is one indexed INSERT or DELETE, and the cap bounds growth.
+
+**No Dart changed in this task**, so the app's analyze and test runs are
+unaffected; the plugin has no PHPUnit suite and PHPCS is not installed in this
+checkout, so the PHP was syntax-checked and then exercised live.
+
 ## Decisions — wishlist, banners, search
 Recorded in `PLAN.md`:
 - **Wishlist is in v1, server-backed.** New endpoints on the `mobile-app`
