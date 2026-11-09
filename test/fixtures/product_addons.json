@@ -1,0 +1,116 @@
+{
+    "product_id": 25,
+    "currency": {
+        "currency_code": "USD",
+        "currency_symbol": "$",
+        "currency_minor_unit": 2,
+        "currency_decimal_separator": ".",
+        "currency_thousand_separator": ",",
+        "currency_prefix": "$",
+        "currency_suffix": ""
+    },
+    "groups": [
+        {
+            "id": "0",
+            "title": "Choose your size",
+            "description": "Every pizza is hand stretched.",
+            "type": "radio",
+            "required": true,
+            "position": 1,
+            "min_selection": 0,
+            "max_selection": 0,
+            "option_quantity": false,
+            "placeholder": "",
+            "char_limit": 0,
+            "free_label": true,
+            "options": [
+                {
+                    "id": "0",
+                    "label": "Small 9\"",
+                    "description": "",
+                    "image": "",
+                    "price": "0",
+                    "price_type": "quantity_based",
+                    "is_default": true
+                },
+                {
+                    "id": "1",
+                    "label": "Medium 12\"",
+                    "description": "",
+                    "image": "",
+                    "price": "250",
+                    "price_type": "quantity_based",
+                    "is_default": false
+                },
+                {
+                    "id": "2",
+                    "label": "Large 15\"",
+                    "description": "",
+                    "image": "",
+                    "price": "400",
+                    "price_type": "quantity_based",
+                    "is_default": false
+                }
+            ]
+        },
+        {
+            "id": "1",
+            "title": "Extra toppings",
+            "description": "",
+            "type": "checkbox",
+            "required": false,
+            "position": 2,
+            "min_selection": 0,
+            "max_selection": 3,
+            "option_quantity": true,
+            "placeholder": "",
+            "char_limit": 0,
+            "free_label": true,
+            "options": [
+                {
+                    "id": "0",
+                    "label": "Mushrooms",
+                    "description": "",
+                    "image": "",
+                    "price": "75",
+                    "price_type": "quantity_based",
+                    "is_default": false
+                },
+                {
+                    "id": "1",
+                    "label": "Basil",
+                    "description": "Non-numeric price, means free",
+                    "image": "",
+                    "price": "0",
+                    "price_type": "quantity_based",
+                    "is_default": false
+                }
+            ]
+        },
+        {
+            "id": "2",
+            "title": "Anything else?",
+            "description": "",
+            "type": "textarea",
+            "required": false,
+            "position": 3,
+            "min_selection": 0,
+            "max_selection": 0,
+            "option_quantity": false,
+            "placeholder": "No olives, please",
+            "char_limit": 120,
+            "free_label": true,
+            "options": [
+                {
+                    "id": "0",
+                    "label": "Note",
+                    "description": "",
+                    "image": "",
+                    "price": "0",
+                    "price_type": "quantity_based",
+                    "is_default": false
+                }
+            ]
+        }
+    ]
+}

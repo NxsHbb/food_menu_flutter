@@ -2,6 +2,52 @@
 
 Newest first. One entry per completed task.
 
+## Task 4.4 — Add-on selection on the dish screen
+Branch: `feat/addon-selection`, PR #31. The first app-side consumer of the
+add-ons endpoint (4.1) and the groundwork for sending selections (4.5).
+
+### What the screen does now
+Groups render under the dish's details, in the server's order: a one-of list
+for `radio` and `dropdown`, a many-of list for `checkbox`, and the design's
+"Special instructions" card shape for `text` and `textarea`. Each card carries
+the group's rule ("Select one", "Select up to 3"), its description, and a
+Required / Done / Optional badge. The add button runs a live total and names
+the first unanswered group instead of adding.
+
+### Rules are enforced twice, on purpose
+`AddonSelection` is immutable and applies the same limits the plugin does —
+one-of replaces, a tick past `max_selection` is refused with a message rather
+than swallowed, a per-option quantity is clamped to **10** because
+`AddonFields` clamps there. The server validates all of it again; the point is
+not to trust the client but to stop the customer being told "no" after the
+fact. `is_default` is honoured, which is why a required group can open as Done.
+
+### Three decisions the design does not cover
+A **dropdown** is drawn as a one-of list — the design has no dropdown, and on
+a phone a list of three beats a menu that hides two. A group with
+`option_quantity` gets a **small stepper** on the chosen row, built from the
+bottom bar's own. A group's **description and rule line both show**, rather
+than the description replacing the rule, which is what the first cut did.
+
+### Verified on the Android device, against the dev store
+Fresh Lemonade at $3.25: the required size group opened as **Done** with
+`Small 9"` pre-ticked from `is_default`; picking `Medium 12"` replaced it and
+the button went $3.25 → $5.75; ticking Mushrooms → $6.50; its stepper to 2 →
+**$7.25**. That is the same 725 minor units the Store API charged for the
+identical selection while task 4.3 was being verified, so the preview and the
+cart agree.
+
+### Not drawn yet
+Option **images**. The payload carries one per option and nothing renders it:
+the design's option row has no slot for a thumbnail, and the seeded data has
+none. Say if wanted — it is a leading 36px image on the row.
+
+### Two gotchas, in FINDINGS
+The add-ons endpoint nests its `currency_*` keys while the Store API inlines
+them, which fails silently as a missing `$`. And a widget test tapping a
+target below the fold hits nothing without `ensureVisible` — it fails on the
+assertion, looking exactly like a screen that ignored the tap.
+
 ## Task 4.3 — Add-ons on Store API cart items (plugin)
 Branch: `mobile-app-cart-item-addons`, PR food-menu-pro#13. The Flutter sides
 are tasks 4.4 and 4.5.

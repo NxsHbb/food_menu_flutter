@@ -2,6 +2,33 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The add-ons endpoint nests its currency; the Store API does not
+`GET /fmp/v1/app/products/{id}/addons` returns `{ product_id, currency: {…},
+groups }`, with the `currency_*` keys **inside** a `currency` object. Every
+Store API price block repeats those same keys **inline** instead, and the
+cart-item extension added in task 4.3 follows the Store API.
+
+`Currency.fromJson` reads the keys off whatever map it is handed, so pointing
+it at the wrong level does not fail — it falls back to USD with an empty
+prefix and quietly renders `2.50` where the store wanted `$2.50`. Caught by a
+fixture taken from the live dev store rather than written by hand, which is
+the argument for capturing fixtures from real responses.
+
+`ProductAddons.fromJson` now reads the nested block when there is one and the
+root otherwise, so the same model can also read a cart item's
+`extensions['food-menu-pro']`.
+
+## A widget test taps nothing when the target is below the fold
+The dish screen's add-on groups sit well past the bottom of the default
+800×600 test surface. `tester.tap()` on an off-screen widget does not throw —
+it derives an offset outside the viewport, hits nothing, and the test then
+fails on the *assertion* instead, which reads exactly like the screen
+ignoring the tap.
+
+Anything inside the scrolling body is tapped through a helper that calls
+`tester.ensureVisible()` first. Worth remembering for every screen whose
+content grew past one viewport — see also the phone-width note below.
+
 ## An add-on group's id is its key, not its position
 This one had no symptom. `addon_lists()` returns a dish's add-on groups, and a
 group has two numbers attached to it:

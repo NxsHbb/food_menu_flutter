@@ -6,11 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
+import 'package:food_menu/src/features/menu/data/addons_repository.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
 import 'package:food_menu/src/features/menu/presentation/product_detail_screen.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/food_data_section.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/food_tags.dart';
 
+import 'fake_addons_repository.dart';
 import 'fake_menu_repository.dart';
 
 Product fromFixture(String name) {
@@ -30,7 +32,12 @@ void main() {
       ..productError = error;
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [menuRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          menuRepositoryProvider.overrideWithValue(repo),
+          // These dishes have no add-ons; the groups have their own test
+          // file. Overridden so no test reaches for the network.
+          addonsRepositoryProvider.overrideWithValue(FakeAddonsRepository()),
+        ],
         child: MaterialApp(
           theme: theme ?? AppTheme.light(),
           home: const ProductDetailScreen(productId: 1),
