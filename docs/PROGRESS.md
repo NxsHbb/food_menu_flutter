@@ -2,6 +2,66 @@
 
 Newest first. One entry per completed task.
 
+## Task 3.7 — Account screen and Edit profile
+Branch: `feat/account-screen`. The design's screen 9, plus the form behind its
+Edit button.
+
+### What shipped
+`features/account/` — `ProfileRepository` over `GET|PUT /fmp/v1/app/me`, the
+red `AccountHeader`, a reusable `AccountRow`/`AccountRowCard`, the rewritten
+`AccountScreen` and `EditProfileScreen`.
+
+### Three of the design's six rows are not there
+The design lists My orders, Wishlist, Saved addresses, Payment methods,
+Notifications and Help & support. Three of them have nothing behind them:
+
+- **Payment methods** shows `Visa 4242`. Card and PayPal are deferred to v2,
+  and v1 is cash on delivery, so there is no stored card to name.
+- **Notifications** shows `On`. Push is not in the plan at any phase.
+- **Help & support** goes to a help centre that does not exist.
+
+Rendering them would mean inventing a value and a destination, which is the
+same call already made for the dish card's prep time. **Saved addresses is
+also absent, but only until task 3.8** — the data is already on `/me`, the
+screen is not built yet, and a row that goes nowhere is worse than no row.
+
+So the screen ships **My orders** and **Wishlist**. Say the word if the empty
+rows are wanted as placeholders; it is a few lines either way.
+
+**My orders deliberately carries no count.** The orders endpoint is task 7.1,
+and a `0` there would read as "you have never ordered" rather than "we have not
+asked yet". The wishlist count is real, from the controller built in 3.6.
+
+### The edit form writes back into the session
+`PUT /me` returns the customer as the server now has them, and that result is
+pushed into `AuthController.updateSession`. Without it the header would keep
+showing the old name until the next sign-in, because the session — not a
+provider over `/me` — is what the header reads. `updateSession` also persists
+through `TokenStore`, so the change survives a restart; both are asserted.
+
+**The PUT is partial.** Only the fields the form owns are sent, because the
+endpoint treats an absent key as "leave alone" and a present one as "replace" —
+sending a whole object would let this form wipe the address book it does not
+even show.
+
+### Email is shown but not editable
+There is no endpoint for changing it. The form says so in a note rather than
+offering a field the server would refuse. This is the third place the missing
+account-security group has come up; it is still **task 3.9, still unconfirmed**.
+
+### Verified on the Android device
+Signed in, opened the header's Edit, changed the first name and saved: the
+server took it (`first_name`, and `display_name` followed via the sync built in
+task 3.2), the header updated to the new name and initials immediately, and a
+force-stop and relaunch kept it. Test data restored afterwards.
+
+18 new tests (285 total), **all pumped at the reported device's width** rather
+than the default 800x600 — the lesson from the banner fix. They cover the
+header, the two rows and the absence of the other four, the real wishlist
+count, both navigations, the end-to-end save through to the session and the
+keychain, each validation rule, the error path keeping the typing, the busy
+state, a very long name and email, and dark mode.
+
 ## Banner card layout on a phone — reported from a device screenshot
 Branch: `fix/banner-card-layout`. A defect in the task 2.5 carousel, found by
 looking at the running app rather than by any test.

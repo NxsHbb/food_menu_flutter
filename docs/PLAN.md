@@ -77,7 +77,7 @@ so customer auth is new work. No nonce gate on these routes — token only.
 | 3.4 | Secure token storage, auto-refresh, and logout-on-401 across the client | app | done |
 | 3.5 | `GET/POST/DELETE /fmp/v1/app/wishlist` — favourites against the customer's WP user | pro | done |
 | 3.6 | Wishlist screen (design 10) and the heart on dish cards and rows | app | done |
-| 3.7 | Account screen (design 9) and the Edit profile form | app | todo |
+| 3.7 | Account screen (design 9) and the Edit profile form | app | done |
 | 3.8 | Address book: list, add/edit form, set default — **designed to match**, since the design stubs both | app | todo |
 
 ## Phase 4 — Cart and add-ons

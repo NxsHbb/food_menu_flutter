@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/account/presentation/account_screen.dart';
+import '../../features/account/presentation/edit_profile_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
@@ -75,6 +76,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: WishlistScreen.routePath,
                     name: WishlistScreen.routeName,
                     builder: (context, state) => const WishlistScreen(),
+                  ),
+                  GoRoute(
+                    path: EditProfileScreen.routePath,
+                    name: EditProfileScreen.routeName,
+                    builder: (context, state) => const EditProfileScreen(),
                   ),
                 ],
               ),
