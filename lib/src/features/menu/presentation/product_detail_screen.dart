@@ -3,30 +3,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/store_api/models/money.dart';
 import '../../../core/store_api/models/product.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/util/html_text.dart';
 import '../../../core/widgets/dish_image_placeholder.dart';
 import '../../wishlist/presentation/widgets/wishlist_heart.dart';
+import 'widgets/addon_group_card.dart';
 import 'widgets/food_data_section.dart';
 import 'widgets/food_tags.dart';
+import '../data/addons_repository.dart';
 import '../data/menu_repository.dart';
+import '../domain/addon_selection.dart';
+import '../domain/product_addons.dart';
 
-/// The design's dish detail screen: hero image, details, quantity and add.
+/// The design's dish detail screen: hero image, details, add-ons, quantity
+/// and add.
 ///
-/// Three things the design shows are **not** built here, each belonging to a
-/// later task rather than being absent for want of data:
-///
-/// - **add-on groups** — task 4.4, once the plugin exposes them;
-/// - **special instructions** — a cart line note, task 4.5;
-/// - **the favourite heart** — task 3.6, once wishlist endpoints exist.
+/// One thing the design shows is **not** built here: **special
+/// instructions**, which is a note on the cart line rather than a priced
+/// add-on, and belongs to task 4.5 with the rest of the cart.
 ///
 /// Food tags come from WooCommerce's `product_tag`. Ingredients and nutrition
 /// come from the plugin's `food-menu-pro` Store API extension, added in
 /// food-menu-pro#5 — before that they were unreachable for products. Both are
 /// absent on a site running an older plugin, and the sections simply do not
-/// appear.
+/// appear. Add-on groups behave the same way: they come from the plugin's own
+/// namespace, and a store without that route shows a dish with no choices
+/// rather than an error.
 class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({required this.productId, super.key});
 
@@ -42,10 +47,72 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
 
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   int _quantity = 1;
+  AddonSelection _selection = const AddonSelection();
+
+  /// Whether the customer has pressed Add while a required group was still
+  /// unanswered. Until they do, an untouched required group is not an error —
+  /// it is simply a question not yet reached.
+  bool _tried = false;
+
+  /// The dish whose defaults [_selection] was seeded from, so a dish opened
+  /// after this one gets its own.
+  int? _seededFor;
+
+  void _seed(ProductAddons addons) {
+    if (_seededFor == addons.productId) return;
+    _seededFor = addons.productId;
+    _selection = AddonSelection.fromDefaults(addons.groups);
+    _tried = false;
+  }
+
+  void _update(AddonSelection next) {
+    setState(() {
+      _selection = next;
+      // Answering the last open group should clear the red cards as it goes,
+      // rather than leaving them until the next press.
+      if (_tried && _selection.isSatisfied(_groups)) _tried = false;
+    });
+  }
+
+  /// The dish's groups as currently loaded, for the callbacks that need them
+  /// outside a build.
+  List<AddonGroup> get _groups =>
+      ref.read(productAddonsProvider(widget.productId)).value?.groups ??
+      const [];
+
+  void _onAdd(BuildContext context) {
+    final unanswered = _selection.unanswered(_groups);
+
+    if (unanswered.isNotEmpty) {
+      setState(() => _tried = true);
+      // The group needing an answer may be well off-screen, so it is named
+      // rather than only highlighted.
+      _say(context, 'Choose ${unanswered.first.title.toLowerCase()} first.');
+      return;
+    }
+
+    _say(context, 'Add to cart arrives in task 4.5.');
+  }
+
+  void _say(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
     final product = ref.watch(productProvider(widget.productId));
+
+    // Never an error state by design: a store without the add-ons route
+    // resolves to no groups. See `addonsRepositoryProvider`.
+    final addons = ref.watch(productAddonsProvider(widget.productId)).value;
+
+    // Seeded here rather than from a listener: the provider is cached per
+    // dish, so coming back to one already loaded would never fire a change.
+    if (addons != null) _seed(addons);
+
+    final groups = addons?.groups ?? const <AddonGroup>[];
 
     return Scaffold(
       body: switch (product) {
@@ -53,8 +120,21 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         AsyncError(:final error) => _DetailError(error: error),
         AsyncData(:final value) => _Detail(
             product: value,
+            groups: groups,
+            selection: _selection,
+            showErrors: _tried,
             quantity: _quantity,
             onQuantityChanged: (q) => setState(() => _quantity = q),
+            onToggle: (group, option) =>
+                _update(_selection.toggle(group, option)),
+            onQuantity: (group, option, qty) =>
+                _update(_selection.setQuantity(group, option, qty)),
+            onText: (group, text) => _update(_selection.setText(group, text)),
+            onLimitReached: (group) => _say(
+              context,
+              'Select up to ${group.choiceLimit} ${group.title.toLowerCase()}.',
+            ),
+            onAdd: () => _onAdd(context),
           ),
       },
     );
@@ -64,13 +144,29 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 class _Detail extends StatelessWidget {
   const _Detail({
     required this.product,
+    required this.groups,
+    required this.selection,
+    required this.showErrors,
     required this.quantity,
     required this.onQuantityChanged,
+    required this.onToggle,
+    required this.onQuantity,
+    required this.onText,
+    required this.onLimitReached,
+    required this.onAdd,
   });
 
   final Product product;
+  final List<AddonGroup> groups;
+  final AddonSelection selection;
+  final bool showErrors;
   final int quantity;
   final ValueChanged<int> onQuantityChanged;
+  final void Function(AddonGroup group, AddonOption option) onToggle;
+  final void Function(AddonGroup group, AddonOption option, int qty) onQuantity;
+  final void Function(AddonGroup group, String text) onText;
+  final void Function(AddonGroup group) onLimitReached;
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +188,16 @@ class _Detail extends StatelessWidget {
                   ),
                   transform: Matrix4.translationValues(0, -16, 0),
                   padding: const EdgeInsets.all(AppTokens.space20),
-                  child: _Body(product: product),
+                  child: _Body(
+                    product: product,
+                    groups: groups,
+                    selection: selection,
+                    showErrors: showErrors,
+                    onToggle: onToggle,
+                    onQuantity: onQuantity,
+                    onText: onText,
+                    onLimitReached: onLimitReached,
+                  ),
                 ),
               ),
             ],
@@ -100,8 +205,11 @@ class _Detail extends StatelessWidget {
         ),
         _AddBar(
           product: product,
+          groups: groups,
+          selection: selection,
           quantity: quantity,
           onQuantityChanged: onQuantityChanged,
+          onAdd: onAdd,
         ),
       ],
     );
@@ -188,9 +296,25 @@ class _CircleButton extends StatelessWidget {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.product});
+  const _Body({
+    required this.product,
+    required this.groups,
+    required this.selection,
+    required this.showErrors,
+    required this.onToggle,
+    required this.onQuantity,
+    required this.onText,
+    required this.onLimitReached,
+  });
 
   final Product product;
+  final List<AddonGroup> groups;
+  final AddonSelection selection;
+  final bool showErrors;
+  final void Function(AddonGroup group, AddonOption option) onToggle;
+  final void Function(AddonGroup group, AddonOption option, int qty) onQuantity;
+  final void Function(AddonGroup group, String text) onText;
+  final void Function(AddonGroup group) onLimitReached;
 
   @override
   Widget build(BuildContext context) {
@@ -270,6 +394,20 @@ class _Body extends StatelessWidget {
           const SizedBox(height: AppTokens.space16),
           FoodTags(tags: product.tags),
         ],
+        // The design puts the choices directly under the dish's own details
+        // and above everything that is only reference material.
+        for (final group in groups) ...[
+          const SizedBox(height: AppTokens.space16),
+          AddonGroupCard(
+            group: group,
+            selection: selection,
+            showError: showErrors && selection.unanswered([group]).isNotEmpty,
+            onToggle: (option) => onToggle(group, option),
+            onQuantity: (option, qty) => onQuantity(group, option, qty),
+            onText: (text) => onText(group, text),
+            onLimitReached: () => onLimitReached(group),
+          ),
+        ],
         if (product.ingredients.isNotEmpty) ...[
           const SizedBox(height: AppTokens.space24),
           FoodDataSection(
@@ -330,13 +468,19 @@ class _StockBadge extends StatelessWidget {
 class _AddBar extends StatelessWidget {
   const _AddBar({
     required this.product,
+    required this.groups,
+    required this.selection,
     required this.quantity,
     required this.onQuantityChanged,
+    required this.onAdd,
   });
 
   final Product product;
+  final List<AddonGroup> groups;
+  final AddonSelection selection;
   final int quantity;
   final ValueChanged<int> onQuantityChanged;
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -347,7 +491,14 @@ class _AddBar extends StatelessWidget {
     // A variable dish has no single price until a variation is chosen, so the
     // bar shows no total rather than a misleading one.
     final showTotal = !prices.hasRange;
-    final lineTotal = prices.price * quantity;
+    final unanswered = selection.unanswered(groups);
+
+    // The live preview the design shows on the button. A **preview**: the
+    // plugin can discount a line server-side, so the cart's own total is the
+    // only charged figure — see `CONTEXT.md`.
+    final Money unitPrice =
+        prices.price + selection.priceDelta(groups, prices.price.currency);
+    final lineTotal = unitPrice * quantity;
 
     return Container(
       decoration: BoxDecoration(
@@ -370,21 +521,30 @@ class _AddBar extends StatelessWidget {
           const SizedBox(width: AppTokens.space12),
           Expanded(
             child: FilledButton(
-              onPressed: orderable
-                  ? () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Add to cart arrives in Phase 4.'),
-                        ),
-                      )
-                  : null,
+              // Enabled even with a group unanswered: the design keeps the
+              // button live and names what is missing when it is pressed,
+              // which beats a dead button the customer has to deduce.
+              onPressed: orderable ? onAdd : null,
+              style: unanswered.isEmpty
+                  ? null
+                  : FilledButton.styleFrom(
+                      backgroundColor: palette.brand.withValues(alpha: 0.75),
+                    ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    orderable
-                        ? (prices.hasRange ? 'Choose options' : 'Add to cart')
-                        : 'Unavailable',
+                    switch ((orderable, unanswered.isNotEmpty)) {
+                      (false, _) => 'Unavailable',
+                      (true, true) =>
+                        'Select ${unanswered.first.title.toLowerCase()}',
+                      (true, false) =>
+                        prices.hasRange ? 'Choose options' : 'Add to cart',
+                    },
                   ),
+                  // The total stays on the button while a group is still
+                  // open, as the design has it, so it is visibly a running
+                  // figure rather than something that appears at the end.
                   if (orderable && showTotal) ...[
                     const SizedBox(width: AppTokens.space8),
                     Text(

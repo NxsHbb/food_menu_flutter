@@ -356,6 +356,39 @@ render an API string directly.
 - Two different selections on the same dish are **two cart lines**, which is
   what the cart screen should expect.
 
+#### The selection UI (task 4.4)
+`domain/product_addons.dart` models the groups, `domain/addon_selection.dart`
+holds what the customer has chosen, and
+`presentation/widgets/addon_group_card.dart` draws one group.
+
+- **`AddonSelection` is immutable**; every tap returns a new one. It enforces
+  the same rules the server does — one-of replaces, a tick past
+  `max_selection` is refused, a quantity is clamped to **10** because
+  `AddonFields` clamps there — so the customer is not told "no" after the
+  fact. The server still validates everything again.
+- **`is_default` is honoured.** The store pre-answering its own required
+  group is why a dish can open with Done rather than Required.
+- A **dropdown is drawn as a one-of list**, not a picker: the design has no
+  dropdown anywhere, and on a phone a list of three beats a menu that hides
+  two of them.
+- A **`text`/`textarea` group reuses the design's "Special instructions" card
+  shape** with the group's own title. That card itself — the cart line note —
+  is still task 4.5; these are priced add-ons that happen to be typed.
+- **`option_quantity` gets a small stepper** on the chosen row. The design
+  has none, but the plugin prices it and the cart records it, so leaving it
+  out would make real options unreachable.
+- The group's **description and its rule line are both shown**. Collapsing
+  them would mean choosing between the store's words and "Select up to 3".
+- **The total on the add button is a preview.** It is the dish price plus the
+  deltas; the plugin can discount a line server-side, so the cart response is
+  the only charged figure.
+- The add button stays **enabled** with a group unanswered and names what is
+  missing when pressed, which is what the design does. Pressing it turns the
+  open groups red; answering clears them again.
+- `productAddonsProvider` **never surfaces an error** — a store whose plugin
+  predates the route 404s, and a dish that cannot be customised is still a
+  dish. Widget tests override `addonsRepositoryProvider`.
+
 #### Reading them back off a cart item
 Task 4.3 put them on every Store API cart item, under the same extension key:
 

@@ -1,0 +1,82 @@
+{
+    "product_id": 26,
+    "currency": {
+        "currency_code": "USD",
+        "currency_symbol": "$",
+        "currency_minor_unit": 2,
+        "currency_decimal_separator": ".",
+        "currency_thousand_separator": ",",
+        "currency_prefix": "$",
+        "currency_suffix": ""
+    },
+    "groups": [
+        {
+            "id": "0",
+            "title": "Make it a meal",
+            "description": "",
+            "type": "dropdown",
+            "required": false,
+            "position": 1,
+            "min_selection": 0,
+            "max_selection": 0,
+            "option_quantity": false,
+            "placeholder": "",
+            "char_limit": 0,
+            "free_label": true,
+            "options": [
+                {
+                    "id": "0",
+                    "label": "No thanks",
+                    "description": "",
+                    "image": "",
+                    "price": "0",
+                    "price_type": "quantity_based",
+                    "is_default": true
+                },
+                {
+                    "id": "1",
+                    "label": "Add fries & a drink",
+                    "description": "",
+                    "image": "",
+                    "price": "325",
+                    "price_type": "quantity_based",
+                    "is_default": false
+                }
+            ]
+        },
+        {
+            "id": "1",
+            "title": "Cutlery",
+            "description": "",
+            "type": "radio",
+            "required": false,
+            "position": 2,
+            "min_selection": 0,
+            "max_selection": 0,
+            "option_quantity": false,
+            "placeholder": "",
+            "char_limit": 0,
+            "free_label": true,
+            "options": [
+                {
+                    "id": "0",
+                    "label": "Include cutlery",
+                    "description": "",
+                    "image": "",
+                    "price": "0",
+                    "price_type": "quantity_based",
+                    "is_default": false
+                },
+                {
+                    "id": "1",
+                    "label": "No cutlery, thanks",
+                    "description": "",
+                    "image": "",
+                    "price": "0",
+                    "price_type": "quantity_based",
+                    "is_default": true
+                }
+            ]
+        }
+    ]
+}
