@@ -551,3 +551,50 @@ one, so tapping the heart saves the dish **without** also opening it, and no
 design's own `e.stopPropagation()` has no counterpart here. Worth a test
 anyway, because a later layout change that moves the heart out of the inner
 subtree would silently restore the double action.
+
+## The design's pixel values are ratios of the design's own viewport
+The supplied design is drawn at 390pt wide and its components carry fixed
+pixel sizes — the promo banner is a `330x160` card holding a `170`-wide copy
+column and a `170`-wide artwork. Transcribing those numbers into Dart as
+constants looks faithful and is not: the Flutter card is a *fraction of the
+viewport*, so on a 360dp phone it is ~319pt and two independently-stated
+widths that fit at 330 start overlapping.
+
+That is exactly how the banner shipped broken in task 2.5 — a `width: 180`
+copy column and a `width: 150` artwork, each reasonable alone, overlapping by
+28.8pt on a real phone.
+
+Two habits that prevent it:
+
+- **Convert the design's pixels to ratios of the design's own frame**, then
+  multiply by the real size. `_BannerMetrics` in `banner_carousel.dart` is the
+  worked example.
+- **Derive the second measurement from the first** rather than stating both.
+  The copy column is now `artworkLeft - padding - gutter`, so it cannot drift
+  away from the artwork no matter how the card is sized. Floor it at zero: a
+  width derived by subtraction goes negative before it goes small.
+
+Also note which design behaviours depend on the fixed width. The banner's copy
+is *meant* to overlap its artwork by 20px, hidden by a 60px rounded left edge
+curving away under the text. That is only true at 330pt, so it was dropped in
+favour of stopping the copy short.
+
+## A layout bug below a certain width needs a test that sets the width
+`flutter test` pumps at an 800x600 surface by default — wider than any phone,
+and wide enough that the banner's two hard-coded widths never collided. Every
+banner test passed while the card was visibly broken on a device.
+
+```dart
+tester.view.physicalSize = const Size(1080, 2400);
+tester.view.devicePixelRatio = 3;
+addTearDown(tester.view.reset);
+```
+
+Neither failure mode throws, either: a `Stack` draws one child over another
+without complaint and `BoxFit.contain` is a legal fit, so there is no overflow
+banner to catch and `tester.takeException()` stays null. Assert on geometry
+instead — `tester.getRect(...)` on the two widgets and compare edges.
+
+Widget tests that only check *presence* ("the title is on screen") will pass
+through this entire class of bug. Where a layout has a constraint worth stating
+— this must not cover that — state it as a measurement.

@@ -225,6 +225,13 @@ post title, excerpt, featured image, and the first post tag as a badge. The
 category is resolved **by slug, never by id**, because term ids differ between
 sites. Nothing published there means no carousel at all, not an empty band.
 
+The card's geometry lives in `_BannerMetrics`, which holds the design's
+measurements as **ratios of its 330x160 card** and derives them from the real
+card size. The copy column is derived from the artwork's left edge rather than
+stated separately, so the two cannot drift apart. Do not reintroduce fixed
+pixel widths here — a card narrower than the design's own put the title under
+the artwork on a real phone. See `FINDINGS.md`.
+
 ### Money
 **Never parse a Store API price as a decimal.** Prices arrive as strings in
 minor units with a `currency_minor_unit` exponent, so `"395"` means `$3.95`.

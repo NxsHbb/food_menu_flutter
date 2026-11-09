@@ -2,6 +2,59 @@
 
 Newest first. One entry per completed task.
 
+## Banner card layout on a phone — reported from a device screenshot
+Branch: `fix/banner-card-layout`. A defect in the task 2.5 carousel, found by
+looking at the running app rather than by any test.
+
+### What was wrong
+Two things, both in `_BannerCard`:
+
+1. **The title ran under the artwork.** The copy column was a hard-coded
+   `width: 180`, and the artwork a hard-coded `width: 150` anchored to the
+   right. Each is plausible alone; together they overlap on any card narrower
+   than about 346pt. On the reported 360dp phone the card is ~319pt and the
+   overlap measured **28.8pt** — enough to put "Chicken" behind the photo.
+2. **The artwork was letterboxed.** `BoxFit.contain` in a full-height box left
+   the card's red showing above, below and beside the photo, so it read as a
+   floating rectangle instead of art bleeding off the card edge.
+
+### Why the tests did not catch it
+The banner widget tests pump at Flutter's default 800x600 surface, which is
+wider than any phone. At that width the two hard-coded numbers have room and
+nothing overlaps. **A layout bug that only appears below a certain width needs
+a test that sets the width** — `tester.view.physicalSize`. Added, at the
+reported device's own 1080x2400 @3x.
+
+Neither failure throws, either. A `Stack` happily draws one child over another
+and `BoxFit.contain` is a legal fit, so there is no overflow banner and no
+exception to assert on. The new tests measure geometry instead: the title's
+right edge against the artwork's left edge, and the `Image`'s `fit`.
+
+### The fix: ratios, not pixels
+The design's banner is a **fixed 330x160** card — text column 170 wide,
+artwork 170 wide bleeding 10 off the right, inset 20 from the top, 120 tall,
+with `border-radius: 60px 0 0 60px` and `object-fit: cover`. Those pixel
+values are only meaningful at 330pt. Here the card is a fraction of the
+viewport, so `_BannerMetrics` holds the design's numbers as **ratios of that
+330x160 card** and derives everything from the actual card size.
+
+The copy column is then derived by subtraction from the artwork's left edge
+rather than stated independently, so the two can no longer drift apart — which
+was the whole bug. It is floored at zero, because a derived width goes negative
+before it goes small.
+
+One deliberate departure: **the design lets its copy overlap the artwork by
+20px**, relying on the rounded left edge to curve away under the text. That
+only works at exactly 330pt, so the copy stops a gutter short of the artwork
+instead. The rounded left edge is reproduced (`artworkHeight / 2`, which is the
+design's 60 on a 120-tall band), so the band still reads as drawn.
+
+### Verified on the Android device
+Both seeded banners re-checked on the phone the report came from: copy fully
+clear of the artwork, artwork filling its band and bleeding off the right edge
+with the rounded left. 267 tests pass, including three new banner tests — the
+overlap, the fit, and a 280pt card that would have produced a negative width.
+
 ## Task 3.6 — Wishlist screen and the hearts
 Branch: `feat/wishlist-screen`. Consumes the endpoints from task 3.5 and
 closes the client half of the wishlist.
