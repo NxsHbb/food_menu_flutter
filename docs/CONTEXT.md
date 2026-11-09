@@ -164,7 +164,13 @@ domain/data/presentation split.
   `fmp_app_email_exists` (409), and a 429 whose `retry_after` the client
   already understands.
 - **Changing the email sends no confirmation to the new address**, so the form
-  should make the customer look at what they typed.
+  asks for it twice (task 3.11).
+
+The Flutter side is `auth/presentation/{forgot,reset}_password_screen.dart`
+and `account/presentation/change_{password,email}_screen.dart`, reached from a
+**Forgot your password?** link on sign-in and a Security card on the account
+screen. `AuthController.{forgotPassword,resetPassword,changePassword,changeEmail}`
+adopt the replacement session; no screen should call the repository directly.
 
 ### Profile and saved addresses
 `GET|PUT fmp/v1/app/me` (task 3.2). The Flutter side is tasks 3.7 and 3.8.

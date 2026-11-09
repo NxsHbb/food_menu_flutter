@@ -81,6 +81,77 @@ class AuthRepository {
     );
   }
 
+  /// Asks for a reset code to be emailed.
+  ///
+  /// **Says nothing about whether the address has an account** — the server
+  /// answers identically either way, on purpose, so neither this nor the
+  /// screen above it can be used to discover who is registered.
+  Future<String> forgotPassword(String email) async {
+    final raw = await _client.post<Map<String, dynamic>>(
+      _url('forgot-password'),
+      body: {'email': email.trim()},
+    );
+    return raw['message'] as String? ?? '';
+  }
+
+  /// Completes a reset and **signs the customer in**.
+  Future<AuthSession> resetPassword({
+    required String email,
+    required String code,
+    required String password,
+    String? device,
+  }) async {
+    final raw = await _client.post<Map<String, dynamic>>(
+      _url('reset-password'),
+      body: {
+        'email': email.trim(),
+        'code': code.trim(),
+        'password': password,
+        if (device != null && device.isNotEmpty) 'device': device,
+      },
+    );
+    return _session(raw);
+  }
+
+  /// Changes the password, returning the session that replaces the current
+  /// one.
+  ///
+  /// The server revokes every existing session, including this device's, so
+  /// the returned one **must** be adopted — the token in hand is already dead.
+  Future<AuthSession> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    String? device,
+  }) async {
+    final raw = await _client.post<Map<String, dynamic>>(
+      _url('change-password'),
+      body: {
+        'current_password': currentPassword,
+        'new_password': newPassword,
+        if (device != null && device.isNotEmpty) 'device': device,
+      },
+    );
+    return _session(raw);
+  }
+
+  /// Changes the account email. Replaces the session, as [changePassword]
+  /// does and for the same reason.
+  Future<AuthSession> changeEmail({
+    required String password,
+    required String email,
+    String? device,
+  }) async {
+    final raw = await _client.post<Map<String, dynamic>>(
+      _url('change-email'),
+      body: {
+        'password': password,
+        'email': email.trim(),
+        if (device != null && device.isNotEmpty) 'device': device,
+      },
+    );
+    return _session(raw);
+  }
+
   AuthSession _session(Map<String, dynamic> raw) {
     final user = raw['user'];
     return AuthSession(

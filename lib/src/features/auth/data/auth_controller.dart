@@ -152,6 +152,59 @@ class AuthController extends AsyncNotifier<AuthSession?> {
 
   /// Replaces the signed-in customer's details, e.g. after a profile edit.
   Future<void> updateSession(AuthSession session) => _adopt(session);
+
+  /// Asks for a password reset code. Returns the server's wording, which is
+  /// deliberately the same whether or not the address has an account.
+  Future<String> forgotPassword(String email) {
+    return ref.read(authRepositoryProvider).forgotPassword(email);
+  }
+
+  /// Completes a reset and signs in. Throws [ApiException] on failure.
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String password,
+  }) async {
+    final session = await ref.read(authRepositoryProvider).resetPassword(
+          email: email,
+          code: code,
+          password: password,
+          device: _device,
+        );
+    await _adopt(session);
+  }
+
+  /// Changes the password and adopts the session that replaces the old one.
+  ///
+  /// The server revokes **every** session on success, this device's included,
+  /// so adopting is not bookkeeping — without it the next request goes out
+  /// with a token the server has already forgotten and the customer is
+  /// silently signed out.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final session = await ref.read(authRepositoryProvider).changePassword(
+          currentPassword: currentPassword,
+          newPassword: newPassword,
+          device: _device,
+        );
+    await _adopt(session);
+  }
+
+  /// Changes the account email, adopting the replacement session for the same
+  /// reason as [changePassword].
+  Future<void> changeEmail({
+    required String password,
+    required String email,
+  }) async {
+    final session = await ref.read(authRepositoryProvider).changeEmail(
+          password: password,
+          email: email,
+          device: _device,
+        );
+    await _adopt(session);
+  }
 }
 
 final authControllerProvider =

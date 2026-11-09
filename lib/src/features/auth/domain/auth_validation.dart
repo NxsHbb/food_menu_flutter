@@ -61,6 +61,20 @@ abstract final class AuthValidation {
     return null;
   }
 
+  /// The emailed reset code: six digits, as `AppPasswordReset` issues them.
+  ///
+  /// Checked here only to catch an obvious slip before a round trip. Whether
+  /// the code is *right* is the server's business, and it answers the same
+  /// way for a wrong code and an expired one.
+  static String? resetCode(String? value) {
+    final text = (value ?? '').trim();
+    if (text.isEmpty) return 'Enter the code we emailed you.';
+    if (!RegExp(r'^\d{6}$').hasMatch(text)) {
+      return 'The code is six digits.';
+    }
+    return null;
+  }
+
   /// Phone is optional. When given, it only has to contain enough digits to
   /// be callable — the design's own checkout uses seven.
   static String? optionalPhone(String? value) {

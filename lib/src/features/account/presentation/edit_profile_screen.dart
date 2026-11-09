@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_palette.dart';
@@ -10,13 +11,13 @@ import '../../auth/presentation/widgets/auth_error_banner.dart';
 import '../../auth/presentation/widgets/auth_field.dart';
 import '../../auth/presentation/widgets/auth_shell.dart';
 import '../data/profile_repository.dart';
+import 'change_email_screen.dart';
 
 /// Edit profile, behind the design's Edit button on the account header.
 ///
-/// Name and phone only. **The email address is shown but not editable**:
-/// changing it is an account-security flow that the plugin has no endpoint
-/// for, alongside the password change and reset that are missing as a group.
-/// Offering a field the server would refuse would be worse than saying why.
+/// Name and phone only. The email address is shown here but changed on its
+/// own screen, because doing so needs the current password and replaces the
+/// session — not something to bury among two optional text fields.
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -160,14 +161,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 }
 
-/// Why the address is here but not editable.
-class _EmailNote extends StatelessWidget {
+/// The address, and the way to change it.
+class _EmailNote extends ConsumerWidget {
   const _EmailNote({required this.email});
 
   final String email;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
 
@@ -192,11 +193,15 @@ class _EmailNote extends StatelessWidget {
                 Text(email, style: text.bodyMedium),
                 const SizedBox(height: AppTokens.space2),
                 Text(
-                  'Contact the restaurant to change your email address.',
+                  'Changing this needs your password.',
                   style: text.bodySmall?.copyWith(color: palette.muted),
                 ),
               ],
             ),
+          ),
+          TextButton(
+            onPressed: () => context.pushNamed(ChangeEmailScreen.routeName),
+            child: const Text('Change'),
           ),
         ],
       ),

@@ -10,6 +10,7 @@ import '../domain/auth_validation.dart';
 import 'register_screen.dart';
 import 'widgets/auth_error_banner.dart';
 import 'widgets/auth_field.dart';
+import 'forgot_password_screen.dart';
 import 'widgets/auth_shell.dart';
 
 /// Sign in with an email (or username) and password.
@@ -77,23 +78,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         busy: _busy,
         onPressed: _submit,
       ),
-      footer: Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      footer: Column(
         children: [
-          Text(
-            'New here? ',
-            style: theme.textTheme.bodyMedium?.copyWith(color: palette.muted),
+          TextButton(
+            onPressed: _busy
+                ? null
+                : () => context.pushNamed(
+                      ForgotPasswordScreen.routeName,
+                      // Carried over so a customer who has already typed
+                      // their address does not type it again.
+                      queryParameters: {'email': _username.text.trim()},
+                    ),
+            child: const Text('Forgot your password?'),
           ),
-          GestureDetector(
-            onTap: _busy ? null : () => context.pushNamed(RegisterScreen.routeName),
-            child: Text(
-              'Create an account',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: palette.brand,
-                fontWeight: FontWeight.w700,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'New here? ',
+                style:
+                    theme.textTheme.bodyMedium?.copyWith(color: palette.muted),
               ),
-            ),
+              GestureDetector(
+                onTap: _busy
+                    ? null
+                    : () => context.pushNamed(RegisterScreen.routeName),
+                child: Text(
+                  'Create an account',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: palette.brand,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -62,16 +62,15 @@ void main() {
     expect(find.widgetWithText(TextFormField, 'Customer'), findsOne);
   });
 
-  testWidgets('shows the email but offers no way to change it',
+  testWidgets('shows the email, and sends changing it to its own screen',
       (tester) async {
     await pumpEdit(tester, profile: FakeProfileRepository());
 
     expect(find.text('customer@foodmenu.test'), findsOne);
-    expect(
-      find.text('Contact the restaurant to change your email address.'),
-      findsOne,
-    );
-    // Name, name, phone — and no fourth field for the address.
+    expect(find.text('Changing this needs your password.'), findsOne);
+    expect(find.text('Change'), findsOne);
+    // Name, name, phone — the address is not an inline field here, because
+    // changing it needs the password and replaces the session.
     expect(find.byType(TextFormField), findsExactly(3));
   });
 

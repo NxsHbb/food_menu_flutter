@@ -227,6 +227,12 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
 
     return Form(
       key: _formKey,
+      // Same as the security forms: re-validate as the customer edits, and
+      // drop the server's complaint once they touch the field it named.
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      onChanged: () {
+        if (_error != null) setState(() => _error = null);
+      },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(
           AppTokens.space16,

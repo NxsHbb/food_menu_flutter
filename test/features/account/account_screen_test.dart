@@ -122,13 +122,16 @@ void main() {
     expect(find.text('My orders'), findsOne);
     expect(find.text('Wishlist'), findsOne);
     expect(find.text('Saved addresses'), findsOne);
+    // Task 3.11's pair, in their own card.
+    expect(find.text('Change password'), findsOne);
+    expect(find.text('Change email'), findsOne);
 
     // The design's other three have no backend in v1 — rendering them would
     // mean inventing "Visa 4242" and a help centre. See the class docblock.
     expect(find.text('Payment methods'), findsNothing);
     expect(find.text('Notifications'), findsNothing);
     expect(find.text('Help & support'), findsNothing);
-    expect(find.byType(AccountRow), findsExactly(3));
+    expect(find.byType(AccountRow), findsExactly(5));
   });
 
   testWidgets('the wishlist row carries its real count', (tester) async {
@@ -262,6 +265,6 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(AccountRow), findsExactly(3));
+    expect(find.byType(AccountRow), findsExactly(5));
   });
 }
