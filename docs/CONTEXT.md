@@ -160,6 +160,30 @@ domain/data/presentation split.
 - The default address is mirrored into WooCommerce's billing and shipping
   fields server-side, so Phase 6 checkout does not need to send it again.
 
+### Address fields
+`GET fmp/v1/app/address-fields[?country=XX]` (task 3.8). **How to draw the
+address form** — do not hard-code any of it.
+
+- Returns `default_country`, a `countries` map for the picker, and `fields`
+  for one country.
+- **`fields` is an ordered list.** Render it in order: WooCommerce orders
+  address fields differently per country and that order is the point. Each
+  entry is `{key, label, required, priority, type}`, with `options` on `state`
+  where the country has a state list.
+- **Pick the widget from `type` and `options`**: `country` uses the
+  `countries` map, `state` with `options` is a picker and without them a text
+  field, `tel` is a phone keyboard, everything else is text.
+- **A field that is absent is the answer** — `company` is omitted in most
+  locales, and the form should not show it there.
+- Use `label` as given. It is WooCommerce's own wording in the store's
+  language: "ZIP Code" in the US, "District" in Bangladesh.
+- One country per request, so refetch when the customer changes country.
+- **Hold it for the session.** It is static per country, but WordPress forces
+  `no-store` on authenticated REST responses, so HTTP caching cannot help.
+- `required` still is not the last word: the server revalidates and returns
+  `fmp_app_invalid_address` with `data.field` and `data.index`. This route
+  saves the round trip; it is not the gate.
+
 ### Account and profile
 `features/account/` holds the design's account screen (task 3.7) and the form
 behind its Edit button, over `GET|PUT fmp/v1/app/me`.

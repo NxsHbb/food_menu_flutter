@@ -2,6 +2,66 @@
 
 Newest first. One entry per completed task.
 
+## Task 3.8 — Address field metadata (plugin)
+Branch: `mobile-app-address-fields` on `food-menu-pro`, PR food-menu-pro#9.
+**A new task, agreed before building**, split out of what was task 3.8; the
+app-side address book is now task 3.9.
+
+### Why the plan changed
+Starting the address form showed it could not be built correctly app-only.
+`AppAddresses` validates against `WC()->countries->get_address_fields()`, so
+the rules differ per country — and not only which fields are required.
+WooCommerce renames them too. Measured against the dev store:
+
+| Country | `state` | `postcode` | `city` |
+|---|---|---|---|
+| BD (base) | **District**, required, 64 options | optional | required |
+| US | **State**, required, 54 options | **ZIP Code**, required | required |
+| GB | optional, no list | **Postcode**, required | required |
+| AE | optional, no list | optional | required |
+| SG | optional, no list | **Postcode**, required | *optional* |
+| HK | **State**, required, 3 options | optional | required |
+
+There is **no public country list anywhere** — the Store API has no such
+route (checked), and `wc/v3/data/countries` is key-authenticated. So the app's
+only options were to pin every address to the store's base country, or to
+hard-code one country's rules in Dart. Both are working around a plugin gap in
+Dart, which this project does not do, so the choice went to the user and the
+plugin endpoint was agreed.
+
+### The route
+`GET /fmp/v1/app/address-fields[?country=XX]` returns `default_country`, the
+`countries` map for the picker, and `fields` for one country.
+
+- **One country per request.** Every country's states at once would be tens of
+  thousands of entries for a form that shows one country at a time.
+- **`fields` is an ordered list, not a map.** WooCommerce orders address
+  fields differently per country and that order is the answer; it is sorted by
+  WooCommerce's own `priority`. Each entry is
+  `{key, label, required, priority, type}`, plus `options` on `state` where
+  the country has a state list.
+- **Intersected with `AppAddresses::FIELDS`**, so the app is never told to
+  collect something the address book would drop on save. A field WooCommerce
+  omits is left out rather than padded back in — `company` is absent in most
+  locales, and that absence is the answer.
+- A base country the store does not sell to falls back to the first allowed
+  one, so the app is never handed a default it cannot select.
+
+### A cache header that did not survive
+The answer is static per country, so it was given
+`Cache-Control: private, max-age=3600`. The response came back
+`no-cache, no-store, private`: **WordPress forces no-store onto every
+authenticated REST response**, so a header set in the handler never survives.
+Removed rather than left as a claim that is not true — the client holds the
+answer for the session instead.
+
+### Verified against the dev site
+Driven with curl as a token-holding customer against a store selling to all
+250 countries: the six countries in the table above, lowercase `?country=us`
+normalising, an unknown country (400 `fmp_app_country_not_allowed`), and
+unauthenticated (401). No Dart changed, so the app's analyze and test runs are
+unaffected.
+
 ## Task 3.7 — Account screen and Edit profile
 Branch: `feat/account-screen`. The design's screen 9, plus the form behind its
 Edit button.

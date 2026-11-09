@@ -78,7 +78,8 @@ so customer auth is new work. No nonce gate on these routes — token only.
 | 3.5 | `GET/POST/DELETE /fmp/v1/app/wishlist` — favourites against the customer's WP user | pro | done |
 | 3.6 | Wishlist screen (design 10) and the heart on dish cards and rows | app | done |
 | 3.7 | Account screen (design 9) and the Edit profile form | app | done |
-| 3.8 | Address book: list, add/edit form, set default — **designed to match**, since the design stubs both | app | todo |
+| 3.8 | `GET /fmp/v1/app/address-fields` — allowed countries, their states, which fields are required and WooCommerce's own labels, so the form is not hard-coded | pro | done |
+| 3.9 | Address book: list, add/edit form, set default — **designed to match**, since the design stubs both | app | todo |
 
 ## Phase 4 — Cart and add-ons
 Store API `cart/add-item` accepts only `id`, `quantity`, `variation`, so add-on
@@ -178,5 +179,5 @@ them.
   (3.1), and changing the account email or password (3.2), are all absent. They
   belong together — one task on the Pro plugin plus one Flutter screen. A
   customer who forgets their password has no in-app route back today, and the
-  WordPress reset flow is a web page. **Recommend adding as task 3.9**; say the
+  WordPress reset flow is a web page. **Recommend adding as task 3.10**; say the
   word and it goes in.
