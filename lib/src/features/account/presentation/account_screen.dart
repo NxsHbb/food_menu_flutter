@@ -12,6 +12,8 @@ import '../../auth/presentation/login_screen.dart';
 import '../../orders/presentation/orders_screen.dart';
 import '../../wishlist/data/wishlist_controller.dart';
 import '../../wishlist/presentation/wishlist_screen.dart';
+import 'change_email_screen.dart';
+import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
 import 'widgets/account_header.dart';
 import 'widgets/account_row.dart';
@@ -22,7 +24,8 @@ import 'widgets/account_row.dart';
 /// "Visa 4242", Notifications shows "On" and Help & support goes to a help
 /// centre — none of which exist. Card payment is deferred to v2, and
 /// notifications and help are not in the plan at all, so rendering them would
-/// mean inventing values and a destination. The other three are here.
+/// mean inventing values and a destination. The other three are here, with
+/// the account-security pair from task 3.11 in a card of their own.
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
 
@@ -101,6 +104,26 @@ class _SignedIn extends ConsumerWidget {
                       value: '$addressCount',
                       onTap: () =>
                           context.pushNamed(AddressBookScreen.routeName),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTokens.space16),
+                // Its own card, because these two change credentials rather
+                // than navigate to a list, and sitting them among the others
+                // invites a mis-tap.
+                AccountRowCard(
+                  rows: [
+                    AccountRow(
+                      mono: 'PW',
+                      label: 'Change password',
+                      onTap: () =>
+                          context.pushNamed(ChangePasswordScreen.routeName),
+                    ),
+                    AccountRow(
+                      mono: 'EM',
+                      label: 'Change email',
+                      onTap: () =>
+                          context.pushNamed(ChangeEmailScreen.routeName),
                     ),
                   ],
                 ),

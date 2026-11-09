@@ -2,6 +2,70 @@
 
 Newest first. One entry per completed task.
 
+## Task 3.11 — Forgot password, and the Security section
+Branch: `feat/account-security`. Consumes the endpoints from task 3.10 and
+**closes Phase 3 for good** — the account-security gap raised in 3.1, 3.2, 3.7
+and 3.9 is now shut.
+
+### What shipped
+Four screens: `ForgotPasswordScreen` and `ResetPasswordScreen` beside sign-in,
+`ChangePasswordScreen` and `ChangeEmailScreen` behind a new Security card on
+the account screen. The sign-in form gained a **Forgot your password?** link
+that carries whatever address was already typed. The Edit profile email note
+stopped saying "contact the restaurant" and now offers a **Change** button.
+
+### Adopting the replacement session is the whole job
+All four endpoints revoke **every** session and return a fresh pair, so a
+screen that treats the response as a plain 200 leaves the app holding a token
+the server has already forgotten — signed out on the next request, with
+nothing on screen to explain it. `AuthController` adopts and persists each
+one, and `FakeAuthRepository` returns tokens suffixed `_reissued` so a test
+that forgets to assert the swap fails rather than passes.
+
+### The flow never says whether an address is registered
+`forgot-password` answers identically either way, so the screen advances to
+the code step regardless. A screen that only moved on for real customers
+would leak exactly what the server is refusing to.
+
+### Three things the device found
+1. **A stale validation message.** The code field kept "The code is six
+   digits." after the code had been corrected, because a `FormField` holds its
+   last error until `validate()` runs again. Fixed with
+   `autovalidateMode: AutovalidateMode.onUserInteraction` plus an `onChanged`
+   that clears the server error once the customer touches the field it named.
+   Applied to the three new forms **and to the address form from task 3.9**,
+   which had the same wart.
+2. **`ScaffoldMessenger.of(context)` after `Navigator.pop`.** Both change
+   screens popped and then asked for the messenger through a context that was
+   already defunct. The messenger is taken before the pop now.
+3. **Validation running before the rebuild.** Same shape as the address form:
+   the validators read `_error`, so `validate()` had to move into a
+   post-frame callback or it asked the widgets still holding the old one.
+
+### Two renames
+The submit buttons said "Change password" and "Change email", which are also
+the screen titles. A button repeating its own heading reads as a second
+heading, and it made the widget tests ambiguous — they are "Update password"
+and "Update email" now. Same call as the address form's "Save address".
+
+### Verified on the Android device
+The whole forgot-password journey, signed out: the link carried the typed
+address across, the code screen echoed it back, **the client-side check caught
+a six-digit code that adb had truncated** before any round trip, and the real
+code completed the reset, unwound the flow and landed on a signed-in account
+screen. Server side: the code was consumed, the old password rejected with a
+401, the new one accepted, and only one session left. The Security card shows
+both rows. Test account restored afterwards.
+
+20 new tests (339 total): the forgot screen advancing for a registered *and*
+an unregistered address, rejecting a malformed one and reporting a 429; the
+reset screen signing in, persisting, refusing a non-six-digit code and a short
+password before the round trip, resending, and clearing both a stale client
+error and a spent server one; change-password adopting the reissued token into
+the session *and* the keychain, and placing a wrong current password on its
+own field; change-email requiring the address twice, adopting the new session,
+and landing an already-taken address on the right input.
+
 ## Task 3.10 — Account security endpoints (plugin)
 Branch: `mobile-app-account-security`, PR food-menu-pro#10. **Agreed after
 being raised in 3.1, 3.2, 3.7 and 3.9**; the Flutter half is task 3.11.

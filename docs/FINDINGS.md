@@ -598,3 +598,68 @@ instead — `tester.getRect(...)` on the two widgets and compare edges.
 Widget tests that only check *presence* ("the title is on screen") will pass
 through this entire class of bug. Where a layout has a constraint worth stating
 — this must not cover that — state it as a measurement.
+
+## A FormField keeps its last error until something re-validates it
+Two related warts, both found by using the app rather than by a test.
+
+**A corrected field keeps complaining.** Flutter's `FormField` holds the
+message from the last `validate()` call, so after a failed submit the error
+stays on screen while the customer fixes the input — and only clears on the
+*next* submit. On the reset screen that meant "The code is six digits."
+sitting under a code that was now six digits.
+
+**A server error outlives the input it described.** Where a validator reports
+something the server said — a rejected postcode, a wrong password, a spent
+reset code — editing the field does not make that message any less visible,
+and it is now describing a value that no longer exists.
+
+One fix covers both:
+
+```dart
+Form(
+  key: _formKey,
+  autovalidateMode: AutovalidateMode.onUserInteraction,
+  onChanged: () {
+    if (_error != null) setState(() => _error = null);
+  },
+  ...
+)
+```
+
+`onUserInteraction` re-runs the validators as the customer types, but only
+after they have interacted, so a pristine form does not open covered in red.
+The `onChanged` drops the held server error, which the validators read —
+without it they would keep returning the same message on every keystroke.
+
+Applied to the reset, change-password, change-email and address forms.
+
+## Setting state does not update the widgets you are about to ask
+A validator that reads screen state cannot be re-run in the same turn that
+sets it:
+
+```dart
+setState(() => _error = error);
+_formKey.currentState?.validate();   // asks the OLD widgets
+```
+
+`validate()` walks the `FormField`s currently mounted, which still hold the
+previous build's validators. Schedule it instead:
+
+```dart
+WidgetsBinding.instance.addPostFrameCallback((_) {
+  if (mounted) _formKey.currentState?.validate();
+});
+```
+
+Hit twice — in the address form and again in both account-security forms —
+because it looks correct and fails silently: the call runs, finds nothing
+wrong, and the message simply never appears.
+
+## Take the messenger before you pop
+```dart
+Navigator.of(context).pop(true);
+ScaffoldMessenger.of(context).showSnackBar(...);  // throws
+```
+After the pop this route's context is defunct, so the lookup fails. Capture
+`ScaffoldMessenger.of(context)` into a local **before** popping and call
+`showSnackBar` on that — it belongs to an ancestor that outlives the route.

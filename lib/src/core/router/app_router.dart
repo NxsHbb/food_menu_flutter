@@ -3,10 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/account/presentation/account_screen.dart';
+import '../../features/account/presentation/change_email_screen.dart';
+import '../../features/account/presentation/change_password_screen.dart';
 import '../../features/account/presentation/edit_profile_screen.dart';
 import '../../features/address/presentation/address_book_screen.dart';
 import '../../features/address/presentation/address_form_screen.dart';
+import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/menu/presentation/menu_list_screen.dart';
@@ -85,6 +89,16 @@ final routerProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => const EditProfileScreen(),
                   ),
                   GoRoute(
+                    path: ChangePasswordScreen.routePath,
+                    name: ChangePasswordScreen.routeName,
+                    builder: (context, state) => const ChangePasswordScreen(),
+                  ),
+                  GoRoute(
+                    path: ChangeEmailScreen.routePath,
+                    name: ChangeEmailScreen.routeName,
+                    builder: (context, state) => const ChangeEmailScreen(),
+                  ),
+                  GoRoute(
                     path: AddressBookScreen.routePath,
                     name: AddressBookScreen.routeName,
                     builder: (context, state) => const AddressBookScreen(),
@@ -125,6 +139,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: RegisterScreen.routePath,
         name: RegisterScreen.routeName,
         builder: (context, state) => const RegisterScreen(),
+      ),
+      // The reset pair sits beside sign-in, outside the shell, for the same
+      // reason: the customer is sent here mid-task and popping returns them.
+      GoRoute(
+        path: ForgotPasswordScreen.routePath,
+        name: ForgotPasswordScreen.routeName,
+        builder: (context, state) => ForgotPasswordScreen(
+          email: state.uri.queryParameters['email'],
+        ),
+      ),
+      GoRoute(
+        path: ResetPasswordScreen.routePath,
+        name: ResetPasswordScreen.routeName,
+        builder: (context, state) => ResetPasswordScreen(
+          email: state.uri.queryParameters['email'] ?? '',
+        ),
       ),
       GoRoute(
         path: ProductDetailScreen.routePath,

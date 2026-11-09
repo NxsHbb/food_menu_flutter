@@ -81,7 +81,7 @@ so customer auth is new work. No nonce gate on these routes — token only.
 | 3.8 | `GET /fmp/v1/app/address-fields` — allowed countries, their states, which fields are required and WooCommerce's own labels, so the form is not hard-coded | pro | done |
 | 3.9 | Address book: list, add/edit form, set default — **designed to match**, since the design stubs both | app | done |
 | 3.10 | `POST /fmp/v1/app/auth/{forgot-password,reset-password,change-password,change-email}` — the account-security group, agreed after it came up in 3.1, 3.2, 3.7 and 3.9 | pro | done |
-| 3.11 | Forgot password on sign-in, and a Security section on the account screen — **designed to match**, since the design has no auth screens | app | todo |
+| 3.11 | Forgot password on sign-in, and a Security section on the account screen — **designed to match**, since the design has no auth screens | app | done |
 
 ## Phase 4 — Cart and add-ons
 Store API `cart/add-item` accepts only `id`, `quantity`, `variation`, so add-on
