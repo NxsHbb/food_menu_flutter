@@ -5,11 +5,18 @@ import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/util/html_text.dart';
 import '../../../../core/widgets/dish_image_placeholder.dart';
+import '../../../wishlist/presentation/widgets/wishlist_heart.dart';
 
 /// The design's menu list row: square image, name, description, price, add.
 ///
 /// A row rather than a card, because the menu screen is a scannable list
 /// while the landing screen is a browsable grid.
+///
+/// **The heart here is not in the design**, which draws it on the grid card
+/// and the detail screen only. It is added because `PLAN.md` asks for it on
+/// cards and rows, and because being able to save a dish from the grid but
+/// not from the list of the same dishes is a gap a customer would notice. It
+/// borrows the design's own unfilled-heart tone rather than inventing one.
 class DishRow extends StatelessWidget {
   const DishRow({
     required this.product,
@@ -61,11 +68,26 @@ class DishRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      product.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: text.titleSmall,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            product.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.titleSmall,
+                          ),
+                        ),
+                        // Beside the name rather than over the photo: the
+                        // row's image is 76px, which a 30px disc would
+                        // dominate, and the bottom corner already holds the
+                        // add button. See the class docblock.
+                        WishlistHeart(
+                          product: product,
+                          style: HeartStyle.bare,
+                        ),
+                      ],
                     ),
                     if (description.isNotEmpty) ...[
                       const SizedBox(height: AppTokens.space2),

@@ -6,8 +6,10 @@ import 'package:food_menu/src/features/account/presentation/account_screen.dart'
 import 'package:food_menu/src/features/auth/data/auth_controller.dart';
 import 'package:food_menu/src/features/auth/data/auth_repository.dart';
 import 'package:food_menu/src/features/auth/data/token_store.dart';
+import 'package:food_menu/src/features/wishlist/data/wishlist_repository.dart';
 
 import '../auth/fake_auth_repository.dart';
+import '../wishlist/fake_wishlist_repository.dart';
 
 void main() {
   Future<ProviderContainer> pumpAccount(
@@ -19,6 +21,9 @@ void main() {
       overrides: [
         authRepositoryProvider.overrideWithValue(repo),
         tokenStoreProvider.overrideWithValue(FakeTokenStore()),
+        // The Wishlist row shows a count, so the screen now loads the
+        // wishlist as soon as somebody is signed in.
+        wishlistRepositoryProvider.overrideWithValue(FakeWishlistRepository()),
       ],
     );
     addTearDown(container.dispose);

@@ -2,6 +2,89 @@
 
 Newest first. One entry per completed task.
 
+## Task 3.6 — Wishlist screen and the hearts
+Branch: `feat/wishlist-screen`. Consumes the endpoints from task 3.5 and
+closes the client half of the wishlist.
+
+### What shipped
+`features/wishlist/` — a repository, a controller, the screen (design 10), the
+heart and the wishlist row. Hearts went onto dish cards, menu rows and the dish
+detail screen; the Account screen gained one row to reach the wishlist from.
+
+### One load per sign-in, read by every heart
+A grid of dishes means a dozen hearts on screen at once, so asking the server
+per card would be a request per card for something one request already carries.
+`WishlistController` loads the list once per sign-in and holds it;
+`wishlistIdsProvider` derives the id set and every heart watches that.
+
+`build()` watches `isSignedInProvider`, so signing in loads the wishlist and
+signing out drops it with **no explicit invalidation anywhere**. The id set is
+derived from the returned products rather than read from the response's
+`product_ids`, because the two are the same thing and deriving it cannot drift.
+
+### Optimistic, with the whole list as the undo
+`toggle()` updates the list, then calls the server, and restores the previous
+list on failure. A heart that waits for a round trip feels broken, and the
+write is idempotent either way. Because the heart always sits next to a dish
+the app has already loaded, favouriting can **prepend the product itself**, so
+the wishlist screen is correct the moment the heart fills — no refetch.
+
+Two details worth keeping:
+- **`toggle()` awaits the first load before touching state.** Otherwise a tap
+  during the opening request silently does nothing, and that window is exactly
+  when a customer is first looking at the menu.
+- **A 404 also invalidates the controller.** The dish has left the menu, so the
+  held list is stale in more ways than that one heart; reverting alone would
+  leave a dish on screen that the server has already dropped.
+
+### The heart is shown to everyone
+Signed out, tapping it opens sign-in rather than calling the API — the journey
+the router was already built for ("the customer is sent here mid-task …
+saving a favourite"). Hiding it would leave a signed-out customer no way to
+discover that dishes can be saved. This **reverses the note written in
+`CONTEXT.md` during task 3.5**, which said the heart should only be shown to a
+signed-in customer; that section has been rewritten.
+
+### Two places the design was followed, and one where it was not
+- The wishlist screen uses its own compact **`WishlistRow`**, not `DishRow`.
+  The design drops the description, rating and add button here, because the
+  list is decisions already made rather than a menu to browse. The earlier
+  `CONTEXT.md` note predicting `DishCard` reuse was wrong.
+- The screen is **nested under the Account tab**, so the tab bar stays and
+  Account stays highlighted, which is what the design shows.
+- **The menu row heart is not in the design**, which draws hearts on the grid
+  card and the detail screen only. `PLAN.md` asks for cards *and* rows, and
+  being able to save a dish from the grid but not from the list of the same
+  dishes is a gap a customer would notice, so it was added beside the name —
+  not over the 76px thumbnail, which a 30px disc would dominate, and not next
+  to the add button it would compete with.
+
+### Riverpod's auto-retry had to be switched off
+Riverpod 3 retries a failed provider build on its own with backoff. Left on, it
+kept a timer firing while the customer sat on the error screen, meant `.future`
+never completed with the error, and leaked a pending timer into every test that
+rendered the Account screen. The screen already offers "Try again", so the
+provider sets `retry: (_, _) => null`.
+
+### Verified on the Android device, against the local site
+Signed in, favourited from a dish card and from a menu row — both written
+server-side, and the row tap did **not** also open the dish. The filled state
+is shared across screens, so a dish favourited on the grid shows filled in the
+list. Removed from the wishlist screen, saw the row go and the empty state
+appear with the design's own wording.
+
+Then the cross-device claim: two favourites were written **directly to the
+server**, standing in for another device, and the app was **force-stopped and
+relaunched**. The session restored and both came back — including
+`Sold Out Special`, confirming out-of-stock favourites survive on purpose.
+
+32 new tests (258 total): the controller's optimistic paths, revert, the 404
+reload, the cap, the tap-during-load window and the signed-out case; the
+screen's list, empty, signed-out, error-and-retry and dark-mode states; the
+heart's fill, both write directions, the sign-in journey and its error wording;
+and the hearts in a card and a row, including that the card heart does not
+swallow a tap meant for the card.
+
 ## Task 3.5 — Wishlist endpoints (plugin)
 Branch: `mobile-app-wishlist` on `food-menu-pro`. Opens the server half of the
 wishlist; the Flutter half is task 3.6.

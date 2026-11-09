@@ -493,3 +493,61 @@ rather the point, but on a store with that setting on, such a favourite will
 not come back from hydration — the same as it not appearing in the menu. The
 behaviour is consistent either way; just do not read a missing wishlist item as
 a bug without checking the setting first.
+
+## Riverpod retries a failed provider build, and it is not always wanted
+Riverpod 3 retries any provider whose `build()` throws, with exponential
+backoff, unless the provider says otherwise. Three consequences, all of which
+showed up in task 3.6:
+
+- `.future` **never completes with the error**, because the provider is still
+  trying. Anything awaiting it hangs rather than failing.
+- The timer keeps firing while the customer looks at the error screen, so an
+  explicit "Try again" button competes with a retry already in flight.
+- A widget test that renders the screen fails with *"A Timer is still pending
+  even after the widget tree was disposed"* — which points at the widget, not
+  at the provider three layers down that is quietly retrying a network call.
+
+That last one is the tell. When a test that never mentions a provider starts
+failing on a pending timer, look for a provider it pulls in transitively whose
+build is failing — in this case the Account screen reached the wishlist for a
+count, and the wishlist had no repository override.
+
+Switch it off per provider where the UI owns recovery:
+
+```dart
+AsyncNotifierProvider<WishlistController, List<Product>>(
+  WishlistController.new,
+  retry: (retryCount, error) => null,
+);
+```
+
+Keep the default where a silent recovery is genuinely better than an error
+state — a read-only feed that nothing awaits, for instance.
+
+## Optimistic writes need the load awaited, not skipped
+The obvious shape for an optimistic toggle reads the current value, flips it,
+then calls the server:
+
+```dart
+final current = state.value;
+if (current == null) return; // ← drops the tap
+```
+
+`state.value` is null while the first load is in flight, so that guard silently
+ignores the tap — during exactly the window when the customer is first looking
+at the screen. `await future` instead: the tap waits for the load and then
+applies, and the only cost is that one tap takes as long as the load it was
+already waiting on.
+
+The same function should revert to **the whole previous list**, not to the
+inverse of the flip. Reverting by flipping back assumes nothing else changed
+in between, which is false as soon as two writes overlap.
+
+## A heart inside a tappable row needs no manual gesture handling
+`DishRow` and `DishCard` are each one big `InkWell`, and the heart is another
+`InkWell` inside them. Flutter's hit testing gives the gesture to the innermost
+one, so tapping the heart saves the dish **without** also opening it, and no
+`GestureDetector` juggling or `stopPropagation` equivalent is needed — the
+design's own `e.stopPropagation()` has no counterpart here. Worth a test
+anyway, because a later layout change that moves the heart out of the inner
+subtree would silently restore the double action.
