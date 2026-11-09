@@ -2,6 +2,59 @@
 
 Newest first. One entry per completed task.
 
+## Task 4.1 — Product add-ons endpoint (plugin)
+Branch: `mobile-app-addons`, PR food-menu-pro#11. Opens Phase 4; the Flutter
+side is task 4.4.
+
+### The plan had the storage wrong
+`PLAN.md` said add-on definitions "live in the `fmp_product_addons` option".
+They do not. They live in **`_fmp_product_addons` product meta**, per dish,
+with a separate `global_addon_settings` option holding store-wide groups that
+target dishes by id or by category. The plan has been corrected.
+
+That mattered, because the two are an **either/or**, not a merge: a dish with
+`_fmp_pa_global_override` set uses its own groups and ignores every global
+one; otherwise it gets the globals that match it. Getting that backwards would
+have shown customers add-ons the website does not offer.
+
+### So the rule is asked, not reimplemented
+`FrontendPAddon::addon_lists()` already decides it for the website, so the
+route calls that rather than restating it. The app and the web page cannot
+drift apart about what a dish offers, and global targeting comes along for
+free. Verified all three branches: a dish with the override gets its own, a
+dish targeted by a global gets that plus the all-dishes one, and an untargeted
+dish gets only the all-dishes one.
+
+### Public, unlike the rest of `fmp/v1/app/*`
+The menu is public and the dish screen is reachable before sign-in, so a token
+gate would hide add-ons from exactly the customer deciding whether to make an
+account. Nothing in the response is customer data.
+
+### Money needed no new client handling
+Option prices come back as **minor-unit strings with a `currency` block in
+WooCommerce's own `currency_*` key names** — the Store API's shape. The app's
+existing `Money` and `Currency` parse it unchanged, so add-ons introduce no
+second way to read a price.
+
+### What the route refuses to guess
+- A stored price is **free text**, so it can be `-`, `N/A` or empty, all
+  meaning no charge. Non-numeric becomes zero, the same reading the website
+  takes. Confirmed: `-` → `0`, `2.50` → `250`.
+- A group with **no title or an unknown type is dropped** rather than sent
+  with a guessed one — a nameless control on the dish screen is worse than an
+  absent group.
+- `free_label` is **resolved to a boolean** rather than passed through, since
+  its empty value means "inherit" from a global setting the app cannot see.
+
+### Dev site now has add-on test data
+Three groups on *Build Your Pizza* (a required radio with price deltas, a
+checkbox with `max_selection` 3 and a non-numeric price, a textarea with a
+placeholder and char limit) and two global groups — one targeted at *Iced
+Latte*, one applying to every dish. Task 4.4 will want them. Recorded in
+`LOCAL_DEV.md`.
+
+No Dart changed.
+
 ## Task 3.11 — Forgot password, and the Security section
 Branch: `feat/account-security`. Consumes the endpoints from task 3.10 and
 **closes Phase 3 for good** — the account-security gap raised in 3.1, 3.2, 3.7

@@ -311,6 +311,32 @@ are entity-escaped on top — an ampersand reaches the app as `&#038;`. Pass
 anything displayed through `plainText()` in `core/util/html_text.dart`; never
 render an API string directly.
 
+### Product add-ons
+`GET fmp/v1/app/products/{id}/addons` (task 4.1). The Flutter side is task 4.4.
+
+- **Public**, unlike the rest of `fmp/v1/app/*`, because the dish screen is
+  reachable before sign-in.
+- Returns `{ product_id, currency, groups }`. **Prices are minor-unit strings
+  with the Store API's `currency_*` keys**, so `Money.fromJson` and
+  `Currency.fromJson` read them unchanged — do not add a second way to parse
+  an add-on price.
+- A group is `{ id, title, description, type, required, position,
+  min_selection, max_selection, option_quantity, placeholder, char_limit,
+  free_label, options }`. Types: `dropdown`, `checkbox`, `radio`, `text`,
+  `textarea`.
+- **`min_selection` and `max_selection` of 0 mean no limit.** Groups arrive in
+  `position` order; render them as given.
+- `option_quantity` means each option carries its own stepper.
+  `placeholder` and `char_limit` are for `text` and `textarea`, which keep
+  their price on `options[0]`.
+- `free_label` is **already resolved to a boolean** — show a "Free" badge on
+  zero-priced options when it is true. Do not re-derive it.
+- Whether a dish uses its own add-ons or the store's global ones is settled
+  server-side; the app just renders what comes back.
+- **Nothing here is submitted yet.** `cart/add-item` takes only `id`,
+  `quantity` and `variation`, so sending selections is task 4.2's job on the
+  plugin. Until then this is read-only.
+
 ### Ingredients and nutrition
 Supplied by the plugin's `food-menu-pro` **Store API extension** on the
 product response, not by WooCommerce. Added in food-menu-pro#5; before that
