@@ -663,3 +663,31 @@ ScaffoldMessenger.of(context).showSnackBar(...);  // throws
 After the pop this route's context is defunct, so the lookup fails. Capture
 `ScaffoldMessenger.of(context)` into a local **before** popping and call
 `showSnackBar` on that — it belongs to an ancestor that outlives the route.
+
+## Reusing server code means matching how it was called, not just what it takes
+Task 4.2 hands add-on selections to the website's own `AddonFields` so the
+cart entry it builds is identical to the one the web page makes. That is the
+right instinct, but the method does not only take data — it takes data in the
+shape its *original caller* produced, and that caller was an HTML form.
+
+`get_checkbox_options_data()` matches with
+`esc_html( $option['label'] )`. The web form posts the already-escaped text
+from the rendered page, so the comparison lines up. Passing the raw stored
+label does not: `Medium 12"` never matches `Medium 12&quot;`.
+
+Nothing errored. The option simply was not found, so the dish went into the
+cart at base price with the selection recorded nowhere. It surfaced as a total
+that was 100 minor units short of what the test expected.
+
+Two lessons worth carrying into the rest of Phase 4:
+
+- When calling into code written for a form, **read what the form sent**, not
+  just the parameter names. Escaping, 1-based counters and string suffixes are
+  all part of the contract.
+- **Assert on a computed total, not on "it worked".** A line that adds would
+  have passed every presence check. Only the arithmetic caught it.
+
+The sibling method is the opposite — `get_dropdown_options_data()` wants
+`html_entity_decode( $label ) . '-' . $oneBasedPosition`. They look like they
+should be the same and are not, which is now written down in the plugin's own
+notes so nobody unifies them.

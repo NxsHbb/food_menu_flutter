@@ -2,6 +2,58 @@
 
 Newest first. One entry per completed task.
 
+## Task 4.2 — Add-on selections at add-to-cart (plugin)
+Branch: `mobile-app-cart-addons`, PR food-menu-pro#12. The Flutter side is
+task 4.4.
+
+### The gap, measured before fixing
+`cart/add-item` takes `id`, `quantity` and `variation` and nothing else, and
+the website's own handler is driven by `$_POST` behind a nonce. So a dish with
+a **required** add-on group went into the cart with no selections at all, at
+base price, with the cart item recording nothing. Confirmed against the dev
+store first, so the fix had something to be measured against.
+
+### The app sends ids, not labels
+The website matches options by their label text, which is display copy: it
+carries quotes and entities, and it changes whenever the restaurant rewords a
+topping. Ids are the indices task 4.1 already publishes, so the contract
+survives a rename.
+
+Those ids are then translated **back into the website's own input shape** and
+handed to its `AddonFields`, so the cart entry is indistinguishable from one
+the web page made — same `field_name` formula, same quantity clamp, same
+reading of a non-numeric price. Pricing, the cart display, the order line item
+and the admin screen all keep working with no second code path.
+
+### The bug a wrong price caught
+Checkbox and radio labels have to be **`esc_html()`-ed when matching**,
+because the website compares against `esc_html( $option['label'] )` and its
+form posts the already-escaped text from the rendered HTML. Sending the raw
+label silently fails to match any option whose label contains a quote —
+`Medium 12"` versus `Medium 12&quot;` — and the dish is added at base price
+with the option recorded nowhere.
+
+Nothing errored. It surfaced as a cart total that was 100 minor units short
+(475 where 575 was expected), which is the only reason it was noticed at all.
+A dropdown is the opposite: it wants the label `html_entity_decode`d with a
+1-based position suffix. The two genuinely differ, and that is written down so
+nobody tidies them into one.
+
+### Seed data was on the wrong kind of dish
+The add-ons seeded in task 4.1 went onto *Build Your Pizza*, which is a
+**variable** product — and the website never renders add-ons on those. Moved
+to *Fresh Lemonade*, which is simple. The endpoint itself skips variable
+products for the same reason.
+
+### Verified against the dev site
+Every refusal (`required`, `too_few`, `too_many`, `too_long`,
+`unknown_option`), the happy path priced exactly
+(`325 + 250 + 2×75 = 725`), selections appearing in `item_data` through the
+website's own cart display, the cart surviving a fresh request via session
+restore, two different combinations making **separate cart lines**, optional
+groups omitted adding at base price, and `min_selection` enforced after
+temporarily raising it. Test cart cleared afterwards. No Dart changed.
+
 ## Task 4.1 — Product add-ons endpoint (plugin)
 Branch: `mobile-app-addons`, PR food-menu-pro#11. Opens Phase 4; the Flutter
 side is task 4.4.
