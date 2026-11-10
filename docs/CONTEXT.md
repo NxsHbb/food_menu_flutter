@@ -505,6 +505,43 @@ Task 4.3 put them on every Store API cart item, under the same extension key:
 - An item with no add-ons still has the keys, with `addons: []` and
   `base_price` equal to the line price. No null-checking the block itself.
 
+### Branches
+`GET fmp/v1/app/branches` (task 5.3, food-menu-pro#16). The Flutter side is
+task 5.5. This says *which* branch to pass to `/order-types` and `/slots`.
+
+- **Public**, no parameters.
+- **The list is never empty.** A store with no branches comes back as a single
+  entry with `id: 0`, `is_store: true` and WooCommerce's own store address —
+  and `branch=0` is already what the other two routes mean by "store-wide". So
+  render `branches[0]` and send its id; there is no empty case to handle.
+- `multi_location` is whether the customer gets a choice. When false, show the
+  one entry as "Pick up from …" rather than a picker.
+- Per branch: `id`, `name`, `slug`, `parent`, `description`, `product_count`,
+  `address`, `coordinates`, `is_store`, `types`. **`parent` matters** — the
+  taxonomy is hierarchical, so a store can file branches under a city, and a
+  flat list would show the city as if it were a branch.
+- `address` is **one free-text field with its line breaks intact**, not
+  WooCommerce's structured parts — that is all the location screen has ever
+  stored. Render it as one line or several as the layout needs.
+- **`coordinates` is null unless the branch really has them**, and is never
+  `0, 0`. Distance ("0.8 mi away" in the design) is computed in Dart from the
+  device's location; with null coordinates, omit the distance rather than
+  showing zero.
+- Per type: `enabled`, `time_required`, `has_custom_schedule`, `time_interval`,
+  `max_orders_per_slot`, `lead_days`, `open_today`, `open_now`, and `today`
+  with that day's windows. Enough to draw a picker without a second call.
+- **The week is not here on purpose** — ask `/order-types?branch=<id>` for it.
+  Inlining it would make this response grow with the number of branches.
+- **`open_now` is true on a day with no windows**, because no stated hours
+  means no restriction. Same rule as everywhere else.
+
+#### Branch selection does not yet filter the menu
+The website scopes products to a branch with `woocommerce_product_query` and a
+`fmp_location_id` cookie. **The Store API runs neither**, so passing a branch
+to the API changes slots and hours but **not** which dishes come back. Task 5.5
+cannot be done in Dart alone; it needs a plugin change first. `FINDINGS.md` has
+the detail.
+
 ### Slots
 `GET fmp/v1/app/slots?type=pickup|delivery[&date=Y-m-d][&branch=<id>][&items=42:2,17:1]`
 (task 5.2, food-menu-pro#15). The Flutter side is task 5.4. `/order-types`
