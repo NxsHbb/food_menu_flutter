@@ -817,12 +817,43 @@ adds the pickup/delivery fields.
   store's enabled gateways. A store with no gateway enabled has every order
   refused by the Store API.
 
-### Ingredients and nutrition
-Supplied by the plugin's `food-menu-pro` **Store API extension** on the
-product response, not by WooCommerce. Added in food-menu-pro#5; before that
-they were unreachable for products. Every level of the extension block is
-treated as optional, so a site running an older plugin shows no sections
-rather than erroring.
+### The plugin's block on a product
+`AppProductStoreApi` in Pro adds one `food-menu-pro` extension to Store API
+product responses, carrying everything about a dish WooCommerce does not
+describe. Every level of the block is treated as optional on this side, so a
+site running an older plugin loses the feature rather than erroring.
+
+- **`ingredients` / `nutrition`** — the dish's food data, unreachable for
+  products before food-menu-pro#5.
+- **`requires_choices`** — true when an add-on group must be answered before
+  the dish can be added at all. Read together with WooCommerce's own
+  `has_options` as `Product.needsChoices`, because the two cover different
+  things: `has_options` means a variation must be picked, and knows nothing
+  about add-ons. See `FINDINGS.md`.
+
+One class owns that endpoint and namespace on the plugin side, by necessity —
+a second registration replaces the first without a word.
+
+### Adding to the cart from a card or a row
+The `+` on a dish card and a menu row is `QuickAddButton`, in
+`features/cart/presentation/widgets/`. One widget for both, so the rule cannot
+differ between the landing screen and the menu list:
+
+- `product.canAddDirectly` — in stock, purchasable and `!needsChoices` — goes
+  straight to `cart/add-item` with no add-on payload;
+- anything else opens the dish screen, including a sold-out dish, which says
+  so there. Disabling the button leaves the card looking broken instead.
+
+`QuickAddController` holds the product ids with an add in flight: a second tap
+is dropped rather than queued, and the button spins. The flag is state rather
+than a field on the button because the list rebuilds on every cart change,
+which is exactly while an add is running.
+
+**A successful add says nothing.** The floating cart bar is the design's own
+confirmation and appears on the same frame; a snackbar would cover it, since
+both are pinned to the bottom of the shell's `Scaffold`. Refusals do get a
+snackbar, and an add-on refusal — which only a store on an older plugin can
+produce — opens the dish screen so the choices can actually be made.
 
 ### Banners
 The landing carousel reads WordPress posts in the **`app-banners`** category:

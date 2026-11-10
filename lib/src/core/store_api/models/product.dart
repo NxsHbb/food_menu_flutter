@@ -182,6 +182,7 @@ class Product {
     required this.isInStock,
     required this.isPurchasable,
     required this.hasOptions,
+    required this.requiresChoices,
     required this.onSale,
     required this.averageRating,
     required this.reviewCount,
@@ -217,9 +218,10 @@ class Product {
       shortDescription: json['short_description'] as String? ?? '',
       isInStock: json['is_in_stock'] as bool? ?? true,
       isPurchasable: json['is_purchasable'] as bool? ?? true,
-      // True when the product needs choices made before it can be added —
-      // a variable product, or one with required add-on groups.
+      // WooCommerce's own flag, which means a variable product and nothing
+      // else. It knows nothing about add-ons — see [requiresChoices].
       hasOptions: json['has_options'] as bool? ?? false,
+      requiresChoices: _flag(json, 'requires_choices'),
       onSale: json['on_sale'] as bool? ?? false,
       // Sent as a string, e.g. "4.50", not a number.
       averageRating: double.tryParse(json['average_rating']?.toString() ?? '') ?? 0,
@@ -262,6 +264,17 @@ class Product {
   final bool isInStock;
   final bool isPurchasable;
   final bool hasOptions;
+
+  /// True when an add-on group must be answered before the dish can go in the
+  /// cart, from the plugin's Store API extension.
+  ///
+  /// Separate from [hasOptions] because WooCommerce's flag covers variable
+  /// products only; a *simple* dish with a required add-on group arrives with
+  /// `has_options: false` and is still refused by the server if added blind.
+  ///
+  /// False on a site whose plugin predates the field, which leaves the old
+  /// behaviour rather than hiding every quick add.
+  final bool requiresChoices;
   final bool onSale;
   final double averageRating;
   final int reviewCount;
@@ -296,6 +309,20 @@ class Product {
   /// True when there is any food data worth giving a section to.
   bool get hasFoodData => ingredients.isNotEmpty || nutrition.isNotEmpty;
 
+  /// Reads one boolean out of the plugin's Store API extension block.
+  ///
+  /// Missing at every level on a site running an older plugin, and on any
+  /// non-WooCommerce response, so absence is false rather than an error.
+  static bool _flag(Map<String, dynamic> json, String key) {
+    final extensions = json['extensions'];
+    if (extensions is! Map) return false;
+
+    final foodMenu = extensions['food-menu-pro'];
+    if (foodMenu is! Map) return false;
+
+    return foodMenu[key] == true;
+  }
+
   /// Reads one list out of the plugin's Store API extension block.
   ///
   /// Absent on a site whose plugin predates the change, and absent from any
@@ -318,9 +345,16 @@ class Product {
         .toList(growable: false);
   }
 
+  /// True when ordering this dish means choosing something first.
+  ///
+  /// Either half is enough: a variable product needs a variation, and a dish
+  /// with a required add-on group needs an answer. Both lead to the dish
+  /// screen rather than to the cart.
+  bool get needsChoices => hasOptions || requiresChoices;
+
   /// True when a tap can add this straight to the cart, with no choices and
   /// no trip to the detail screen.
-  bool get canAddDirectly => isPurchasable && isInStock && !hasOptions;
+  bool get canAddDirectly => isOrderable && !needsChoices;
 
   @override
   String toString() => 'Product($id, $name, ${prices.price.format()})';

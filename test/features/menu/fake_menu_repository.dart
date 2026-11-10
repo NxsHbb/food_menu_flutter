@@ -123,6 +123,7 @@ Product buildProduct({
   int reviewCount = 0,
   String rating = '0',
   bool hasOptions = false,
+  bool requiresChoices = false,
   bool inStock = true,
   List<Map<String, dynamic>> categories = const [],
 }) {
@@ -147,6 +148,10 @@ Product buildProduct({
     'has_options': hasOptions,
     'review_count': reviewCount,
     'average_rating': rating,
+    if (requiresChoices)
+      'extensions': const {
+        'food-menu-pro': {'requires_choices': true},
+      },
   });
 }
 

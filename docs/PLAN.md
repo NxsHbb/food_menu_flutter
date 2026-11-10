@@ -90,6 +90,10 @@ selections cannot be submitted as-is. Add-on definitions live in
 option for store-wide ones — not in a single option as first assumed — and
 were not exposed anywhere until task 4.1.
 
+Task 4.7 needed **Pro** as well as the app, which the plan had not expected:
+nothing on a Store API product said whether a dish's add-ons were optional, so
+the app could not tell a one-tap dish from one the server would refuse.
+
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 4.1 | `GET /fmp/v1/app/products/{id}/addons` — add-on groups, field types, required flags, price deltas | pro | done |
@@ -98,7 +102,7 @@ were not exposed anywhere until task 4.1.
 | 4.4 | Flutter add-on selection UI on the product detail screen, with live price preview | app | done |
 | 4.5 | Flutter cart: add, update quantity, remove, totals, empty state | app | done |
 | 4.6 | Floating mini cart, persisted across app restarts via the `Cart-Token` | app | done |
-| 4.7 | Wire the **quick-add `+`** on dish cards and menu rows. Found while verifying 6.2: it still answers "Add to cart is not built yet", a Phase 2 stand-in that Phase 4 never picked up. `Product.canAddDirectly` already gates it to simple, in-stock dishes with no add-ons | app | todo |
+| 4.7 | Wire the **quick-add `+`** on dish cards and menu rows. Found while verifying 6.2: it still answered "Add to cart is not built yet", a Phase 2 stand-in that Phase 4 never picked up. Grew a plugin half: `canAddDirectly` was gated on WooCommerce's `has_options`, which knows about variations and **nothing about add-ons**, so a simple dish with a required group offered a one-tap add the server refused. Pro now publishes `requires_choices` | pro + app | done |
 
 ## Phase 5 — Order type and time slots
 Pickup and delivery only — the design has no dine-in, which also makes QR

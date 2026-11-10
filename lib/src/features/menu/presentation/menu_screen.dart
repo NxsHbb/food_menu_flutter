@@ -186,9 +186,6 @@ class MenuScreen extends ConsumerWidget {
                       ProductDetailScreen.routeName,
                       pathParameters: {'id': '${product.id}'},
                     ),
-                    onAdd: product.canAddDirectly
-                        ? () => _notYet(context, 'Add to cart')
-                        : null,
                   );
                 },
               ),
@@ -196,14 +193,6 @@ class MenuScreen extends ConsumerWidget {
           ),
         ],
     };
-  }
-
-  /// Until the screens those taps lead to exist, say so plainly rather than
-  /// doing nothing, which reads as a broken tap.
-  void _notYet(BuildContext context, String what) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$what is not built yet.')),
-    );
   }
 }
 

@@ -208,19 +208,10 @@ class _Results extends ConsumerWidget {
                 ProductDetailScreen.routeName,
                 pathParameters: {'id': '${product.id}'},
               ),
-              onAdd: product.canAddDirectly
-                  ? () => _notYet(context, 'Add to cart')
-                  : null,
             );
           },
         ),
     };
-  }
-
-  void _notYet(BuildContext context, String what) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$what is not built yet.')),
-    );
   }
 }
 
