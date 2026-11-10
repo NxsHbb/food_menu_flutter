@@ -2,6 +2,75 @@
 
 Newest first. One entry per completed task.
 
+## Task 6.2 — Placing the order
+Branch `feat/place-order`, PR #40, with the plugin half on `mobile-app`
+(food-menu-pro#19). 22 new tests, 598 in total.
+
+### What landed
+`POST wc/store/v1/checkout` behind the design's button. `OrderDraft` builds
+the body, `CheckoutRepository` sends it, `PlacedOrder` reads the answer, and
+`checkoutReadinessProvider` decides whether there is an order to place at all
+— returning either the draft or the sentence to show.
+
+The confirmation is a dialog for now; **task 6.4 replaces it** with the
+design's order-received screen, which re-reads the order rather than trusting
+the checkout response.
+
+### Three things the server had to be asked
+Probing the real route first was the only way to find any of them, and all
+three are in `FINDINGS.md`:
+
+- **The extension block is all-or-nothing.** Omit one of its nine keys and the
+  whole request is rejected with `rest_invalid_param`, because the schema
+  types them all as strings and a missing key is null. A delivery order still
+  sends the pickup keys, and an app with no dine-in screen still sends the
+  dine-in ones, empty.
+- **WooCommerce wants a billing address even for pickup.** The design shows
+  the branch instead of an address there, but an order with no street is
+  refused whatever the type — so an address is needed to order at all, and the
+  checkout says so differently per type.
+- **The response's extension block is the schema's defaults**, not what was
+  saved, so the order cannot be read back from it.
+
+### The branch was not reaching the order
+The free plugin stamps `fmp_location_name` from a posted field or the cookie,
+and the app has neither — so every app order was filed under no branch, and
+the per-slot counting, which matches orders on exactly that meta, never
+counted one. A branch's cap could be exhausted by app orders while the app was
+still being offered the slot.
+
+Fixed in Pro rather than worked around in Dart: `AppBranchScope` already reads
+`X-FMP-Branch` on every request, so it stamps the order too and resolves the
+name from the term itself. The app sends nothing new, which is the point — a
+name the client supplied could be stale or translated.
+
+### A spinner behind a modal never settles
+The first placement test timed out in `pumpAndSettle`, and the dialog was not
+the cause: the button's progress indicator was still animating behind it,
+because the busy flag was cleared in a `finally` that ran after the dialog was
+dismissed. Clearing it first fixed the test and the screen, where a spinner
+was quietly running under the confirmation.
+
+### Verified on the device, both ways
+Two real orders from the OnePlus against the dev store. The delivery one came
+back as `fmp_order_time_type: delivery`, `fmp_delivery_date: November 10,
+2026` and **no** `fmp_delivery_time`, which is ASAP — the plugin skips empty
+values. The pickup one carried `fmp_pickup_time: 6:45 am`, the chip that was
+tapped. Both are `customer_id: 8`, so the bearer token does reach the Store
+API and Phase 7 will find them; both carry the billing and shipping address
+from the book with the checkout's own name and phone; both are `cod`,
+`processing`. The cart emptied behind the dialog and the tab badge cleared.
+
+Cash on delivery had to be enabled on the dev store first — with no gateway at
+all the Store API refuses every order. Recorded in `LOCAL_DEV.md`, and the
+plan's open dependency now says so.
+
+### Found while verifying, not fixed here
+The **quick-add `+` on dish cards and menu rows still says "Add to cart is not
+built yet"** — a Phase 2 stand-in that Phase 4 never picked up. Adding from
+the dish screen works, which is why it survived. Written up as task 4.7 rather
+than folded into this PR.
+
 ## Task 6.1 — The rest of the checkout screen
 Branch `feat/checkout-screen`, PR #39. No plugin change — everything this
 needs was already published by Phases 3, 4 and 5. 34 new tests, 576 in total.

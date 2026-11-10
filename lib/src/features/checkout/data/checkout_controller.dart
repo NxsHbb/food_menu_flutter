@@ -4,7 +4,11 @@ import '../../address/data/address_controller.dart';
 import '../../address/domain/saved_address.dart';
 import '../../auth/data/auth_controller.dart';
 import '../../auth/domain/auth_user.dart';
+import '../../cart/data/cart_controller.dart';
+import '../../fulfilment/data/fulfilment_controller.dart';
+import '../../fulfilment/domain/order_types.dart';
 import '../domain/checkout_contact.dart';
+import '../domain/order_draft.dart';
 
 /// What the customer has typed or chosen on the checkout screen.
 ///
@@ -146,3 +150,91 @@ String? _firstNonEmpty(List<String?> candidates) {
   }
   return null;
 }
+
+/// Whether the order can be placed, and what it is.
+///
+/// One provider rather than a screen's worth of conditions, because the two
+/// questions are the same question: everything that stops an order is a part
+/// the order is missing. The screen shows [CheckoutBlocked.reason] and task
+/// 6.2 submits [CheckoutReady.draft].
+sealed class CheckoutReadiness {
+  const CheckoutReadiness();
+}
+
+final class CheckoutReady extends CheckoutReadiness {
+  const CheckoutReady(this.draft);
+
+  final OrderDraft draft;
+}
+
+final class CheckoutBlocked extends CheckoutReadiness {
+  const CheckoutBlocked(this.reason);
+
+  /// Said to the customer as it is, so it has to name what to do.
+  final String reason;
+}
+
+/// Cash on delivery, v1's only payment method.
+///
+/// Hard-coded until task 6.3, which reads the gateways the store actually has
+/// enabled and lets the customer choose — a store without this one enabled is
+/// refused by the server today.
+const _codGateway = 'cod';
+
+/// Read fresh on every attempt, never remembered: the store can switch a type
+/// off, a slot can fill, and an address can be deleted while this screen is
+/// open.
+final checkoutReadinessProvider = Provider<CheckoutReadiness>((ref) {
+  final cart = ref.watch(cartControllerProvider).value;
+  if (cart == null || cart.isEmpty) {
+    return const CheckoutBlocked('Your cart is empty.');
+  }
+
+  final session = ref.watch(currentSessionProvider);
+  if (session == null) {
+    return const CheckoutBlocked('Sign in to place your order.');
+  }
+
+  final type = ref.watch(resolvedOrderTypeProvider);
+  if (type == null) {
+    return const CheckoutBlocked('This store is not taking orders right now.');
+  }
+
+  final slots = ref.watch(slotsProvider).value;
+  final slot = ref.watch(selectedSlotProvider);
+  if (slots == null || slot == null) {
+    return const CheckoutBlocked('Choose a time for your order.');
+  }
+
+  final address = ref.watch(checkoutAddressProvider);
+  if (address == null) {
+    // **Pickup needs one too.** WooCommerce validates a billing address on
+    // every order and refuses one with no street or city, whatever the order
+    // type — so this is not a delivery-only requirement, however the design
+    // draws it. See `FINDINGS.md`.
+    return CheckoutBlocked(
+      type == OrderTypeKind.delivery
+          ? 'Add a delivery address first.'
+          : 'Add an address to your account first.',
+    );
+  }
+
+  final contact = ref.watch(checkoutContactProvider);
+  if (!contact.isComplete) {
+    return const CheckoutBlocked('Enter a name and phone number.');
+  }
+
+  return CheckoutReady(
+    OrderDraft(
+      address: address,
+      contact: contact,
+      email: session.user.email,
+      note: ref.watch(checkoutControllerProvider).note,
+      type: type,
+      // The server's own strings for both, never composed here.
+      dateValue: slots.dateValue,
+      timeValue: slot.timeValue,
+      paymentMethod: _codGateway,
+    ),
+  );
+});
