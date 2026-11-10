@@ -2,6 +2,53 @@
 
 Newest first. One entry per completed task.
 
+## Task 7.1 — The order history endpoint
+Plugin only, on `mobile-app` (food-menu-pro#24). No Flutter change — 700
+tests, unchanged. The screens are task 7.2.
+
+### What landed
+`GET /app/orders`, paged as a bare array with `X-WP-Total` and
+`X-WP-TotalPages`, which is the contract the app's pager already speaks for
+the menu list.
+
+A **summary** per order rather than the whole thing. The design's row shows
+the number, the date, the order type, the status, a few dish thumbnails, a
+count and the total — not the address, the customer, or each line's add-ons.
+`row_items()` exists rather than slicing `items()` for the same reason: a row
+draws no line totals and no add-on meta, and the first version sent both.
+
+### The split is defined by what is *finished*
+The design has Active and Past tabs. Listing the active statuses would have
+been the obvious way and would have been wrong: this plugin lets a store
+invent its own, so a custom "Out for delivery" would silently fall out of
+both tabs. Naming the **endings** instead means anything new is active until
+someone says otherwise, which is the safe direction.
+
+`fmp_app_finished_order_statuses` covers the store whose custom status *is*
+an ending. The default list is the one `OrderTracking::should_flag_as_new()`
+already uses for the staff badge.
+
+`checkout-draft` is in neither group — it is the half-finished order the
+block checkout parks while the customer is still typing.
+
+### `ltrim` does not strip prefixes
+`ltrim( $slug, 'wc-' )` strips any of the *characters* `w`, `c`, `-`, so
+`completed` comes back as `ompleted` and matches nothing. The filter handling
+had exactly that bug before it ran. `str_starts_with` now. Grepped both
+plugins: no other instance.
+
+### Verified on the dev site
+`any`/`active`/`past` → 6/4/2 with matching `X-WP-Total`; `per_page=4&page=2`
+returns the last two; `per_page=5000` capped to 50; `group=wat` a 400 from the
+enum; no token a 401; a **guest** order on the same site absent, since the
+query is scoped by `customer_id`. `row_items()` proven to cap at four against
+a six-line order. A custom status registered at runtime landed in **active**
+with no configuration, and the filter moved `delivered` to past only once the
+store actually registered it.
+
+Two test orders were given `completed` and `cancelled` so the Past tab is not
+empty for 7.2 — recorded in `LOCAL_DEV.md` rather than changed silently.
+
 ## Task 6.6 — A cart that outlives its branch
 Branch `feat/branch-cart`, PR #46, with the plugin half on `mobile-app`
 (food-menu-pro#23). 17 new tests, 700 in total. **Phase 6 is done.**

@@ -76,6 +76,16 @@ Pro features.
   four test orders. The settings option was backed up to JSON first and diffed
   against it afterwards; `fmp_food_location_popup` was switched back off, which
   also unregisters the `tpl-food-location` taxonomy. Nothing from it remains.
+- **Order statuses, for task 7.1's Active/Past tabs.** The six test orders on
+  `customer@foodmenu.test` were all `processing`, which left the Past tab
+  empty and task 7.2 unverifiable. Orders **59 → `completed`** and
+  **60 → `cancelled`**; both were `processing` before. Kept rather than
+  restored, because the history screen needs both tabs populated.
+- **Task 6.6 seeded and then restored** two branch terms (Downtown, Uptown)
+  with `fmp_food_location_popup` on, Garlic Bread filed to Downtown only,
+  Margherita to both and Build Your Pizza to Uptown. The settings option was
+  backed up to JSON and diffed clean afterwards, the terms deleted and all 18
+  products are visible again. Nothing from it remains.
 - `woocommerce_enable_myaccount_registration = yes`. **Off by default**, and
   task 3.1's register endpoint follows this setting rather than overriding it,
   so registration returns 403 without it.

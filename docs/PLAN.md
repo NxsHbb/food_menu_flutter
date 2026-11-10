@@ -153,7 +153,7 @@ No webview, so the earlier cart-handoff problem disappears.
 ## Phase 7 — Orders and tracking
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 7.1 | `GET /fmp/v1/app/orders` — order history for the signed-in customer | pro | todo |
+| 7.1 | `GET /fmp/v1/app/orders` — order history for the signed-in customer, paged, with the design's Active/Past split defined as "not finished" so a store's own custom statuses land in Active unasked | pro | done |
 | 7.2 | Flutter order history and order detail screens | app | todo |
 | 7.3 | Live order tracking against the existing public `GET /fmp/v1/track/{token}`, with the status timeline | app | todo |
 
