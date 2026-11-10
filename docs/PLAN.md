@@ -152,13 +152,43 @@ No webview, so the earlier cart-handoff problem disappears.
 | 7.2 | Flutter order history and order detail screens | app | todo |
 | 7.3 | Live order tracking against the existing public `GET /fmp/v1/track/{token}`, with the status timeline | app | todo |
 
-## Phase 8 — Hardening and release
+## Phase 8 — Hardening
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 8.1 | Offline and error handling pass: retries, empty states, connectivity loss | app | todo |
 | 8.2 | Widget and integration test coverage for cart, add-ons, slots and checkout handoff | app | todo |
-| 8.3 | App icon, splash, display name, permissions audit on both platforms | app | todo |
-| 8.4 | Release builds, signing, and store metadata | app | todo |
+
+## Phase 9 — Payment methods
+Cash on delivery is all task 6.3 left v1 with. This phase adds the rest, in
+order of what each costs, and **sits between hardening and release on
+purpose**: 9.3 changes platform dependencies and permissions, which 10.1 and
+10.2 then audit and sign.
+
+Most of the machinery is already in place and unused:
+
+- **Declaring a gateway** — `PaymentMethodsApi::APP_SUPPORTED` and the
+  `fmp_app_supported_gateways` filter (6.3). A gateway the app can finish is
+  one line.
+- **Sending gateway data** — `POST /checkout` takes `payment_data` as
+  `{key, value}` pairs. Nothing sends it yet; `OrderDraft.toJson` is the one
+  place that would. **Each gateway defines its own keys**, which is why 9.3 is
+  per-gateway work rather than one card flow.
+- **Coming back** — `payment_result.redirect_url` is already parsed onto
+  `PlacedOrder`, and the order-received screen already re-reads the order.
+- **Failing** — task 6.5's paths. A declined payment is a declined order, and
+  an abandoned redirect is one more case of the same thing.
+
+| # | Task | Repo | Status |
+|---|---|---|---|
+| 9.1 | Offline gateways — bank transfer and cheque. They collect nothing at checkout (`has_fields` is false), so the only missing piece is the gateway's **payment instructions**: return them from `GET /app/orders/{id}` and show them on the order received screen, or a customer is never told where to send the money. Then add the ids to the supported list | pro + app | todo |
+| 9.2 | Redirect gateways — open `payment_result.redirect_url`, handle the return, the cancel and the abandon, and reconcile by re-reading the order. One flow covers **PayPal and every regional processor** (bKash, SSLCommerz, Razorpay, Paystack…), with no per-gateway Dart | app | todo |
+| 9.3 | Native card — Stripe via `flutter_stripe` and `payment_data`, which brings Apple Pay and Google Pay with it. **The one task here that can be dropped without blocking release**: it needs platform SDKs, a merchant setup per store, and it is per-gateway work | app + pro | todo |
+
+## Phase 10 — Release
+| # | Task | Repo | Status |
+|---|---|---|---|
+| 10.1 | App icon, splash, display name, permissions audit on both platforms | app | todo |
+| 10.2 | Release builds, signing, and store metadata | app | todo |
 
 ## Deliberately out of scope for v1
 Staff dashboard, kitchen monitor, inventory, POS printing, role manager,
@@ -167,7 +197,11 @@ reservations and the visual floor plan, dine-in and QR table ordering, tips.
 Deferred to **v2**:
 - **Coupons** — the cart's code field and the discount line in totals.
 - **Upsells** — the cart's cross-sell carousel, i.e. the Order Bumps feature.
-- **Card and PayPal payment** — Stripe and PayPal need native SDK integration.
+
+**No longer deferred:** card and PayPal payment were v2 on the assumption that
+both needed a native SDK. PayPal does not — it is a redirect gateway, which
+task 9.2 covers along with every regional processor. Card still does, and is
+task 9.3.
 
 Tips and automatic discounts are server-side cart behaviour, so they may still
 appear in totals returned by the Store API even though the app does not drive
@@ -178,7 +212,8 @@ them.
   delivery enabled on the WooCommerce site. **Enabled on the dev store** in
   task 6.2; with no gateway at all the Store API refuses every order. Task 6.3
   made the app say so rather than fail silently, but a production store still
-  needs one the app can complete. To be confirmed.
+  needs one the app can complete. Phase 9 widens that to bank transfer,
+  cheque and the redirect gateways. To be confirmed.
 - **Banner tap targets** — a banner currently opens the full menu, because
   `wp/v2/posts` only exposes *registered* meta and registering a field needs
   plugin code. Per-banner targets are a small follow-up: one
@@ -195,7 +230,7 @@ them.
 - **The iOS bundle ID is tied to one Apple team.** `com.foodmenu` can only be
   registered under `M34L8S85ZF`; another team is refused it outright. Device
   builds, TestFlight and the App Store all depend on that account. Anyone
-  building elsewhere must change the bundle ID. Confirm before task 8.4.
+  building elsewhere must change the bundle ID. Confirm before task 10.2.
 - **Customer registration must be enabled on the store.** Task 3.1 follows
   WooCommerce's My Account registration setting rather than overriding it, so a
   store running the app needs `woocommerce_enable_myaccount_registration` on.
