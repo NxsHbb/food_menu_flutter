@@ -83,6 +83,30 @@ class CartController extends AsyncNotifier<Cart> {
     );
   }
 
+  /// Removes every line for any of [productIds].
+  ///
+  /// A product can own more than one line — the same dish added twice with
+  /// different add-ons — so this works off the product id and removes all of
+  /// them, where [remove] takes one line.
+  ///
+  /// Sequential rather than concurrent: each cart route answers with the whole
+  /// cart, so two removals in flight together would each describe a cart
+  /// without the other's line and whichever landed last would win.
+  Future<void> removeProducts(Set<int> productIds) async {
+    if (productIds.isEmpty) return;
+
+    // Collected up front, because `state` is replaced by every removal and
+    // iterating it while it changes would skip lines.
+    final doomed = [
+      for (final item in state.value?.items ?? const <CartItem>[])
+        if (productIds.contains(item.id)) item,
+    ];
+
+    for (final item in doomed) {
+      await remove(item);
+    }
+  }
+
   /// Empties the cart.
   Future<void> clear() async {
     final cart = await ref.read(cartRepositoryProvider).clear();

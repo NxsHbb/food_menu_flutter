@@ -2,6 +2,52 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The website's branch-vs-cart pass can never run for the app
+`FoodLocation::validateCartLocation()` in the free plugin removes cart lines
+the chosen location does not serve, and it is hooked on
+`woocommerce_cart_loaded_from_session` — but **only when the
+`fmp_location_id` cookie is set**. The app sends its branch as the
+`X-FMP-Branch` header and has no cookie at all, so that pass never registers
+for a mobile client.
+
+The hole was not theoretical: the app could fill a cart at one branch, switch
+to another, and have the order stamped with — and routed to — a branch that
+cannot make it. Nothing in either plugin refused it. `AppBranchScope` scoped
+product *queries* and stamped order meta; `AppCartAddons` validates add-ons
+and never looks at the location; `SlotsApi` evaluates the cart against a
+branch but only for *time*, and only as advice on a GET.
+
+## One Store API hook both warns and refuses
+`woocommerce_store_api_cart_errors` is called from `CartController::validate_cart()`,
+which has two callers that behave differently:
+
+- **checkout** lets the `InvalidCartException` out, so the order is refused
+  with a **409** whose top-level `code` is the first `WP_Error` code added —
+  `fmp_cart_item_branch`, not WooCommerce's own `woocommerce_cart_error` — and
+  whose `data.cart` carries the refreshed cart, exactly like a total mismatch;
+- **`get_cart_errors()`** catches it and merges it into the cart response's
+  `errors` array instead, which the cart screen already renders.
+
+So one hook gives both the warning on the cart screen and the hard refusal at
+checkout, with no second implementation to keep in step. The app needed no
+new classification either: `CheckoutFailure` matches on the substring
+`cart_item`, so `fmp_cart_item_branch` already lands on
+`CheckoutFailureKind.cart` with no retry offered. A test pins that, because it
+is true by coincidence of naming rather than by design.
+
+## Sampling an `AsyncValue` answers for a cart that has not loaded
+`BranchSwitcher.check` first read `ref.read(cartControllerProvider).value` and
+treated null as "nothing in the cart to lose". That is right only once
+something else has loaded the cart — and the likeliest moment for the branch
+picker to be opened is a **cold start**, where nothing has. The dialog would
+not appear, and the dish would go without being mentioned: precisely the
+failure task 6.6 exists to prevent.
+
+`await ref.read(provider.future)` instead. A widget test caught it, because a
+test harness has no cart bar quietly loading the cart in the background the
+way the real shell does — which is the same reason the bug would have survived
+manual testing.
+
 ## `has_options` knows about variations and nothing about add-ons
 WooCommerce's `has_options` is `WC_Product::has_options()`, which is true for a
 variable product and false for a simple one. Food Menu's add-on groups are the

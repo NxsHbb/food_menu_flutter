@@ -834,6 +834,32 @@ site running an older plugin loses the feature rather than erroring.
 One class owns that endpoint and namespace on the plugin side, by necessity —
 a second registration replaces the first without a word.
 
+### Changing branch with a full cart
+Branches do not all serve the same menu, so a cart filled at one can hold a
+dish another will not make. `BranchSwitcher`
+(`features/branch/data/branch_switch.dart`) is the whole of it:
+
+- `check(branchId)` **awaits** the cart, then asks
+  `GET /fmp/v1/app/branches/{id}/unserved?products=…` which of its lines that
+  branch refuses. Awaiting matters — sampling the current value answers
+  "nothing to lose" for a cart that has not loaded, which is exactly the cold
+  start case. See `FINDINGS.md`.
+- The picker names those dishes and asks. **Cancel leaves everything alone and
+  keeps the sheet open**, since the customer came to change branch and may
+  want a different one.
+- `commit()` removes the lines **and then** switches, so nothing is asked of
+  the server while the cart it holds is one that branch would refuse.
+
+Both halves fail **open**: a failed check switches anyway, and a failed
+removal switches anyway. Stranding a customer on a branch they are trying to
+leave is worse than carrying a line, and nothing incorrect gets through
+either way — the plugin refuses such a cart at checkout with
+`fmp_cart_item_branch` (a 409, classified as a cart failure with no retry),
+and flags it in the cart response's `errors` meanwhile.
+
+**The website's own pass is no help here.** It hangs off the
+`fmp_location_id` cookie, which the app never sends.
+
 ### Adding to the cart from a card or a row
 The `+` on a dish card and a menu row is `QuickAddButton`, in
 `features/cart/presentation/widgets/`. One widget for both, so the rule cannot

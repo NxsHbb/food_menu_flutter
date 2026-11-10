@@ -22,6 +22,7 @@ Staff/kitchen operations are explicitly out of scope for v1.
 | Search | Names only, with **category suggestions when a search returns nothing** |
 | Saved addresses | **A labelled address book**, stored by the plugin, with the default **mirrored into WooCommerce billing/shipping** so the web account page, order emails and admin all stay correct |
 | Address screens | **Not in the design** — the address list and add/edit form are drawn to match the app's existing design language |
+| Cart vs. branch | **Warn at the switch, then drop.** The app asks before changing branch, naming the dishes the new one will not serve, and removes them only on confirm. The server refuses such a cart at checkout regardless |
 | Auth screens | **Also not in the design** — it has no sign-in or register screen at all, so both are drawn from the design's own vocabulary |
 
 ## Architecture in one paragraph
@@ -123,9 +124,9 @@ reference.
 Task 5.5 needed the plugin too, as 5.3 flagged: the website scopes the menu
 through `woocommerce_product_query` and a `fmp_location_id` cookie, and the
 Store API runs neither. Agreed and built — Pro now scopes Store API product
-queries by an `X-FMP-Branch` header. **The cart is still not revalidated on a
-branch change**, which the website does, so a customer can carry a dish their
-new branch does not serve; that has to be settled at checkout, in Phase 6.
+queries by an `X-FMP-Branch` header. **The cart was not revalidated on a
+branch change**, which the website does, so a customer could carry a dish
+their new branch does not serve. Settled in task 6.6.
 
 | # | Task | Repo | Status |
 |---|---|---|---|
@@ -147,7 +148,7 @@ No webview, so the earlier cart-handoff problem disappears.
 | 6.3 | Cash on delivery as the v1 payment method, with server-side validation that it is an enabled gateway | pro + app | done |
 | 6.4 | Order received screen, read back from the API after the order is placed — needed a plugin route, since the Store API's own order endpoint carries no order number, no time and no tracking token | pro + app | done |
 | 6.5 | Failure paths — declined order, validation errors, connectivity loss — return to a checkout that keeps its input | app | done |
-| 6.6 | A cart carried across a branch switch can hold a dish the new branch does not serve. The website drops those lines; decide whether to warn, drop or let checkout refuse | app + pro | todo |
+| 6.6 | A cart carried across a branch switch can hold a dish the new branch does not serve. **Decided: warn at the switch, then drop** — the app names the dishes and asks before switching, with a server-side refusal at checkout as the backstop. The website's own pass cannot help here: it hangs off the `fmp_location_id` cookie, which a mobile client never sends | app + pro | done |
 
 ## Phase 7 — Orders and tracking
 | # | Task | Repo | Status |

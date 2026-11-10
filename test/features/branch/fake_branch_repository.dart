@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:food_menu/src/features/branch/data/branch_repository.dart';
 import 'package:food_menu/src/features/branch/data/branch_store.dart';
 import 'package:food_menu/src/features/branch/domain/branch.dart';
+import 'package:food_menu/src/features/branch/domain/unserved_dish.dart';
 
 class FakeBranchRepository implements BranchRepository {
   FakeBranchRepository({BranchList? list, this.delay = Duration.zero})
@@ -30,6 +31,39 @@ class FakeBranchRepository implements BranchRepository {
       throw failure;
     }
     return list;
+  }
+
+  /// What [unserved] answers, keyed by branch id. Absent means "serves
+  /// everything", which is the common case.
+  final Map<int, List<UnservedDish>> unservedByBranch = {};
+
+  /// Every `(branchId, productIds)` asked about, in order.
+  final List<({int branchId, List<int> productIds})> unservedCalls = [];
+
+  /// Thrown by the next [unserved], then cleared.
+  Object? failNextUnserved;
+
+  @override
+  Future<List<UnservedDish>> unserved({
+    required int branchId,
+    required Iterable<int> productIds,
+  }) async {
+    unservedCalls.add((branchId: branchId, productIds: productIds.toList()));
+
+    if (delay > Duration.zero) await Future<void>.delayed(delay);
+
+    final failure = failNextUnserved;
+    if (failure != null) {
+      failNextUnserved = null;
+      throw failure;
+    }
+
+    final ids = productIds.toSet();
+
+    return [
+      for (final dish in unservedByBranch[branchId] ?? const <UnservedDish>[])
+        if (ids.contains(dish.id)) dish,
+    ];
   }
 }
 

@@ -66,6 +66,18 @@ void main() {
       );
     });
 
+    test('a dish the branch cannot make is about the cart', () {
+      // The plugin's backstop for a cart carried across a branch switch. It
+      // arrives as a 409 carrying the refreshed cart, exactly like a moved
+      // total, and must not be offered a retry: the identical order would be
+      // refused identically until the dish goes.
+      final failure = failureFor(status: 409, code: 'fmp_cart_item_branch');
+
+      expect(failure.kind, CheckoutFailureKind.cart);
+      expect(failure.staleCart, isTrue);
+      expect(failure.canRetry, isFalse);
+    });
+
     test('a refused gateway is about payment', () {
       expect(
         failureFor(

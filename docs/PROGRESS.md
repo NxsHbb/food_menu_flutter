@@ -2,6 +2,84 @@
 
 Newest first. One entry per completed task.
 
+## Task 6.6 — A cart that outlives its branch
+Branch `feat/branch-cart`, PR #46, with the plugin half on `mobile-app`
+(food-menu-pro#23). 17 new tests, 700 in total. **Phase 6 is done.**
+
+### The decision
+Three options were on the table — warn, drop silently as the website does, or
+let checkout refuse. **Warn at the switch, then drop**, with a server-side
+refusal as the backstop.
+
+The research is what settled it. The website's silent-drop looked like the
+consistent choice until it turned out that pass
+(`FoodLocation::validateCartLocation()`) is registered **only when the
+`fmp_location_id` cookie is set** — and the app sends its branch as a header.
+It had never run for a mobile client, and nothing else refused such a cart
+either: the order was stamped with the new branch and accepted, so a kitchen
+could receive an order for a dish it does not make.
+
+So the server guard was not optional whichever option won, and once the app
+has to ask the server anyway, asking *before* the switch costs one request
+and turns a surprise into a choice.
+
+### What landed
+`BranchSwitcher` checks, asks, then drops and switches — in that order, so the
+removals go out while the old branch is still in force. The dialog **names**
+the dishes rather than counting them: whether to go ahead depends entirely on
+*which* dish, and the customer should not have to back out and open the cart
+to find out.
+
+Both halves fail open. A failed check switches anyway; a failed removal
+switches anyway. Stranding someone on a branch they are trying to leave is
+worse than carrying a line, and the server refuses the order regardless.
+
+### One hook, two behaviours
+`AppBranchScope::unserved()` is the per-product form of the rule
+`scope_query()` already expressed as a `tax_query` — including "a dish filed
+under no branch is sold everywhere" — with variations resolved to the parent,
+since the taxonomy is registered for `product` and never for
+`product_variation`.
+
+It hangs off `woocommerce_store_api_cart_errors`, which turned out to do both
+jobs at once: on checkout the error becomes a **409**, and behind
+`get_cart_errors()` the identical error lands in the cart response's `errors`
+array, which the cart screen already renders. No second implementation.
+
+The app needed no new failure classification — `CheckoutFailure` matches the
+substring `cart_item`, so `fmp_cart_item_branch` already lands on the cart
+kind with no retry offered. That is a coincidence of naming, so a test now
+pins it.
+
+### The bug the tests found
+`check` first **sampled** the cart — `ref.read(provider).value` — and read
+null as "nothing to lose". Right only once something else has loaded the cart,
+and the likeliest moment to open the branch picker is a cold start where
+nothing has. The dialog would not appear and the dish would go unmentioned,
+which is the one thing this task exists to prevent.
+
+A widget test caught it, because a harness has no cart bar quietly loading
+the cart the way the real shell does — the same reason it would have survived
+testing by hand.
+
+### Verified on the device
+On the OnePlus, against two seeded branches. Downtown chosen explicitly
+dropped the menu from 18 dishes to 17 (Build Your Pizza is Uptown-only).
+Garlic Bread added, cart 5 / $20.30. Switching to Uptown raised "Switch to
+Uptown? … • Garlic Bread". **Cancel** left the branch, the dish and the sheet
+alone. **Switch and remove** took the cart to 4 / $15.80 — exactly Garlic
+Bread's $4.50 — put Uptown in the header, and brought Build Your Pizza into
+the grid.
+
+Also probed directly: the variation case (a cart line carrying variation 28
+is judged by parent 27), branch 0 and a deleted branch both answering "serves
+everything", the 409 at checkout, and an order at a branch that *does* serve
+the dish still going through and still stamped `Downtown` / `53`.
+
+The dev site was seeded and restored: the settings option diffs clean, both
+terms are gone, all 18 products are visible again, and the throwaway scripts
+are deleted.
+
 ## Task 4.7 — The quick-add `+`
 Branch `feat/quick-add`, PR #45, with the plugin half on `mobile-app`
 (food-menu-pro#22). 28 new tests, 683 in total. Phase 4 is done.

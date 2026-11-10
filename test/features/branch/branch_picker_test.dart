@@ -5,17 +5,22 @@ import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/branch/data/branch_repository.dart';
 import 'package:food_menu/src/features/branch/data/branch_store.dart';
+import 'package:food_menu/src/features/branch/domain/unserved_dish.dart';
 import 'package:food_menu/src/features/branch/presentation/widgets/branch_picker_sheet.dart';
+import 'package:food_menu/src/features/cart/data/cart_repository.dart';
 
+import '../cart/fake_cart_repository.dart';
 import 'fake_branch_repository.dart';
 
 void main() {
   late FakeBranchRepository repo;
   late FakeBranchStore store;
+  late FakeCartRepository cart;
 
   setUp(() {
     repo = FakeBranchRepository();
     store = FakeBranchStore();
+    cart = FakeCartRepository();
   });
 
   Future<void> pump(WidgetTester tester) async {
@@ -24,6 +29,7 @@ void main() {
         overrides: [
           branchRepositoryProvider.overrideWithValue(repo),
           branchStoreProvider.overrideWithValue(store),
+          cartRepositoryProvider.overrideWithValue(cart),
         ],
         child: MaterialApp(
           theme: AppTheme.light(),
@@ -97,6 +103,70 @@ void main() {
 
     expect(find.text('This store has one location.'), findsOneWidget);
     expect(find.byIcon(Icons.check_circle), findsNothing);
+  });
+
+  group('when the cart would lose a dish', () {
+    /// A cart holding one dish the chosen branch will refuse.
+    void seedCart({int branchId = 51}) {
+      final seeded = cartFromFixture('cart_with_addons');
+      cart = FakeCartRepository(cart: seeded);
+      repo.unservedByBranch[branchId] = [
+        UnservedDish(id: seeded.items.first.id, name: 'Garlic Bread'),
+      ];
+    }
+
+    testWidgets('names the dish rather than counting it', (tester) async {
+      seedCart();
+      await pump(tester);
+      // The sheet reads the cart lazily, so it has to be loaded before the tap.
+      await tester.tap(find.text('Probe South'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Switch to Probe South?'), findsOneWidget);
+      expect(find.textContaining('Garlic Bread'), findsOneWidget);
+    });
+
+    testWidgets('cancelling keeps the branch and the dish', (tester) async {
+      seedCart();
+      await pump(tester);
+      await tester.tap(find.text('Probe South'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(store.writes, isEmpty);
+      expect(cart.calls.where((c) => c.startsWith('remove')), isEmpty);
+      // The sheet stays open: they came here to change branch and may want a
+      // different one.
+      expect(find.text('Probe North'), findsOneWidget);
+    });
+
+    testWidgets('confirming removes the dish and switches', (tester) async {
+      seedCart();
+      await pump(tester);
+      await tester.tap(find.text('Probe South'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Switch and remove'));
+      await tester.pumpAndSettle();
+
+      expect(cart.calls.where((c) => c.startsWith('remove')), hasLength(1));
+      expect(store.writes, [51]);
+      expect(find.text('Probe South'), findsNothing);
+    });
+
+    testWidgets('a branch that serves everything is not worth a dialog',
+        (tester) async {
+      cart = FakeCartRepository(cart: cartFromFixture('cart_with_addons'));
+      await pump(tester);
+
+      await tester.tap(find.text('Probe South'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Switch to'), findsNothing);
+      expect(store.writes, [51]);
+    });
   });
 
   testWidgets('a failed load offers a retry that asks again', (tester) async {
