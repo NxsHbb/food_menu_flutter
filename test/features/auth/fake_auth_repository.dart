@@ -9,6 +9,7 @@ AuthSession sessionFor({
   String email = 'customer@foodmenu.test',
   String firstName = 'Test',
   String lastName = 'Customer',
+  String phone = '',
 }) {
   final now = DateTime(2026, 11, 5, 12);
   return AuthSession(
@@ -19,7 +20,7 @@ AuthSession sessionFor({
       firstName: firstName,
       lastName: lastName,
       displayName: '$firstName $lastName'.trim(),
-      phone: '',
+      phone: phone,
       avatarUrl: '',
     ),
     tokens: AuthTokens(

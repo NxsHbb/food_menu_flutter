@@ -1,0 +1,360 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../core/theme/app_palette.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../auth/data/auth_controller.dart';
+import '../../auth/presentation/login_screen.dart';
+import '../../cart/data/cart_controller.dart';
+import '../../cart/presentation/cart_screen.dart';
+import '../../fulfilment/data/fulfilment_controller.dart';
+import '../../fulfilment/domain/order_types.dart';
+import '../../fulfilment/presentation/widgets/fulfilment_section.dart';
+import '../data/checkout_controller.dart';
+import 'widgets/checkout_address_section.dart';
+import 'widgets/checkout_card.dart';
+import 'widgets/checkout_total_bar.dart';
+import 'widgets/contact_details_section.dart';
+import 'widgets/order_summary_section.dart';
+
+/// The design's checkout: how and when the order arrives, where it goes, who
+/// it is for, and what it comes to.
+///
+/// Outside the tab shell, with its own back button, because the design shows
+/// no tab bar here.
+///
+/// Built in two passes. Task 5.4 added [FulfilmentSection] — the order type
+/// and the time. Task 6.1 added the rest of the screen: the address block,
+/// contact details, the order summary and the total bar. **Payment is task
+/// 6.3 and placing the order is task 6.2**, and the card between contact
+/// details and the summary says so, where the design draws the payment list.
+///
+/// Nothing on this screen is computed from parts. The times come from
+/// `/app/slots`, the address from the address book, the money from the cart's
+/// own totals — so the screen cannot show a number the order will contradict.
+class CheckoutScreen extends ConsumerStatefulWidget {
+  const CheckoutScreen({super.key});
+
+  static const routePath = '/checkout';
+  static const routeName = 'checkout';
+
+  @override
+  ConsumerState<CheckoutScreen> createState() => _CheckoutScreenState();
+}
+
+class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
+  final _formKey = GlobalKey<FormState>();
+
+  /// Off until the first attempt, so a checkout that opens with an empty name
+  /// does not greet the customer in red.
+  bool _autovalidate = false;
+
+  /// Why the order cannot be placed yet, in the order the customer would fix
+  /// it. Null means nothing is in the way.
+  ///
+  /// Each of these is re-read rather than remembered: the store can switch a
+  /// type off, a slot can fill and an address can be deleted while this
+  /// screen is open.
+  String? get _blocker {
+    final cart = ref.read(cartControllerProvider).value;
+    if (cart == null || cart.isEmpty) return 'Your cart is empty.';
+
+    if (!ref.read(isSignedInProvider)) return 'Sign in to place your order.';
+
+    final kind = ref.read(resolvedOrderTypeProvider);
+    if (kind == null) {
+      return 'This store is not taking orders right now.';
+    }
+
+    if (ref.read(selectedSlotProvider) == null) {
+      return 'Choose a time for your order.';
+    }
+
+    if (kind == OrderTypeKind.delivery &&
+        ref.read(checkoutAddressProvider) == null) {
+      return 'Add a delivery address first.';
+    }
+
+    return null;
+  }
+
+  void _placeOrder() {
+    final blocker = _blocker;
+    if (blocker != null) {
+      _say(blocker);
+      return;
+    }
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      setState(() => _autovalidate = true);
+      return;
+    }
+
+    // Task 6.2 posts the order from here, and 6.3 adds the payment method it
+    // carries. Everything the two need is already on the providers this
+    // screen reads.
+    _say('Payment and placing the order arrive in the next tasks.');
+  }
+
+  void _say(String message) {
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final cart = ref.watch(cartControllerProvider).value;
+    final signedIn = ref.watch(isSignedInProvider);
+
+    // Reached with an empty cart only by a deep link or by clearing the cart
+    // in another tab, but it has to say something rather than offer times,
+    // addresses and a total for nothing.
+    final isEmpty = cart != null && cart.isEmpty;
+
+    return Scaffold(
+      backgroundColor: palette.page,
+      body: Column(
+        children: [
+          const _Header(),
+          Expanded(
+            child: Form(
+              key: _formKey,
+              autovalidateMode: _autovalidate
+                  ? AutovalidateMode.onUserInteraction
+                  : AutovalidateMode.disabled,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTokens.space16,
+                  AppTokens.space16,
+                  AppTokens.space16,
+                  AppTokens.space24,
+                ),
+                children: isEmpty
+                    ? const [_EmptyCartCard()]
+                    : [
+                        const CheckoutCard(child: FulfilmentSection()),
+                        const SizedBox(height: AppTokens.space12),
+                        // Accounts are required to order, so a signed-out
+                        // customer gets one prompt here rather than a dead
+                        // address block and a form that asks again for what
+                        // the account already knows.
+                        if (!signedIn)
+                          const _SignInRequired()
+                        else ...[
+                          const CheckoutAddressSection(),
+                          const SizedBox(height: AppTokens.space12),
+                          const ContactDetailsSection(),
+                        ],
+                        const SizedBox(height: AppTokens.space12),
+                        const _PaymentPending(),
+                        if (cart != null) ...[
+                          const SizedBox(height: AppTokens.space12),
+                          OrderSummarySection(cart: cart),
+                        ],
+                        const SizedBox(height: AppTokens.space12),
+                        const _Terms(),
+                      ],
+              ),
+            ),
+          ),
+          if (cart != null && !isEmpty)
+            CheckoutTotalBar(
+              cart: cart,
+              label: 'Place order',
+              onPlaceOrder: _placeOrder,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Checkout", and under it what the customer has settled on so far.
+class _Header extends ConsumerWidget {
+  const _Header();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = AppPalette.of(context);
+    final text = Theme.of(context).textTheme;
+
+    // The store's own words for both — the type's label as the server
+    // translated it, and the slot's label as the server formatted it.
+    final subtitle = [
+      ref.watch(slotsProvider).value?.label,
+      ref.watch(selectedSlotProvider)?.label,
+    ].nonNulls.where((part) => part.isNotEmpty).join(' · ');
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.card,
+        border: Border(bottom: BorderSide(color: palette.line)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTokens.space16,
+            AppTokens.space10,
+            AppTokens.space16,
+            AppTokens.space12,
+          ),
+          child: Row(
+            children: [
+              const _BackButton(),
+              const SizedBox(width: AppTokens.space12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Checkout',
+                      style: text.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    if (subtitle.isNotEmpty)
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.bodySmall?.copyWith(color: palette.muted),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BackButton extends StatelessWidget {
+  const _BackButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+
+    return Material(
+      color: palette.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusChip),
+        side: BorderSide(color: palette.line),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppTokens.radiusChip),
+        // The cart, not `pop`, when there is nothing to pop: this route sits
+        // outside the shell, so a deep link lands here with an empty stack
+        // and a dead button.
+        onTap: () => context.canPop()
+            ? context.pop()
+            : context.goNamed(CartScreen.routeName),
+        child: const SizedBox(
+          width: 38,
+          height: 38,
+          child: Icon(Icons.arrow_back, size: 20),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyCartCard extends StatelessWidget {
+  const _EmptyCartCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final text = Theme.of(context).textTheme;
+
+    return CheckoutCard(
+      child: Text(
+        'Your cart is empty.',
+        style: text.bodyMedium?.copyWith(color: palette.muted),
+      ),
+    );
+  }
+}
+
+/// The gate the plan calls for: an account before an order.
+class _SignInRequired extends StatelessWidget {
+  const _SignInRequired();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final text = Theme.of(context).textTheme;
+
+    return CheckoutCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const CheckoutSectionTitle('Sign in to order'),
+          const SizedBox(height: AppTokens.space6),
+          Text(
+            'Your order needs an account, so we can send you updates and keep '
+            'your address for next time.',
+            style: text.bodySmall?.copyWith(color: palette.muted),
+          ),
+          const SizedBox(height: AppTokens.space12),
+          FilledButton(
+            onPressed: () => context.pushNamed(LoginScreen.routeName),
+            child: const Text('Sign in'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Where the design's payment list goes, until task 6.3 fills it.
+class _PaymentPending extends StatelessWidget {
+  const _PaymentPending();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final text = Theme.of(context).textTheme;
+
+    return CheckoutCard(
+      child: Row(
+        children: [
+          Icon(Icons.construction_outlined, size: 18, color: palette.muted),
+          const SizedBox(width: AppTokens.space10),
+          Expanded(
+            child: Text(
+              'Payment method, and placing the order, arrive in tasks 6.2 '
+              'and 6.3.',
+              style: text.bodySmall?.copyWith(color: palette.muted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Terms extends StatelessWidget {
+  const _Terms();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final text = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppTokens.space4),
+      child: Text(
+        'By placing your order you agree to our Terms & Conditions and '
+        'Privacy Policy.',
+        style: text.bodySmall?.copyWith(color: palette.muted),
+      ),
+    );
+  }
+}

@@ -15,7 +15,7 @@ import '../../features/auth/presentation/register_screen.dart';
 import '../../features/cart/data/cart_controller.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/cart/presentation/widgets/cart_bar.dart';
-import '../../features/fulfilment/presentation/checkout_screen.dart';
+import '../../features/checkout/presentation/checkout_screen.dart';
 import '../../features/menu/presentation/menu_list_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/menu/presentation/product_detail_screen.dart';

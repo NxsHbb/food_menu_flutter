@@ -137,7 +137,7 @@ No webview, so the earlier cart-handoff problem disappears.
 
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 6.1 | Flutter checkout screen: contact details, address block, order summary, per the design | app | todo |
+| 6.1 | Flutter checkout screen: contact details, address block, order summary, per the design | app | done |
 | 6.2 | Place the order via `POST /wc/store/v1/checkout`, sending the `food-menu-pro` extension fields for order type, date and time, **and the branch by name** — the slot-counting queries match `fmp_location_name` | app | todo |
 | 6.3 | Cash on delivery as the v1 payment method, with server-side validation that it is an enabled gateway | pro + app | todo |
 | 6.4 | Order received screen, read back from the API after the order is placed | app | todo |
