@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../branch/data/branch_controller.dart';
 import '../../cart/data/cart_controller.dart';
 import '../domain/order_types.dart';
 import '../domain/slots.dart';
@@ -82,12 +83,14 @@ final fulfilmentControllerProvider =
   FulfilmentController.new,
 );
 
-/// Which types the store offers, and its hours.
+/// Which types the store offers, and its hours, for the chosen branch.
 ///
-/// Branch is 0 for now. Task 5.5 passes the chosen branch, and the answer's
-/// own `branch` says whether it was honoured.
+/// The answer's own `branch` says whether the one asked for was honoured — a
+/// store not running branches answers store-wide with 0.
 final orderTypesProvider = FutureProvider<OrderTypes>(
-  (ref) => ref.watch(fulfilmentRepositoryProvider).orderTypes(),
+  (ref) => ref.watch(fulfilmentRepositoryProvider).orderTypes(
+        branch: ref.watch(activeBranchIdProvider) ?? 0,
+      ),
   // No background retry. The section offers "Try again", and a retry loop
   // would keep firing while the customer reads the error — and would stop
   // `.future` ever completing, hiding the failure from anything awaiting it.
@@ -136,7 +139,12 @@ final cartItemsProvider = Provider<String>((ref) {
 /// resumed after its await, and the dependency that settled in the meantime
 /// rebuilt it. A key like this can only change when the answer would.
 class SlotRequest {
-  const SlotRequest({required this.type, this.date, this.items = ''});
+  const SlotRequest({
+    required this.type,
+    this.date,
+    this.items = '',
+    this.branch = 0,
+  });
 
   final OrderTypeKind type;
 
@@ -146,15 +154,19 @@ class SlotRequest {
   /// The cart, already encoded — see [cartItemsProvider].
   final String items;
 
+  /// Which branch the slots are for. 0 is store-wide.
+  final int branch;
+
   @override
   bool operator ==(Object other) =>
       other is SlotRequest &&
       other.type == type &&
       other.date == date &&
-      other.items == items;
+      other.items == items &&
+      other.branch == branch;
 
   @override
-  int get hashCode => Object.hash(type, date, items);
+  int get hashCode => Object.hash(type, date, items, branch);
 }
 
 /// What to ask for, or null when there is nothing to ask about yet — the
@@ -167,6 +179,7 @@ final slotRequestProvider = Provider<SlotRequest?>((ref) {
     type: type,
     date: ref.watch(fulfilmentControllerProvider).date,
     items: ref.watch(cartItemsProvider),
+    branch: ref.watch(activeBranchIdProvider) ?? 0,
   );
 });
 
@@ -189,6 +202,7 @@ final slotsProvider = FutureProvider<SlotList?>(
       type: request.type,
       date: request.date,
       items: request.items,
+      branch: request.branch,
     );
   },
   // No background retry, for the same reason as the order types above.

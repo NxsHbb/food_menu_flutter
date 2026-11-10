@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../branch/data/branch_controller.dart';
 import '../../../core/network/paged.dart';
 import '../../../core/store_api/models/menu_category.dart';
 import '../../../core/store_api/models/product.dart';
@@ -99,6 +100,11 @@ final menuRepositoryProvider = Provider<MenuRepository>((ref) {
 
 /// The category chips on the menu landing screen.
 final menuCategoriesProvider = FutureProvider<List<MenuCategory>>((ref) {
+  // Watched purely as a cache key: the branch travels on a header, so the
+  // request looks identical, and without this the menu would keep showing the
+  // branch the customer just switched away from.
+  ref.watch(activeBranchIdProvider);
+
   return ref.watch(menuRepositoryProvider).categories();
 });
 
@@ -120,11 +126,15 @@ final selectedCategoryProvider =
 /// One dish, by id. Keyed so navigating between dishes does not refetch one
 /// already loaded in this session.
 final productProvider = FutureProvider.family<Product, int>((ref, id) {
+  ref.watch(activeBranchIdProvider);
+
   return ref.watch(menuRepositoryProvider).product(id);
 });
 
 /// The dishes shown for the current selection.
 final menuProductsProvider = FutureProvider<List<Product>>((ref) {
+  ref.watch(activeBranchIdProvider);
+
   final categoryId = ref.watch(selectedCategoryProvider);
   return ref.watch(menuRepositoryProvider).products(categoryId: categoryId);
 });

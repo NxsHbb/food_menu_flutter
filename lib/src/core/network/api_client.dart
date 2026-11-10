@@ -2,10 +2,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/data/auth_controller.dart';
+import '../../features/branch/data/branch_controller.dart';
 import '../config/app_config.dart';
 import 'api_exception.dart';
 import 'auth_interceptor.dart';
 import 'auth_refresh_interceptor.dart';
+import 'branch_interceptor.dart';
 import 'paged.dart';
 import 'store_session.dart';
 import 'store_session_interceptor.dart';
@@ -81,6 +83,22 @@ final dioProvider = Provider<Dio>((ref) {
       write: ({String? nonce, String? cartToken}) => ref
           .read(storeSessionProvider.notifier)
           .absorb(nonce: nonce, cartToken: cartToken),
+    ),
+  );
+
+  dio.interceptors.add(
+    BranchInterceptor(
+      // Awaits the restore for the same reason the cart token does: a menu
+      // request that goes out first is answered with every branch's dishes,
+      // and the list would then visibly swap under the customer.
+      read: () async {
+        try {
+          return await ref.read(selectedBranchProvider.future);
+        } on Object {
+          // An unreadable store means no branch, not a failed request.
+          return null;
+        }
+      },
     ),
   );
 

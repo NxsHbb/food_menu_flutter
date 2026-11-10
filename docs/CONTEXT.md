@@ -590,6 +590,44 @@ answers the week; this answers one day of it, already judged.
 - **Re-fetch after the cart changes.** Availability is a function of the cart,
   so adding a dish can take slots away.
 
+### Choosing a branch (task 5.5)
+`features/branch/`, plus `core/network/branch_interceptor.dart`.
+
+- **The branch travels as a header, `X-FMP-Branch`**, set once by an
+  interceptor, so the menu, search, collection counts and the cart all agree
+  about it. Pro scopes Store API product queries by it; see its `CLAUDE.md`.
+- **The restore is awaited**, like the cart token. A request that went out
+  before the branch was read would be answered with every branch's dishes and
+  the list would then visibly swap. `selectedBranchProvider` therefore has
+  `retry: null` and **never enters an error state** — an unreadable keystore
+  means "no branch chosen", because the interceptor waits on this before
+  every request.
+- **Zero is a real branch id**, meaning store-wide, and is not the same as
+  null. The header is only sent above zero, since the server already assumes
+  store-wide.
+- **Everything scoped by the branch watches `activeBranchIdProvider`** purely
+  as a cache key — the branch rides on a header, so two branches produce
+  identical-looking requests with different answers, and without the watch the
+  menu would keep showing the branch the customer just left.
+- **The branch in force is resolved, not stored.** A remembered branch that no
+  longer exists, or a store that turns multi-location off, falls back to the
+  first rather than leaving the app pointed at nothing.
+- A store with no branches answers with **one entry, `id: 0`, `is_store`**, so
+  the picker says "This store has one location" and the header's chevron is
+  dropped rather than opening a list of one.
+- **A closed branch can still be chosen.** The design lets a customer browse
+  and order for later; the slot list is what refuses a time.
+- The picker is shown with **`useRootNavigator: true`** — the shell paints the
+  floating cart bar in a Stack above its own navigator, so a sheet from the
+  inner one comes up underneath the bar.
+
+#### What a branch switch does not do
+**The cart is left alone.** The website removes lines the new branch does not
+serve (`FoodLocation::validateCartLocation()`), and the app cannot — so a
+customer can carry a dish across. Task 6.6 decides whether to warn, drop or
+let the checkout refuse. Until then, assume a cart may contain something the
+chosen branch will not make.
+
 ### Choosing how and when (task 5.4)
 `features/fulfilment/` — the type switch and the time list, on the checkout
 screen. The rest of checkout is task 6.1; it drops in as further sections.
