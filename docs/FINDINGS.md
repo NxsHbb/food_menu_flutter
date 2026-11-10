@@ -2,6 +2,50 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## `has_options` knows about variations and nothing about add-ons
+WooCommerce's `has_options` is `WC_Product::has_options()`, which is true for a
+variable product and false for a simple one. Food Menu's add-on groups are the
+plugin's own feature and never enter into it, so a **simple** dish carrying a
+*required* add-on group arrives over the Store API as
+`has_options: false, type: "simple"` — indistinguishable from a dish that
+needs nothing. The seeded "Fresh Lemonade" is exactly that dish, and the
+quick-add `+` offered a one-tap add the server then refused with
+`fmp_app_addon_required`.
+
+`Product.canAddDirectly` had carried a comment claiming `has_options` covered
+both since task 2.3. Nothing had exercised it, because until task 4.7 the `+`
+did not add anything.
+
+The plugin now publishes `requires_choices` (food-menu-pro#22) on its Store API product
+extension, and the app reads `needsChoices = hasOptions || requiresChoices`.
+`has_options` is left alone: filtering `woocommerce_product_has_options` would
+have fixed the app for free, and changed how every shop loop on the **website**
+renders its add-to-cart button along the way.
+
+## Two Store API extensions with the same namespace: the second wins, silently
+`ExtendSchema::register_endpoint_data()` stores callbacks at
+`$extend_data[ $endpoint ][ $namespace ]`. A plain assignment — no check, no
+warning. So registering `food-menu-pro` against the product schema a second
+time to add `requires_choices` would have *replaced* the registration that
+publishes `ingredients` and `nutrition`, and the only symptom would have been
+two fields quietly gone from the product response.
+
+One class per endpoint and namespace, therefore. Pro's is
+`Api/App/AppProductStoreApi.php` (was `ProductFoodDataStoreApi`, renamed
+because it is no longer only about food data), and anything new about a
+product goes into its payload rather than into a class of its own.
+
+## A required add-on group is not only one marked required
+`AppCartAddons` refuses a group with nothing chosen when it is `required`
+**or** when `min_selection > 0` — the admin screen lets a group ask for two
+of something without ticking required. A free-text group is the exception: it
+goes by `required` alone, since there is no minimum to apply.
+
+The rule now lives once, in `AppAddonGroups::requires_choice()`, called both
+by the validator that enforces it and by the Store API field that advertises
+it. Had they been written twice they would have drifted, and the symptom
+would be the worst kind: a `+` that offers an add the server then refuses.
+
 ## Inserting a widget at the top of a list throws away the state below it
 The checkout's refusal banner goes in at the front of the `ListView`'s
 children. Children are matched to elements **by position**, so every section

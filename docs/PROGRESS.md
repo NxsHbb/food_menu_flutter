@@ -2,6 +2,74 @@
 
 Newest first. One entry per completed task.
 
+## Task 4.7 — The quick-add `+`
+Branch `feat/quick-add`, PR #45, with the plugin half on `mobile-app`
+(food-menu-pro#22). 28 new tests, 683 in total. Phase 4 is done.
+
+### What landed
+`QuickAddButton` replaces the private `_AddButton` in **both** `DishCard` and
+`DishRow` — one widget, so the landing grid and the menu list cannot answer a
+`+` differently again. It adds the dish, spins while the request is in flight,
+and opens the dish screen for anything that needs choosing first.
+
+`QuickAddController` holds the product ids with an add in flight. State rather
+than a flag on the button, because a menu list rebuilds on every cart change,
+which is precisely while an add is running — a local flag would be thrown away
+mid-request. A second tap is dropped, not queued.
+
+### The task was not the one-liner it looked like
+`Product.canAddDirectly` was `isPurchasable && isInStock && !hasOptions`, with
+a comment claiming `has_options` covered both variations and required add-on
+groups. It does not: `has_options` is WooCommerce's, and Food Menu's add-ons
+never enter into it. The seeded **Fresh Lemonade** is a *simple* dish with a
+required "Choose your size" group — `has_options: false` — so the `+` would
+have fired an add the server refuses with `fmp_app_addon_required`.
+
+Nothing had caught it because until this task the `+` did not add anything.
+
+So Pro now publishes **`requires_choices`** on its Store API product
+extension, and the app reads `needsChoices = hasOptions || requiresChoices`.
+`has_options` was left alone on purpose: filtering
+`woocommerce_product_has_options` would have fixed the app for free and
+changed how every shop loop on the **website** draws its add-to-cart button
+along the way.
+
+The row's "options" label now follows `needsChoices` too, so a dish that leads
+to choices says so whichever kind of choice it is.
+
+### A second extension with the same namespace deletes the first
+`requires_choices` could not be registered in a class of its own.
+`ExtendSchema::register_endpoint_data()` stores callbacks at
+`$extend_data[ endpoint ][ namespace ]` by plain assignment, so a second
+`food-menu-pro` registration against the product schema would have *replaced*
+the one publishing `ingredients` and `nutrition` — silently, with two fields
+simply gone. `ProductFoodDataStoreApi` is therefore now
+`Api/App/AppProductStoreApi`, which owns the whole block.
+
+The required-ness rule moved to `AppAddonGroups::requires_choice()`, called
+both by the validator that enforces it and by the field that advertises it.
+They had to agree, and "required" turned out to include a group with
+`min_selection > 0` that is not marked required at all.
+
+### The snackbar that hid the thing it was confirming
+A successful add first said "Iced Latte added". On the device that snackbar
+landed **on top of the floating cart bar** — both are pinned to the bottom of
+the shell's `Scaffold` — cutting "4 · View cart · $15.80" in half for two
+seconds to say the same thing in words.
+
+A success is now silent. The cart bar appears on the same frame and is the
+design's own confirmation. Refusals keep their snackbar, and an add-on
+refusal — which only a store on an older plugin can still produce — opens the
+dish screen rather than leaving the customer told to choose something on a
+screen with nothing to choose from.
+
+### Verified on the device
+On the OnePlus against the dev site. Iced Latte added from both the grid card
+and the list row, cart 1 → 2 → 3 → 4 with the totals following; Fresh
+Lemonade's `+` opened the dish screen on "Choose your size" without a request
+being sent; Build Your Pizza and the sold-out dish did the same. The cart
+survived the relaunch on its `Cart-Token`.
+
 ## Task 6.5 — When the order is refused
 Branch `feat/checkout-failures`, PR #44. App only. 24 new tests, 655 in total.
 Phase 6 is one task from done.
@@ -213,7 +281,7 @@ plan's open dependency now says so.
 The **quick-add `+` on dish cards and menu rows still says "Add to cart is not
 built yet"** — a Phase 2 stand-in that Phase 4 never picked up. Adding from
 the dish screen works, which is why it survived. Written up as task 4.7 rather
-than folded into this PR.
+than folded into this PR. *(Done: it needed a plugin field as well.)*
 
 ## Task 6.1 — The rest of the checkout screen
 Branch `feat/checkout-screen`, PR #39. No plugin change — everything this

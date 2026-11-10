@@ -4,6 +4,7 @@ import '../../../../core/store_api/models/product.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/widgets/dish_image_placeholder.dart';
+import '../../../cart/presentation/widgets/quick_add_button.dart';
 import '../../../wishlist/presentation/widgets/wishlist_heart.dart';
 
 /// The design's dish card: image, name, rating row, price and an add button,
@@ -16,16 +17,11 @@ class DishCard extends StatelessWidget {
   const DishCard({
     required this.product,
     required this.onTap,
-    this.onAdd,
     super.key,
   });
 
   final Product product;
   final VoidCallback onTap;
-
-  /// Null when the dish needs choices first, in which case the card routes to
-  /// the detail screen instead of offering a one-tap add.
-  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +123,11 @@ class DishCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      _AddButton(onPressed: onAdd, onTapCard: onTap),
+                      QuickAddButton(
+                        product: product,
+                        size: 34,
+                        borderRadius: AppTokens.radiusControl,
+                      ),
                     ],
                   ),
                 ],
@@ -173,35 +173,6 @@ class _RatingRow extends StatelessWidget {
           style: text.bodySmall?.copyWith(color: palette.muted),
         ),
       ],
-    );
-  }
-}
-
-class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onPressed, required this.onTapCard});
-
-  final VoidCallback? onPressed;
-  final VoidCallback onTapCard;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    // A dish needing choices sends the customer to the detail screen rather
-    // than disabling the button, which would look out of stock.
-    final action = onPressed ?? onTapCard;
-
-    return Material(
-      color: palette.brand,
-      borderRadius: BorderRadius.circular(AppTokens.radiusControl),
-      child: InkWell(
-        onTap: action,
-        borderRadius: BorderRadius.circular(AppTokens.radiusControl),
-        child: const SizedBox(
-          width: 34,
-          height: 34,
-          child: Icon(Icons.add, size: 18, color: Colors.white),
-        ),
-      ),
     );
   }
 }

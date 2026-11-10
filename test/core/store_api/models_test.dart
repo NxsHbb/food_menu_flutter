@@ -84,6 +84,63 @@ void main() {
       expect(product.canAddDirectly, isFalse);
     });
 
+    test('reads requires_choices out of the plugin extension', () {
+      final product = Product.fromJson({
+        'id': 25,
+        'name': 'Fresh Lemonade',
+        'prices': const {'price': '350', 'currency_minor_unit': 2},
+        // A *simple* dish: WooCommerce says it needs nothing chosen, and the
+        // plugin says a required add-on group disagrees.
+        'has_options': false,
+        'extensions': const {
+          'food-menu-pro': {'requires_choices': true},
+        },
+      });
+
+      expect(product.requiresChoices, isTrue);
+      expect(product.needsChoices, isTrue);
+      expect(product.canAddDirectly, isFalse);
+    });
+
+    test('a dish with only optional add-ons stays one-tap addable', () {
+      final product = Product.fromJson({
+        'id': 14,
+        'name': 'Margherita',
+        'prices': const {'price': '900', 'currency_minor_unit': 2},
+        'extensions': const {
+          'food-menu-pro': {'requires_choices': false},
+        },
+      });
+
+      expect(product.canAddDirectly, isTrue);
+    });
+
+    test('an older plugin, with no flag at all, leaves the quick add alone',
+        () {
+      final product = Product.fromJson({
+        'id': 14,
+        'name': 'Margherita',
+        'prices': const {'price': '900', 'currency_minor_unit': 2},
+      });
+
+      expect(product.requiresChoices, isFalse);
+      expect(product.canAddDirectly, isTrue);
+    });
+
+    test('a sold-out dish is never addable from a card', () {
+      final product = Product.fromJson({
+        'id': 31,
+        'name': 'Sold Out Special',
+        'prices': const {'price': '900', 'currency_minor_unit': 2},
+        // The trap `isOrderable` exists for: still purchasable, out of stock.
+        'is_purchasable': true,
+        'is_in_stock': false,
+      });
+
+      expect(product.needsChoices, isFalse);
+      expect(product.canAddDirectly, isFalse);
+    });
+
     test('parses a variable product price range', () {
       final prices = ProductPrices.fromJson(const {
         'price': '900',

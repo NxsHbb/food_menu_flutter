@@ -5,6 +5,7 @@ import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/util/html_text.dart';
 import '../../../../core/widgets/dish_image_placeholder.dart';
+import '../../../cart/presentation/widgets/quick_add_button.dart';
 import '../../../wishlist/presentation/widgets/wishlist_heart.dart';
 
 /// The design's menu list row: square image, name, description, price, add.
@@ -21,13 +22,11 @@ class DishRow extends StatelessWidget {
   const DishRow({
     required this.product,
     required this.onTap,
-    this.onAdd,
     super.key,
   });
 
   final Product product;
   final VoidCallback onTap;
-  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +116,9 @@ class DishRow extends StatelessWidget {
                               ),
                               // The design's optLabel: tells the customer a
                               // tap leads to choices rather than the cart.
-                              if (product.hasOptions)
+                              // Required add-on groups count, not just
+                              // variations — see `Product.needsChoices`.
+                              if (product.needsChoices)
                                 Text(
                                   'options',
                                   style: text.labelSmall
@@ -134,7 +135,12 @@ class DishRow extends StatelessWidget {
                             ],
                           ),
                         ),
-                        _AddButton(onTap: onAdd ?? onTap),
+                        QuickAddButton(
+                          product: product,
+                          size: 32,
+                          borderRadius: AppTokens.radiusChip,
+                          iconSize: 16,
+                        ),
                       ],
                     ),
                   ],
@@ -147,28 +153,4 @@ class DishRow extends StatelessWidget {
     );
   }
 
-}
-
-class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    return Material(
-      color: palette.brand,
-      borderRadius: BorderRadius.circular(AppTokens.radiusChip),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTokens.radiusChip),
-        child: const SizedBox(
-          width: 32,
-          height: 32,
-          child: Icon(Icons.add, size: 16, color: Colors.white),
-        ),
-      ),
-    );
-  }
 }
