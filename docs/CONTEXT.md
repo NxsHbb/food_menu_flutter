@@ -505,6 +505,54 @@ Task 4.3 put them on every Store API cart item, under the same extension key:
 - An item with no add-ons still has the keys, with `addons: []` and
   `base_price` equal to the line price. No null-checking the block itself.
 
+### Slots
+`GET fmp/v1/app/slots?type=pickup|delivery[&date=Y-m-d][&branch=<id>][&items=42:2,17:1]`
+(task 5.2, food-menu-pro#15). The Flutter side is task 5.4. `/order-types`
+answers the week; this answers one day of it, already judged.
+
+- **Public**, like `/order-types`. `type` is required; omitting `date` gives
+  the earliest date the type can be fulfilled on.
+- **Never format a date or a time for submission.** Send back `date_value` as
+  `fmp_{type}_date` and the chosen slot's `value` as `fmp_{type}_time`,
+  verbatim. Those are the **site's own display formats** (`F j, Y` and
+  `g:i a` on the dev store), because that is what the web checkout submits and
+  the Store API extension stores what it is given. Slot limits then count by
+  matching those strings, so an ISO time would place an order no limit counted
+  and that the admin order screen rendered unlike every web order. `date`,
+  `start` and `end` are the machine-readable copies, for display and sorting
+  only.
+- Each slot: `{ asap, label, value, start, end, start_minutes, available,
+  remaining, reason, message, products }`. `label` is ready to draw — a point
+  time for pickup, a `12:00 pm – 1:00 pm` window for delivery, which is what
+  the design shows.
+- **`message` is the server's own copy, in the store's language.** Show it;
+  do not compose a reason from `reason`. `reason` is for branching only:
+  `full`, `not_served`, `sold_out`.
+- **Unavailable slots are still in the list** and should be drawn disabled —
+  a full slot is information. **Past times are already gone**, so no filtering
+  by clock in Dart.
+- **The ASAP row has an empty `value`.** Send no `fmp_{type}_time` at all for
+  it. It is only present when it genuinely applies, so render whatever comes
+  back rather than synthesising one: it is absent for a future date, and
+  withheld when the next real slot is full or a cart dish is not served now.
+  Its label carries the store's estimate — `ASAP (15 min)`,
+  `ASAP (20–35 min)` — or plain `ASAP` when the store has set none.
+- **`time_required: false` returns exactly one slot, the ASAP row.** Hide the
+  date picker, draw the single row. The list is never empty in that mode.
+- **`items` is how per-product limits and timed dishes get considered**, as
+  `product_id:qty` pairs — parent product ids, quantities summed across
+  variations. Without it the answer covers only the store-wide slot caps. The
+  route cannot read the cart itself: it is public, and the cart lives behind a
+  Store API `Cart-Token` that only Store API routes resolve. When a dish is in
+  the way, `products` names it with its own `message`.
+- **An empty `slots` always comes with a `closed_reason` and a `message`** —
+  `type_disabled`, `before_first_date`, `after_last_date`, `weekly_closed`,
+  `no_times_left`. Show the message; there is nothing to pick.
+- A malformed `date` is the only refusal: 400 `fmp_app_invalid_date`. An
+  unknown `branch` is a 404, as on `/order-types`.
+- **Re-fetch after the cart changes.** Availability is a function of the cart,
+  so adding a dish can take slots away.
+
 ### Ingredients and nutrition
 Supplied by the plugin's `food-menu-pro` **Store API extension** on the
 product response, not by WooCommerce. Added in food-menu-pro#5; before that

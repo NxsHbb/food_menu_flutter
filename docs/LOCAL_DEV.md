@@ -63,6 +63,11 @@ Pro features.
   globals; that is the either/or the endpoint reproduces. **On a simple
   product deliberately** — the website never renders add-ons on a variable
   one, so *Build Your Pizza* was the wrong home for them.
+- **Task 5.2 seeded and then restored** a pickup/delivery schedule, a branch
+  term with its own hours, a timed-product rule, a per-product order limit and
+  four test orders. The settings option was backed up to JSON first and diffed
+  against it afterwards; `fmp_food_location_popup` was switched back off, which
+  also unregisters the `tpl-food-location` taxonomy. Nothing from it remains.
 - `woocommerce_enable_myaccount_registration = yes`. **Off by default**, and
   task 3.1's register endpoint follows this setting rather than overriding it,
   so registration returns 403 without it.

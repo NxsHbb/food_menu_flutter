@@ -2,6 +2,76 @@
 
 Newest first. One entry per completed task.
 
+## Task 5.2 — Selectable slots (plugin, both of them)
+Branches `mobile-app-slots` (PR food-menu-pro#15) and
+`mobile-app-asap-estimate` (PR tlp-food-menu#4). The Flutter side is task 5.4.
+No Dart changed.
+
+### The website had no slot list to borrow
+`pickup-delivery.js` hands the whole weekly schedule to a jQuery timepicker
+that builds the times **in the browser**, and one AJAX call judges the single
+slot the customer lands on. Neither half is reusable from a mobile client: one
+is browser arithmetic, the other would be a request per slot. So
+`GET /fmp/v1/app/slots` generates the list and judges every entry of it in one
+answer — slot caps, per-window caps, per-product order limits and timed dishes.
+
+### The thing most likely to have gone wrong quietly
+The checkout stores `fmp_{type}_date` and `fmp_{type}_time` in the **site's own
+display formats**, not ISO, because that is what the web inputs submit and the
+Store API extension saves whatever it is handed. Slot counting then matches
+those strings. An app formatting its own ISO times would have placed orders
+that no slot limit counted and that the admin order column rendered unlike
+every web order — and nothing would have errored. So every slot carries the
+literal `value` to send, and `CONTEXT.md` says not to build one in Dart.
+
+Counting goes the other way: it is keyed on **minutes since midnight**, because
+the admin schedule screen writes 24-hour times while the checkout submits
+12-hour ones, so one slot can hold both `13:00` and `1:00 pm`. Verified with two
+orders written each way, both counted against the same slot.
+
+### Timed products now answer about a moment, not just now
+`check_single_condition()` only ever asked about `current_time()`. It takes an
+optional timestamp now, with **null keeping every existing caller identical**,
+so a cart holding a breakfast-only dish marks the afternoon slots unavailable
+and names the dish. This extends what the plugin's feature means and was agreed
+before building — the alternative was letting a customer preorder a breakfast
+item for 3pm.
+
+### ASAP needed a setting that did not exist
+The design shows "ASAP (15 min)" and "ASAP (20–35 min)". The plugin's only
+preparation setting is `delivery_preparation_day`, in **whole days**. So three
+number fields were added: `pickup_prep_minutes`, `delivery_eta_min_minutes`,
+`delivery_eta_max_minutes`. Blank quotes no estimate, so existing stores are
+unchanged. Registration had to go in Pro — the settings save rebuilds the whole
+option from `Fns::fmpAllSettingsFields()`, so an unregistered key is wiped on
+every save — while the inputs had to go in the **free** plugin, which is why
+this task has two PRs.
+
+ASAP's own `value` is empty, because the plugin expresses ASAP by switching the
+time picker off entirely. No slot limit can count such an order, so it is
+offered only while the next real slot is still open.
+
+### `/app/order-types` was refactored under it
+Both routes have to agree about the same schedule, so the reading of it moved
+into `AppSchedules`. 5.1's endpoint now calls that, and its output was diffed
+before and after to prove nothing moved.
+
+### Verified on the dev store, then restored
+Two pickup windows a day with a per-window cap and Sunday closed; delivery with
+Monday closed, a one-day lead and a seven-day window; per-branch schedule,
+interval and cap, plus a 404 for a branch that does not exist; real orders
+filling a slot; an exempt order correctly ignored; a per-product cap consumed
+across a pickup and a dine-in order; a past-only window giving `no_times_left`;
+an open day with no windows giving the whole day; every ASAP label variant.
+Settings, orders, the branch term, the timed rule and the product meta were all
+put back, and the settings option was diffed against its backup.
+
+### Left undone, deliberately
+`assets/js/admin-settings.min.js` is **not** rebuilt in the free PR, so the
+three fields will not appear in admin until someone rebuilds it. That repo has
+no lockfile and a build from pristine source already rewrites 13 assets; see
+`FINDINGS.md`.
+
 ## Task 5.1 — Order types and their schedules (plugin)
 Branch: `mobile-app-order-types`, PR food-menu-pro#14. The Flutter side is
 task 5.4. First of Phase 5.
