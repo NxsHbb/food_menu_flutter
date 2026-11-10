@@ -1,0 +1,96 @@
+{
+    "branch": 0,
+    "timezone": "+00:00",
+    "now": "2026-11-10T04:39:23+00:00",
+    "type": "pickup",
+    "label": "Pickup",
+    "enabled": true,
+    "time_required": true,
+    "date": "2026-11-10",
+    "date_value": "November 10, 2026",
+    "day": 2,
+    "first_date": "2026-11-10",
+    "last_date": "2026-11-17",
+    "interval": 15,
+    "slot_limits_enabled": true,
+    "closed_reason": null,
+    "message": null,
+    "slots": [
+        {
+            "asap": false,
+            "label": "11:00 pm",
+            "value": "11:00 pm",
+            "start": "23:00",
+            "end": "23:15",
+            "start_minutes": 1380,
+            "available": false,
+            "remaining": 2,
+            "reason": "not_served",
+            "message": "Margherita is not served at this time.",
+            "products": [
+                {
+                    "id": 14,
+                    "name": "Margherita",
+                    "reason": "not_served",
+                    "remaining": 0,
+                    "message": "Margherita is not served at this time."
+                }
+            ]
+        },
+        {
+            "asap": false,
+            "label": "11:15 pm",
+            "value": "11:15 pm",
+            "start": "23:15",
+            "end": "23:30",
+            "start_minutes": 1395,
+            "available": false,
+            "remaining": 0,
+            "reason": "full",
+            "message": "This time slot is full.",
+            "products": []
+        },
+        {
+            "asap": false,
+            "label": "11:30 pm",
+            "value": "11:30 pm",
+            "start": "23:30",
+            "end": "23:45",
+            "start_minutes": 1410,
+            "available": false,
+            "remaining": 2,
+            "reason": "not_served",
+            "message": "Margherita is not served at this time.",
+            "products": [
+                {
+                    "id": 14,
+                    "name": "Margherita",
+                    "reason": "not_served",
+                    "remaining": 0,
+                    "message": "Margherita is not served at this time."
+                }
+            ]
+        },
+        {
+            "asap": false,
+            "label": "11:45 pm",
+            "value": "11:45 pm",
+            "start": "23:45",
+            "end": "23:59",
+            "start_minutes": 1425,
+            "available": false,
+            "remaining": 2,
+            "reason": "not_served",
+            "message": "Margherita is not served at this time.",
+            "products": [
+                {
+                    "id": 14,
+                    "name": "Margherita",
+                    "reason": "not_served",
+                    "remaining": 0,
+                    "message": "Margherita is not served at this time."
+                }
+            ]
+        }
+    ]
+}

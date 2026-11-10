@@ -15,6 +15,7 @@ import '../../features/auth/presentation/register_screen.dart';
 import '../../features/cart/data/cart_controller.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/cart/presentation/widgets/cart_bar.dart';
+import '../../features/fulfilment/presentation/checkout_screen.dart';
 import '../../features/menu/presentation/menu_list_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/menu/presentation/product_detail_screen.dart';
@@ -127,7 +128,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Outside the shell on purpose: the design shows the tab bar only on
       // home, menu, cart, orders, account and wishlist. A dish is a
       // full-screen view with its own close button, so it covers the bar.
-      // Checkout, order received and order tracking will sit here too.
+      // Checkout is here for the same reason; order received and order
+      // tracking will join it.
       // Auth sits outside the shell and is pushed, not navigated to: the
       // customer is sent here mid-task — placing an order, saving a
       // favourite — and popping returns them to it. The design has no auth
@@ -157,6 +159,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ResetPasswordScreen(
           email: state.uri.queryParameters['email'] ?? '',
         ),
+      ),
+      GoRoute(
+        path: CheckoutScreen.routePath,
+        name: CheckoutScreen.routeName,
+        builder: (context, state) => const CheckoutScreen(),
       ),
       GoRoute(
         path: ProductDetailScreen.routePath,

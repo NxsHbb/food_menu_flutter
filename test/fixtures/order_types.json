@@ -1,0 +1,180 @@
+{
+    "branch": 0,
+    "timezone": "+00:00",
+    "now": "2026-11-10T04:39:01+00:00",
+    "today": "2026-11-10",
+    "preorder_max_days": 7,
+    "slot_limits_enabled": true,
+    "types": [
+        {
+            "type": "pickup",
+            "label": "Pickup",
+            "enabled": true,
+            "time_required": true,
+            "time_interval": 15,
+            "lead_days": 0,
+            "first_date": "2026-11-10",
+            "last_date": "2026-11-17",
+            "max_orders_per_slot": 3,
+            "days": [
+                {
+                    "day": 0,
+                    "name": "Sunday",
+                    "open": false,
+                    "windows": []
+                },
+                {
+                    "day": 1,
+                    "name": "Monday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                },
+                {
+                    "day": 2,
+                    "name": "Tuesday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                },
+                {
+                    "day": 3,
+                    "name": "Wednesday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                },
+                {
+                    "day": 4,
+                    "name": "Thursday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                },
+                {
+                    "day": 5,
+                    "name": "Friday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                },
+                {
+                    "day": 6,
+                    "name": "Saturday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "delivery",
+            "label": "Delivery",
+            "enabled": true,
+            "time_required": true,
+            "time_interval": 15,
+            "lead_days": 0,
+            "first_date": "2026-11-10",
+            "last_date": "2026-11-17",
+            "max_orders_per_slot": 0,
+            "days": [
+                {
+                    "day": 0,
+                    "name": "Sunday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                },
+                {
+                    "day": 1,
+                    "name": "Monday",
+                    "open": false,
+                    "windows": []
+                },
+                {
+                    "day": 2,
+                    "name": "Tuesday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                },
+                {
+                    "day": 3,
+                    "name": "Wednesday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                },
+                {
+                    "day": 4,
+                    "name": "Thursday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                },
+                {
+                    "day": 5,
+                    "name": "Friday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                },
+                {
+                    "day": 6,
+                    "name": "Saturday",
+                    "open": true,
+                    "windows": [
+                        {
+                            "start": "23:00",
+                            "end": "23:59"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
