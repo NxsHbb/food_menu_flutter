@@ -5,7 +5,9 @@ import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../data/branch_controller.dart';
+import '../../data/branch_switch.dart';
 import '../../domain/branch.dart';
+import '../../domain/unserved_dish.dart';
 
 /// The sheet behind the header's "Deliver to" line.
 ///
@@ -157,14 +159,86 @@ class _List extends ConsumerWidget {
         return _Row(
           branch: branch,
           selected: branch.id == active?.id,
-          onTap: () async {
-            await ref.read(selectedBranchProvider.notifier).choose(branch.id);
-            if (context.mounted) Navigator.of(context).pop();
-          },
+          onTap: () => _switchTo(context, ref, branch),
         );
       },
     );
   }
+}
+
+/// Moves to [branch], asking first if the cart would lose anything.
+///
+/// Cancelling leaves the sheet open on the branch they are still on, rather
+/// than closing it — they came here to change branch and may want a different
+/// one.
+Future<void> _switchTo(
+  BuildContext context,
+  WidgetRef ref,
+  Branch branch,
+) async {
+  final switcher = ref.read(branchSwitcherProvider);
+  final unserved = await switcher.check(branch.id);
+
+  if (!context.mounted) return;
+
+  if (unserved.isNotEmpty) {
+    final confirmed = await _confirmDropping(context, branch, unserved);
+    if (confirmed != true || !context.mounted) return;
+  }
+
+  await switcher.commit(branchId: branch.id, dropping: unserved);
+
+  if (context.mounted) Navigator.of(context).pop();
+}
+
+/// Names what the switch would remove, rather than counting it.
+///
+/// "2 dishes" is not enough to decide with: whether to go ahead depends
+/// entirely on *which* dish, and the customer should not have to back out and
+/// open the cart to find out.
+Future<bool?> _confirmDropping(
+  BuildContext context,
+  Branch branch,
+  List<UnservedDish> unserved,
+) {
+  final one = unserved.length == 1;
+
+  return showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Switch to ${branch.name}?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            one
+                ? "${branch.name} does not serve this, so it will leave your cart:"
+                : '${branch.name} does not serve these, so they will leave your cart:',
+          ),
+          const SizedBox(height: AppTokens.space12),
+          for (final dish in unserved)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppTokens.space4),
+              child: Text(
+                '\u2022  ${dish.name}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(one ? 'Switch and remove' : 'Switch and remove them'),
+        ),
+      ],
+    ),
+  );
 }
 
 class _Row extends StatelessWidget {
