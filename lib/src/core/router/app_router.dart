@@ -19,6 +19,7 @@ import '../../features/checkout/presentation/checkout_screen.dart';
 import '../../features/menu/presentation/menu_list_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/menu/presentation/product_detail_screen.dart';
+import '../../features/orders/presentation/order_detail_screen.dart';
 import '../../features/orders/presentation/order_received_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
 import '../../features/wishlist/presentation/wishlist_screen.dart';
@@ -69,6 +70,18 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: OrdersScreen.routePath,
                 name: OrdersScreen.routeName,
                 builder: (context, state) => const OrdersScreen(),
+                routes: [
+                  // Nested, so an order is pushed over the history and the
+                  // Orders tab keeps its place when the customer comes back.
+                  GoRoute(
+                    path: OrderDetailScreen.routePath,
+                    name: OrderDetailScreen.routeName,
+                    builder: (context, state) => OrderDetailScreen(
+                      orderId:
+                          int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

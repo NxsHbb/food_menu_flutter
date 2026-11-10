@@ -2,6 +2,36 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## An order does not record its add-ons in a re-submittable form
+An order line keeps its chosen add-ons as **display text** —
+`[Make it a meal] = No thanks` — with no group id and no option id. So
+nothing can rebuild a selection from an order: matching labels back to the
+store's current groups breaks the moment an option is renamed, and picks the
+wrong one silently rather than failing.
+
+WooCommerce's own `order_again` does not help. It rebuilds a cart through
+`woocommerce_order_again_cart_item_data`, and **neither plugin hooks it**, so
+it drops every choice too.
+
+A faithful "Reorder" therefore needs the plugin to store a re-submittable
+selection on the line at checkout — and even then only for orders placed
+afterwards. Task 7.4; kept out of 7.2 rather than shipped lossy.
+
+## A pending page keeps a spinner, and `pumpAndSettle` never settles
+Any list that reports another page to come holds a footer
+`CircularProgressIndicator`, which animates forever — so a widget test of
+paging times out before it can assert anything.
+
+The first attempt worked around it with a page size of two, which quietly
+created a state the app cannot reach: `hasMore` means a full page is loaded,
+and ten order cards always overflow a phone, so the scroll listener always
+has something to fire on. Testing an impossible state is worse than not
+testing it.
+
+Paging is tested through a `ProviderContainer` instead, and the widget tests
+keep to a single page. The same applies to the menu list, which has the same
+shape.
+
 ## `ltrim( $s, 'wc-' )` strips characters, not a prefix
 PHP's `ltrim` takes a **character list**, so `ltrim( 'completed', 'wc-' )` is
 `'ompleted'` — it ate the leading `c`. Task 7.1's status filter normalised

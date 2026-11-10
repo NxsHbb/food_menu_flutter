@@ -834,6 +834,30 @@ site running an older plugin loses the feature rather than erroring.
 One class owns that endpoint and namespace on the plugin side, by necessity —
 a second registration replaces the first without a word.
 
+### The order screens
+`OrdersScreen` is the design's two tabs over a paged list; `OrderDetailScreen`
+is one order in full, pushed over it so the Orders tab keeps its place.
+
+- **Signed out shows an invitation, not an error.** `OrderHistoryController`
+  watches `isSignedInProvider` and returns an empty history rather than
+  asking, exactly as the wishlist does — signing in loads it, signing out
+  drops it, and nothing invalidates anything by hand.
+- **The status pill takes its colour from the server.** The design hard-codes
+  a pair per status for the five it knows; a store can invent more, so the
+  plugin sends one colour and `OrderStatusPill` derives the pair. Six-digit
+  hex only — see `FINDINGS.md`.
+- **Paging belongs to the controller**, and so do its tests: a pending page
+  keeps a spinner in the tree, which `pumpAndSettle` can never settle.
+- **Three things are deliberately missing**: the tracking timeline, the
+  estimate card and the active row's progress strip, all of which need a step
+  index only `/fmp/v1/track/{token}` has (task 7.3). None is stubbed.
+- **Reorder is missing too**, and is task 7.4: an order records add-ons as
+  display text, not ids, so nothing can rebuild the selection faithfully.
+
+Dates go through `core/util/relative_date.dart` — "Today, 2:02 PM" — which is
+hand-rolled because `intl` is not a dependency. Always in the device's time
+zone, since the server sends an offset.
+
 ### Order history
 `GET fmp/v1/app/orders` (task 7.1, food-menu-pro#24). Paged as a **bare array
 with `X-WP-Total` / `X-WP-TotalPages`**, which is what `ApiClient.getPaged`

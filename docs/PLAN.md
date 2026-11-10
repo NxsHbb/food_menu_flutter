@@ -154,8 +154,9 @@ No webview, so the earlier cart-handoff problem disappears.
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 7.1 | `GET /fmp/v1/app/orders` — order history for the signed-in customer, paged, with the design's Active/Past split defined as "not finished" so a store's own custom statuses land in Active unasked | pro | done |
-| 7.2 | Flutter order history and order detail screens | app | todo |
-| 7.3 | Live order tracking against the existing public `GET /fmp/v1/track/{token}`, with the status timeline | app | todo |
+| 7.2 | Flutter order history and order detail screens. The plugin grew `status_color` and `is_active` on the single-order payload too, since the detail header draws the same pill the row does | app + pro | done |
+| 7.3 | Live order tracking against the existing public `GET /fmp/v1/track/{token}`, with the status timeline. **Also owns the design's progress strip and estimate card**, both of which are drawn from a step out of four that only tracking knows — 7.2 left the space rather than guessing a step from the status slug | app | todo |
+| 7.4 | **Reorder.** In the design on past rows and in the order footer, and left out of 7.2 on purpose: an order records its add-ons as *display text*, not as ids, so nothing can rebuild the selection faithfully. Needs the plugin to store a re-submittable selection on the line at checkout, then a reorder route. WooCommerce's own `order_again` does not help — neither plugin hooks `woocommerce_order_again_cart_item_data`, so it would drop every choice too | pro + app | todo |
 
 ## Phase 8 — Hardening
 | # | Task | Repo | Status |
