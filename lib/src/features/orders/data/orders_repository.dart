@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paged.dart';
 import '../domain/customer_order.dart';
+import '../domain/order_summary.dart';
 
 /// The customer's own orders — `GET fmp/v1/app/orders/{id}`.
 ///
@@ -19,6 +21,32 @@ class OrdersRepository {
     );
     return CustomerOrder.fromJson(raw);
   }
+
+  /// One page of the history, newest first.
+  ///
+  /// Paged through [ApiClient.getPaged] rather than an envelope, because the
+  /// route answers a bare array with `X-WP-Total` — the same contract the
+  /// menu list speaks.
+  Future<Paged<OrderSummary>> orders({
+    required OrderGroup group,
+    int page = 1,
+  }) async {
+    final raw = await _client.getPaged(
+      _client.foodMenuApi('app/orders'),
+      query: {'group': group.value, 'per_page': _perPage},
+      page: page,
+    );
+
+    return Paged(
+      items: raw.items.map(OrderSummary.fromJson).toList(growable: false),
+      total: raw.total,
+      totalPages: raw.totalPages,
+      page: raw.page,
+    );
+  }
+
+  /// Enough to fill a phone twice over, so the first scroll rarely stalls.
+  static const _perPage = 10;
 }
 
 final ordersRepositoryProvider = Provider<OrdersRepository>((ref) {

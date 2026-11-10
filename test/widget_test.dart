@@ -7,9 +7,11 @@ import 'package:food_menu/src/features/menu/data/banner_repository.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
 import 'package:food_menu/src/features/cart/data/cart_repository.dart';
 import 'package:food_menu/src/features/menu/data/addons_repository.dart';
+import 'package:food_menu/src/features/orders/data/orders_repository.dart';
 
 import 'features/auth/fake_auth_repository.dart';
 import 'features/cart/fake_cart_repository.dart';
+import 'features/orders/fake_orders_repository.dart';
 import 'features/menu/fake_addons_repository.dart';
 import 'features/menu/fake_banner_repository.dart';
 import 'features/menu/fake_menu_repository.dart';
@@ -33,6 +35,10 @@ void main() {
           cartRepositoryProvider
               .overrideWithValue(FakeCartRepository(cart: cart)),
           addonsRepositoryProvider.overrideWithValue(FakeAddonsRepository()),
+          // The orders tab reads its history now, so without this it would
+          // spin forever on a request that never answers and `pumpAndSettle`
+          // would time out.
+          ordersRepositoryProvider.overrideWithValue(FakeOrdersRepository()),
           // Without this the account tab would wait forever on a keychain read
           // that never answers under the test binding, and `pumpAndSettle`
           // would time out on its spinner.

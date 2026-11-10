@@ -2,6 +2,83 @@
 
 Newest first. One entry per completed task.
 
+## Task 7.2 — The order history and order detail screens
+Branch `feat/order-screens`, PR #48, with a two-field plugin addition on
+`mobile-app` (food-menu-pro#25). 47 new tests, 747 in total.
+
+**Not yet run on the device** — the OnePlus locked mid-task and needs a PIN.
+Everything below is from the test suite and the fixtures captured off the dev
+site, not from the phone.
+
+### What landed
+`OrdersScreen` replaces the Phase 7 placeholder: the design's two tabs over a
+paged list, each tab its own query so its count is the server's. `OrderRow`
+is the design's card — number, date, type, status pill, thumbnails, item
+count, total — and `OrderDetailScreen` is the order in full.
+
+The plugin grew `status_color` and `is_active` on the **single-order** payload
+as well, since the detail header draws the same pill the row does and had no
+colour for it.
+
+### The status pill cannot be a lookup table
+The design hard-codes a background and foreground per status, for the five it
+knows. That cannot hold: the plugin lets a store invent statuses, so the app
+would have no pair for "Out for delivery" at one shop and "In the oven" at
+the next. The server sends **one colour per status** — its own, honouring
+admin overrides — and the pill derives the pair from it, falling back to the
+muted chip when there is none.
+
+`parseHexColor` takes six digits only. CSS's eight-digit form is `#rrggbbaa`
+and `Color(int)` reads `0xaarrggbb`, so accepting it would paint the status
+in the wrong colour, confidently. Refusing is better than guessing.
+
+### Three things deliberately absent
+- **The timeline and the estimate card**, which are drawn from a step out of
+  four that only the tracking route knows. Task 7.3.
+- **The progress strip** on an active row, for the same reason. The row shows
+  the status and the estimate, which it does have.
+- **Reorder** — see below.
+
+None is a stand-in saying "not built yet". Task 4.7 existed to clean one of
+those up, and a test now asserts neither button is pretended at.
+
+### Reorder turned out to be its own task
+An order line records its add-ons as **display text** — `[Make it a meal] =
+No thanks` — with no group id and no option id. Nothing can rebuild a
+selection from that faithfully; matching labels back to the current groups
+breaks the moment a store renames an option, and picks the wrong thing
+silently.
+
+WooCommerce's own `order_again` is no help either: it rebuilds a cart through
+`woocommerce_order_again_cart_item_data`, and **neither plugin hooks it**, so
+it would drop every choice too.
+
+So a faithful reorder needs the plugin to store a re-submittable selection on
+the line at checkout, and that only helps orders placed afterwards. Raised as
+task 7.4 rather than shipped as a button that quietly loses what the customer
+chose.
+
+### Signed out is an invitation, not a 401
+The first version asked for the history regardless, so a signed-out Orders tab
+showed "You must be signed in to do that." over a "Try again" that could never
+work. It now follows the wishlist: `isSignedInProvider` is watched in the
+controller, so signing in loads the list and signing out drops it with no
+invalidation anywhere, and the screen offers a sign-in instead of an error.
+
+### Paging is tested at the controller, not the screen
+A list with another page to come keeps a spinner in the tree, and
+`pumpAndSettle` can never settle on one. The first attempt worked around it
+with a page size of two, which also created a state that cannot occur —
+`hasMore` means ten order cards are loaded, which always overflows a phone.
+Paging moved to `ProviderContainer` tests; the widget tests keep to one page.
+
+### Also new
+`core/util/relative_date.dart`, because the app had no date formatting at all
+and `intl` is not a dependency. "Today, 2:02 PM" / "Yesterday" / "12 Mar" /
+"12 Mar 2025", always in the device's time zone — the server sends an offset,
+and an order placed at 2pm must not read as 8am because the store keeps its
+books in UTC.
+
 ## Task 7.1 — The order history endpoint
 Plugin only, on `mobile-app` (food-menu-pro#24). No Flutter change — 700
 tests, unchanged. The screens are task 7.2.

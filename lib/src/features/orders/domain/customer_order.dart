@@ -13,6 +13,8 @@ class CustomerOrder {
     required this.number,
     required this.status,
     required this.statusLabel,
+    required this.statusColor,
+    required this.isActive,
     required this.createdAt,
     required this.type,
     required this.typeLabel,
@@ -45,6 +47,8 @@ class CustomerOrder {
       number: json['number']?.toString() ?? '',
       status: json['status'] as String? ?? '',
       statusLabel: json['status_label'] as String? ?? '',
+      statusColor: json['status_color'] as String? ?? '',
+      isActive: json['is_active'] == true,
       createdAt: DateTime.tryParse(json['date_created'] as String? ?? ''),
       type: json['type'] as String? ?? '',
       typeLabel: json['type_label'] as String? ?? '',
@@ -82,6 +86,14 @@ class CustomerOrder {
   /// statuses of its own, and this app would have no name for them.
   final String status;
   final String statusLabel;
+
+  /// The store's colour for the status pill, as `#rrggbb`. The same field the
+  /// history row uses, so the pill is drawn once and looks the same in both
+  /// places.
+  final String statusColor;
+
+  /// Whether the order is still happening, as the plugin defines it.
+  final bool isActive;
 
   final DateTime? createdAt;
 
