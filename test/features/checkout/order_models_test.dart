@@ -23,6 +23,7 @@ void main() {
       dateValue: dateValue,
       timeValue: timeValue,
       paymentMethod: 'cod',
+      expectedTotal: '395',
     );
   }
 

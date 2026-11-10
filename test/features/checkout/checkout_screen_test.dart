@@ -4,6 +4,7 @@ import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/checkout/data/checkout_controller.dart';
 import 'package:food_menu/src/features/checkout/presentation/widgets/checkout_address_sheet.dart';
+import 'package:food_menu/src/features/checkout/presentation/widgets/checkout_error_banner.dart';
 import 'package:food_menu/src/features/checkout/presentation/widgets/checkout_total_bar.dart';
 
 import 'checkout_harness.dart';
@@ -426,8 +427,7 @@ void main() {
       await tester.tap(find.text('Place order'));
       await tester.pumpAndSettle();
 
-      expect(find.text('The order was not confirmed. Please try again.'),
-          findsOneWidget);
+      expect(find.text('The order was not confirmed.'), findsOneWidget);
       expect(find.text('Order placed!'), findsNothing);
     });
 
@@ -619,6 +619,190 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Cash on delivery'), findsOneWidget);
+    });
+  });
+
+  group('a refused order', () {
+    /// Fills the form and taps, which is what every test below starts with.
+    Future<void> attempt(WidgetTester tester) async {
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('keeps every field the customer filled in', (tester) async {
+      // The whole point of task 6.5: trying again is one tap, not a second
+      // checkout.
+      final harness = CheckoutHarness()
+        ..checkout.failNext = const ApiException(
+          failure: ApiFailure.network,
+          message: 'Could not reach the server.',
+        );
+      await harness.pump(tester);
+
+      await tester.enterText(find.byType(TextFormField).first, 'Someone Else');
+      await tester.enterText(find.byType(TextFormField).at(2), 'Gate code 4');
+      await attempt(tester);
+
+      expect(find.text('Someone Else'), findsOneWidget);
+      expect(find.text('01711 000111'), findsOneWidget);
+      expect(find.text('Gate code 4'), findsOneWidget);
+      expect(find.text('Deliver to · Home'), findsOneWidget);
+      expect(find.text('Cash on delivery'), findsOneWidget);
+    });
+
+    testWidgets('says so in a banner that stays', (tester) async {
+      // Not a snackbar: a refusal has to still be there after the keyboard
+      // has opened and a field three rows up has been fixed.
+      final harness = CheckoutHarness()
+        ..checkout.failNext = const ApiException(
+          failure: ApiFailure.network,
+          message: 'Could not reach the server.',
+        );
+      await harness.pump(tester);
+      await attempt(tester);
+
+      expect(find.byType(CheckoutErrorBanner), findsOneWidget);
+      expect(find.text('Could not reach the server.'), findsOneWidget);
+      expect(
+        find.textContaining('Nothing has been charged'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a dropped connection offers a retry that sends it again',
+        (tester) async {
+      final harness = CheckoutHarness()
+        ..checkout.failNext = const ApiException(
+          failure: ApiFailure.network,
+          message: 'Could not reach the server.',
+        );
+      await harness.pump(tester);
+      await attempt(tester);
+
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+
+      // The identical order, and this time it lands.
+      expect(harness.checkout.drafts, hasLength(2));
+      expect(
+        harness.checkout.drafts.first.toJson(),
+        harness.checkout.drafts.last.toJson(),
+      );
+      expect(find.text('Order placed!'), findsOneWidget);
+    });
+
+    testWidgets('a rejected address is not offered one', (tester) async {
+      // Sending the identical order again would be refused identically.
+      final harness = CheckoutHarness()
+        ..checkout.failNext = const ApiException(
+          failure: ApiFailure.http,
+          statusCode: 400,
+          code: 'woocommerce_rest_invalid_address',
+          message: 'There was a problem with the provided billing address.',
+          data: {
+            'errors': {
+              'billing': ['Street address is required'],
+            },
+          },
+        );
+      await harness.pump(tester);
+      await attempt(tester);
+
+      expect(find.text('• Street address is required'), findsOneWidget);
+      expect(find.textContaining('Check the details below'), findsOneWidget);
+      expect(find.text('Try again'), findsNothing);
+    });
+
+    testWidgets('a moved total takes the cart the refusal handed back',
+        (tester) async {
+      // The 409 carries the refreshed cart, so the summary and the bar catch
+      // up without another request.
+      final harness = CheckoutHarness()
+        ..checkout.failNext = ApiException(
+          failure: ApiFailure.http,
+          statusCode: 409,
+          code: 'woocommerce_rest_checkout_total_mismatch',
+          message: 'The order total changed from &#036;7.90 to &#036;23.50.',
+          data: {'cart': cartJsonFixture('cart_with_addons')},
+        );
+      await harness.pump(tester);
+      await attempt(tester);
+
+      // Decoded, not printed as `&#036;`.
+      expect(
+        find.text('The order total changed from \$7.90 to \$23.50.'),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(CheckoutTotalBar),
+          matching: find.text('\$23.50'),
+        ),
+        findsOneWidget,
+      );
+      // Taken from the error body rather than asked for again.
+      expect(harness.cart.calls.where((c) => c == 'cart'), hasLength(1));
+    });
+
+    testWidgets('a cart refusal with no cart in it re-reads instead',
+        (tester) async {
+      final harness = CheckoutHarness()
+        ..checkout.failNext = const ApiException(
+          failure: ApiFailure.http,
+          statusCode: 400,
+          code: 'woocommerce_rest_cart_empty',
+          message: 'Cannot place an order, your cart is empty.',
+        );
+      await harness.pump(tester);
+      await attempt(tester);
+
+      expect(harness.cart.calls.where((c) => c == 'cart'), hasLength(2));
+    });
+
+    testWidgets('can be dismissed', (tester) async {
+      final harness = CheckoutHarness()
+        ..checkout.failNext = const ApiException(
+          failure: ApiFailure.network,
+          message: 'Could not reach the server.',
+        );
+      await harness.pump(tester);
+      await attempt(tester);
+
+      await tester.tap(find.byTooltip('Dismiss'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CheckoutErrorBanner), findsNothing);
+    });
+
+    testWidgets('clears itself when the next attempt succeeds',
+        (tester) async {
+      final harness = CheckoutHarness()
+        ..checkout.failNext = const ApiException(
+          failure: ApiFailure.http,
+          statusCode: 400,
+          code: 'woocommerce_rest_invalid_address',
+          message: 'There was a problem with the provided billing address.',
+        );
+      await harness.pump(tester);
+      await attempt(tester);
+
+      expect(find.byType(CheckoutErrorBanner), findsOneWidget);
+
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Order placed!'), findsOneWidget);
+    });
+
+    testWidgets('carries the total the customer agreed to', (tester) async {
+      // WooCommerce refuses the order if the real total is higher than this,
+      // so a price that moved cannot be charged unseen.
+      final harness = CheckoutHarness();
+      await harness.pump(tester);
+      await attempt(tester);
+
+      expect(harness.checkout.lastBody['expected_total'], '790');
     });
   });
 

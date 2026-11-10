@@ -275,6 +275,8 @@ final checkoutReadinessProvider = Provider<CheckoutReadiness>((ref) {
       dateValue: slots.dateValue,
       timeValue: slot.timeValue,
       paymentMethod: payment.id,
+      // What the bottom bar is showing at the moment of the tap.
+      expectedTotal: '${cart.totals.totalPrice.minorUnits}',
     ),
   );
 });

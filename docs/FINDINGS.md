@@ -2,6 +2,37 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## Inserting a widget at the top of a list throws away the state below it
+The checkout's refusal banner goes in at the front of the `ListView`'s
+children. Children are matched to elements **by position**, so every section
+after the insertion point shifted by one, failed to match, and was rebuilt
+from scratch — new `State`, new `TextEditingController`s, and the customer's
+name, phone and notes gone.
+
+That is precisely the failure task 6.5 exists to prevent, and the test for
+"keeps every field the customer filled in" is what caught it. The fix is a
+key on `ContactDetailsSection`, which makes the match by identity rather than
+position. Anything stateful below a conditionally-inserted sibling needs one.
+
+## `expected_total` only refuses a total that went *up*
+WooCommerce's checkout takes `expected_total` in **minor units** and compares
+with `(int) $actual_total <= (int) $expected_total` — so sending a number
+larger than the real total passes, which made an early probe look as though
+the parameter was ignored.
+
+What it does guard is the case that matters: a price or fee that rose between
+the screen being drawn and the button being pressed is refused with a 409
+`woocommerce_rest_checkout_total_mismatch` rather than silently charged. And
+the refusal **carries the refreshed cart** under `data.cart`, so the summary
+can catch up without another request.
+
+## WooCommerce entity-escapes its own error messages
+The total-mismatch sentence arrives as "The order total changed from
+&#036;0.01 to &#036;3.95" — `esc_html` applied to a `wc_price()` string. Any
+server message shown to a customer therefore has to go through `plainText()`,
+the same as every other field from WordPress. It is easy to miss because most
+error messages contain no markup at all.
+
 ## The Store API can read an order back, but not enough of one
 `GET wc/store/v1/order/{id}?key=…` exists and answers with the items, the
 totals and the addresses — for the signed-in customer, with the app's bearer

@@ -18,6 +18,7 @@ class OrderDraft {
     required this.dateValue,
     required this.timeValue,
     required this.paymentMethod,
+    required this.expectedTotal,
   });
 
   /// The customer's address. **Required even for pickup**: WooCommerce
@@ -42,9 +43,17 @@ class OrderDraft {
   /// Empty for ASAP, which means submit no time at all.
   final String timeValue;
 
-  /// A WooCommerce gateway id. Cash on delivery is v1's only one; task 6.3
-  /// picks it from the gateways the store actually has enabled.
+  /// A WooCommerce gateway id, from the gateways the store has enabled.
   final String paymentMethod;
+
+  /// The total the customer agreed to, in minor units.
+  ///
+  /// **A guard, not information.** WooCommerce refuses the order with a 409
+  /// if the real total is *higher* than this — a price that moved, or a fee
+  /// that appeared, between the screen being drawn and the button being
+  /// pressed — and hands back the refreshed cart with the refusal. Without it
+  /// the customer is charged a total they never saw.
+  final String expectedTotal;
 
   /// The checkout body.
   Map<String, dynamic> toJson() => {
@@ -55,6 +64,7 @@ class OrderDraft {
         'shipping_address': _address(withEmail: false),
         'customer_note': note,
         'payment_method': paymentMethod,
+        'expected_total': expectedTotal,
         'extensions': {'food-menu-pro': _extension()},
       };
 

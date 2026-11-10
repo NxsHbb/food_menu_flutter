@@ -135,6 +135,14 @@ class FakeCartRepository implements CartRepository {
   }
 }
 
+/// The raw cart payload, for the tests that need to put one somewhere other
+/// than a cart route — the checkout's total-mismatch refusal carries one in
+/// its error body.
+Map<String, dynamic> cartJsonFixture(String name) {
+  return jsonDecode(File('test/fixtures/$name.json').readAsStringSync())
+      as Map<String, dynamic>;
+}
+
 /// Reads a cart payload from `test/fixtures`.
 ///
 /// [paymentMethods] patches the captured payload rather than the model, for

@@ -704,6 +704,33 @@ until then "Place order" validates and stops.
   `AuthValidation` does. Phone is **required here** and optional on the
   profile, and it borrows the profile's digit rule rather than restating it.
 
+### When an order is refused (task 6.5)
+`CheckoutFailure` classifies whatever the checkout route threw, and the screen
+shows it in `CheckoutErrorBanner` until it is dealt with.
+
+- **A banner, not a snackbar.** A refusal has to be read, acted on, and still
+  be there afterwards — a missing postcode is fixed three fields away, and a
+  snackbar is gone before the keyboard has opened.
+- **The kind decides the offer**, not the message: a dropped connection gets
+  "Try again" because the identical order could work; a rejected address does
+  not, because it would be refused identically. A 429 is excluded on purpose —
+  it will work later, but not now, and a button spends another attempt.
+- **The server's own sentences are shown**, including the per-field ones under
+  `data.errors` and `data.params`. They name the field, the dish or the
+  gateway, which nothing composed here could.
+- **Through `plainText()`.** WooCommerce entity-escapes its messages, so a
+  total-mismatch sentence arrives with `&#036;` in it. See `FINDINGS.md`.
+- **Nothing is cleared.** Every field, the address, the slot and the payment
+  method stay where the customer left them — which is the whole point of
+  keeping the input in `CheckoutController` since 6.1. The contact section is
+  **keyed** so the banner's insertion cannot reset it; see `FINDINGS.md`.
+- **`expected_total` is sent** so a price that moved is refused rather than
+  charged unseen, and the refusal's own `data.cart` is adopted rather than
+  re-fetched.
+- The failure lives in the screen's `State`, not a provider: it belongs to
+  this attempt, and coming back later should not re-raise an order refused ten
+  minutes ago.
+
 ### Reading an order back (task 6.4)
 `features/orders/`, over `GET fmp/v1/app/orders/{id}` (Pro). The screen the
 customer lands on after paying, and the model Phase 7 builds on.
