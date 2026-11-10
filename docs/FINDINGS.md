@@ -2,6 +2,31 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## `ltrim( $s, 'wc-' )` strips characters, not a prefix
+PHP's `ltrim` takes a **character list**, so `ltrim( 'completed', 'wc-' )` is
+`'ompleted'` — it ate the leading `c`. Task 7.1's status filter normalised
+slugs that way and would have matched nothing for exactly the statuses it
+cared about. `str_starts_with` instead.
+
+Caught before it ran, and grepped across both plugins: no other instance.
+Worth knowing because `wc-` prefixing is everywhere in WooCommerce code and
+the failure is silent — a list that simply never matches.
+
+## Define a status group by its endings, not its members
+The app's order history splits Active from Past. The obvious implementation
+lists the active statuses, and it is wrong here: this plugin lets a store
+create its own, so a custom "Out for delivery" would fall out of **both**
+tabs and vanish from the screen.
+
+Naming the **finished** statuses instead — completed, cancelled, refunded,
+failed — makes anything unrecognised active by default, which is the safe
+direction: a store sees an order it is still working on rather than losing it.
+`fmp_app_finished_order_statuses` covers the store whose custom status is an
+ending.
+
+The same rule, same default, already existed in
+`OrderTracking::should_flag_as_new()` for the staff badge.
+
 ## The website's branch-vs-cart pass can never run for the app
 `FoodLocation::validateCartLocation()` in the free plugin removes cart lines
 the chosen location does not serve, and it is hooked on

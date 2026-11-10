@@ -834,6 +834,25 @@ site running an older plugin loses the feature rather than erroring.
 One class owns that endpoint and namespace on the plugin side, by necessity —
 a second registration replaces the first without a word.
 
+### Order history
+`GET fmp/v1/app/orders` (task 7.1, food-menu-pro#24). Paged as a **bare array
+with `X-WP-Total` / `X-WP-TotalPages`**, which is what `ApiClient.getPaged`
+already reads — the same contract as the menu list, not an envelope.
+
+Each row is a **summary**, not the `/app/orders/{id}` payload: number, date,
+type, status (+ label and the store's own `status_color`), `is_active`,
+`eta`, `item_count`, up to four items for thumbnails, and the total. Opening
+an order reads the single-order route for the address, the customer and every
+line's add-ons.
+
+`?group=active|past|any` drives the design's two tabs, and `X-WP-Total` on the
+active request is the number for its "Active (N)" label — no extra field and
+no extra request.
+
+**Active is defined as "not finished"**, so a store's own custom statuses are
+active without anyone configuring them. Only the plugin knows which statuses
+end an order; the app must not infer it from the slug.
+
 ### Changing branch with a full cart
 Branches do not all serve the same menu, so a cart filled at one can hold a
 dish another will not make. `BranchSwitcher`
