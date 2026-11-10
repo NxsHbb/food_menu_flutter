@@ -2,6 +2,36 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## Seeding a text field from a provider is a setState during build
+The checkout prefills its name and phone from the account, which arrives a
+frame or two after the first build. Writing `controller.text` from inside
+`build` looks harmless and is not: the controller notifies its `TextFormField`,
+which calls `FormState._fieldDidChange`, which calls `setState` on the ancestor
+`Form` — while that same `Form` is building. The framework throws.
+
+`ref.listen` is the fix, not `ref.watch`: the listener fires after the frame.
+The initial value still comes from a `ref.read` in `initState`, which is
+before the first build rather than during it. The address form gets away with
+`_seed` in `build` only because it seeds **before** its controllers exist, by
+constructing them with the text already in place.
+
+## A prefill flag per form locks out the field that arrives late
+The same prefill originally had one `_seeded` flag for the whole card. The
+name comes from the account and the phone can come from the chosen address,
+which is a round trip behind it — so the name seeded first, set the flag, and
+a customer whose number was only on their address never saw it filled in.
+
+One flag per field. They are also set when the customer types, so a field
+they deliberately cleared is not refilled when the address book lands.
+
+## A reserved error line reads as a gap when nothing can be reported
+`AuthField` sets `helperText: ' '` so the box does not jump when an error
+appears. On the checkout's order notes — the one field with no validator —
+that blank line sat at the bottom of the card looking like a mistake, and
+between two fields that *can* error, the message landed hard against the next
+label. Both were only visible on the handset. The reserve is now tied to
+having a validator, and the checkout puts 8dp between its fields.
+
 ## An open day with no hours is not a closed day
 The plugin stores a weekly schedule as `{ day: { is_open, slots: [{start,
 end}] } }`, and a day can legitimately be **open with no slots at all** —

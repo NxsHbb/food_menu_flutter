@@ -6,10 +6,11 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/store_api/models/cart.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../fulfilment/presentation/checkout_screen.dart';
+import '../../checkout/presentation/checkout_screen.dart';
 import '../../menu/presentation/menu_list_screen.dart';
 import '../data/cart_controller.dart';
 import 'widgets/cart_line_row.dart';
+import 'widgets/cart_totals_rows.dart';
 
 /// The design's cart: the lines, what they cost, and the way to checkout.
 ///
@@ -247,7 +248,6 @@ class _Totals extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
-    final shipping = totals.totalShipping;
 
     return Container(
       decoration: BoxDecoration(
@@ -257,24 +257,7 @@ class _Totals extends StatelessWidget {
       padding: const EdgeInsets.all(AppTokens.space14),
       child: Column(
         children: [
-          _TotalRow(label: 'Subtotal', value: totals.totalItems.format()),
-          if (totals.hasDiscount)
-            _TotalRow(
-              label: 'Discount',
-              value: '−${totals.totalDiscount.format()}',
-              emphasis: palette.brand,
-            ),
-          if (!totals.totalFees.isZero)
-            _TotalRow(label: 'Fees', value: totals.totalFees.format()),
-          // Null until a delivery address picks a rate, which for a pickup
-          // order never happens — so it is left out rather than shown as free.
-          if (shipping != null)
-            _TotalRow(
-              label: 'Delivery',
-              value: shipping.isZero ? 'Free' : shipping.format(),
-            ),
-          if (!totals.totalTax.isZero)
-            _TotalRow(label: 'Tax', value: totals.totalTax.format()),
+          CartTotalsRows(totals: totals),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppTokens.space8),
             child: Divider(height: 1, color: palette.line),
@@ -287,45 +270,6 @@ class _Totals extends StatelessWidget {
                 style: text.titleLarge?.copyWith(color: palette.brand),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TotalRow extends StatelessWidget {
-  const _TotalRow({
-    required this.label,
-    required this.value,
-    this.emphasis,
-  });
-
-  final String label;
-  final String value;
-  final Color? emphasis;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final text = Theme.of(context).textTheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppTokens.space4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: text.bodyMedium?.copyWith(color: palette.muted2),
-            ),
-          ),
-          Text(
-            value,
-            style: text.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: emphasis,
-            ),
           ),
         ],
       ),

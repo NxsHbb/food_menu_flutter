@@ -1,15 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/core/network/api_exception.dart';
-import 'package:food_menu/src/core/theme/app_theme.dart';
-import 'package:food_menu/src/features/cart/data/cart_repository.dart';
-import 'package:food_menu/src/features/fulfilment/data/fulfilment_repository.dart';
-import 'package:food_menu/src/features/fulfilment/presentation/checkout_screen.dart';
-import 'package:go_router/go_router.dart';
 
-import '../cart/fake_cart_repository.dart';
-import 'fake_fulfilment_repository.dart';
+import '../checkout/checkout_harness.dart';
 
 void main() {
   late FakeFulfilmentRepository repo;
@@ -20,39 +13,19 @@ void main() {
     cartRepo = FakeCartRepository(cart: cartFromFixture('cart_with_item'));
   });
 
+  /// The fulfilment section is driven through the real checkout screen, since
+  /// that is the only place it appears. Signed out on purpose: the type and
+  /// the time are the same for everyone, and an account would pull the
+  /// address block into every expectation below.
+  /// Wider than a phone by default, because the slot row scrolls: a tap on
+  /// the fourth chip has to reach it without the test driving the scroller.
+  /// The narrow case has its own test at the bottom, at 320dp.
   Future<void> pump(WidgetTester tester, {Size? size}) async {
-    if (size != null) {
-      tester.view.physicalSize = size;
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-    }
-
-    final router = GoRouter(
-      initialLocation: CheckoutScreen.routePath,
-      routes: [
-        GoRoute(
-          path: CheckoutScreen.routePath,
-          name: CheckoutScreen.routeName,
-          builder: (_, _) => const CheckoutScreen(),
-        ),
-        GoRoute(path: '/cart', name: 'cart', builder: (_, _) => const SizedBox()),
-      ],
+    await CheckoutHarness(fulfilment: repo, cart: cartRepo).pump(
+      tester,
+      signedIn: false,
+      size: size ?? const Size(800, 2400),
     );
-    addTearDown(router.dispose);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          fulfilmentRepositoryProvider.overrideWithValue(repo),
-          cartRepositoryProvider.overrideWithValue(cartRepo),
-        ],
-        child: MaterialApp.router(
-          theme: AppTheme.light(),
-          routerConfig: router,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
   }
 
   testWidgets('both types are offered, with the store\'s labels', (tester) async {

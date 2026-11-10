@@ -2,6 +2,75 @@
 
 Newest first. One entry per completed task.
 
+## Task 6.1 — The rest of the checkout screen
+Branch `feat/checkout-screen`, PR #39. No plugin change — everything this
+needs was already published by Phases 3, 4 and 5. 34 new tests, 576 in total.
+
+### What landed
+`features/checkout/`: the address block, contact details, the order summary
+and the design's sticky total bar, around the fulfilment section task 5.4
+already put there. `CheckoutScreen` moved out of `features/fulfilment` with
+it — fulfilment is the type and the time, and the rest of Phase 6 (payment,
+placing the order, the failure paths, order received) belongs beside the
+screen that does it.
+
+Payment is task 6.3 and placing the order is 6.2, so the card where the
+design draws its payment list says so, and "Place order" validates and stops.
+
+### One block, two sources
+A delivery order needs the customer's address and a pickup order needs the
+branch's, and the design draws the same pin-and-Change row for both. So the
+block switches on `resolvedOrderTypeProvider` and reads a different feature
+per arm — the address book, or the branch list. Pickup reuses the branch
+picker sheet from 5.5 outright, and hides "Change" when the store runs no
+branches, since the picker would open on a single row.
+
+### Chosen by id, resolved on every read
+The checkout stores an address **id**, never the address, and resolves it
+against the book every time — exactly as the order type and the slot are
+resolved. An address deleted, or a sign-in as somebody else, falls back to
+the book's default rather than leaving the screen pointed at something the
+server has never heard of.
+
+### The input lives in a provider, not in the form
+Name, phone and notes go into `CheckoutController` on every keystroke. Two
+things already demand it: the address sheet and the address book both rebuild
+the screen underneath them, and task 6.5 has to return to a checkout that
+still has its input after a refused order.
+
+That is also where two traps were, both in `FINDINGS.md`: writing
+`controller.text` during `build` is a `setState` during build, via the Form
+the field reports to; and one prefill flag for the card meant the phone —
+which can arrive later, from the address — was never filled.
+
+### Money is restated, never recomputed
+The summary's rows are `CartTotalsRows`, extracted from the cart screen and
+now shared, so the two cannot come to different conclusions about which lines
+a cart has. The bar shows the cart's own `total_price`. Tax, fees and
+automatic discounts are server-side arithmetic; a client that added them up
+would disagree with the order it just placed.
+
+### Running it found both spacing bugs
+Tests cannot see either. `AuthField` reserves a blank helper line so the box
+does not jump when an error appears — under the order notes, which cannot
+error, that reserve read as a gap at the bottom of the card, and between two
+fields that can, the message landed against the next label. The reserve is
+now tied to having a validator.
+
+Verified on the OnePlus against the dev store: the header follows the choice
+("Delivery · ASAP", "Pickup · ASAP"), the address sheet switches Home to Work
+and the block follows, pickup swaps the block to the branch with no "Change"
+on this single-location store, and clearing the phone and pressing the button
+scrolls the error into view. The iPhone could not be used — the live demo
+site runs the released plugin and 404s the Phase 5 endpoints the screen opens
+with.
+
+### Left for the rest of the phase
+The screen reads everything 6.2 has to submit, and nothing is stored that the
+server has not confirmed. Task 6.6 is still open: a cart carried across a
+branch switch can hold a dish the new branch does not serve, and this screen
+does not yet say so.
+
 ## Task 5.5 — Choosing a branch, and the menu following it
 Branch `feat/branch`, PR #38, with the plugin half on `mobile-app`
 (food-menu-pro). 29 new tests, 542 in total. Phase 5 is complete with this.

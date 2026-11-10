@@ -629,8 +629,9 @@ let the checkout refuse. Until then, assume a cart may contain something the
 chosen branch will not make.
 
 ### Choosing how and when (task 5.4)
-`features/fulfilment/` — the type switch and the time list, on the checkout
-screen. The rest of checkout is task 6.1; it drops in as further sections.
+`features/fulfilment/` — the type switch and the time list, which the checkout
+screen renders as its first section. The screen itself is
+`features/checkout/`, below.
 
 - **`CheckoutScreen` sits outside the tab shell**, like a dish, because the
   design shows no tab bar on it. Reached from the cart's "Go to checkout".
@@ -663,6 +664,45 @@ screen. The rest of checkout is task 6.1; it drops in as further sections.
   which a kitchen's lead time can cause. The design has no date picker, so the
   server's earliest fulfillable date is used and the date is said out loud
   rather than left to look like tonight.
+
+### The checkout screen (task 6.1)
+`features/checkout/` — the screen the design draws, around
+`FulfilmentSection`: the address block, contact details, the order summary and
+the sticky total bar. **Payment is task 6.3 and placing the order is 6.2**;
+until then "Place order" validates and stops.
+
+- **The screen lives here, not in `fulfilment`.** Fulfilment is the order type
+  and the time; the checkout is the page and, from 6.2, the order. The rest of
+  Phase 6 drops in beside it.
+- **The address block is one row over two sources.** Delivery reads the
+  address book, pickup reads the branch list and reuses `BranchPickerSheet`,
+  and the arm is chosen by `resolvedOrderTypeProvider`. "Change" is hidden on
+  pickup when the store runs no branches, because the picker would open on a
+  single row.
+- **The address is held as an id and resolved on every read**, like the order
+  type and the slot: a deleted address, or a different customer signing in,
+  falls back to the book's default instead of pointing at something the server
+  has never heard of.
+- **Name, phone and notes live in `CheckoutController`, not in the form.** The
+  address sheet and the address book both rebuild the screen beneath them, and
+  task 6.5 must return to a checkout that kept its input. Null name or phone
+  means *not edited*, which is what lets `checkoutContactProvider` prefill from
+  the account and then from the address; an empty string is a cleared field and
+  stays cleared.
+- **Prefill through `ref.listen`, never `ref.watch`.** Writing
+  `controller.text` during `build` is a `setState` during build — see
+  `FINDINGS.md` — and the flag that says "already prefilled" is **per field**,
+  because the name and the phone arrive at different times.
+- **Never recompute money.** The summary's rows are `CartTotalsRows`, shared
+  with the cart screen, and the bar shows the cart's own `total_price`. Tax,
+  fees and automatic discounts are server-side arithmetic.
+- `_blocker` on the screen is the single list of what stops an order — empty
+  cart, signed out, no type, no slot, no delivery address — read fresh on every
+  tap, because any of them can change while the screen is open. Task 6.2 posts
+  the order from the same place.
+- Validation is `CheckoutValidation`, which mirrors the server as
+  `AuthValidation` does. Phone is **required here** and optional on the
+  profile, and it borrows the profile's digit rule rather than restating it.
 
 ### Ingredients and nutrition
 Supplied by the plugin's `food-menu-pro` **Store API extension** on the
