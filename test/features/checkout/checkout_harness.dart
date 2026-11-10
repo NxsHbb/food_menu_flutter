@@ -14,6 +14,8 @@ import 'package:food_menu/src/features/cart/data/cart_repository.dart';
 import 'package:food_menu/src/features/checkout/data/checkout_repository.dart';
 import 'package:food_menu/src/features/checkout/data/payment_repository.dart';
 import 'package:food_menu/src/features/checkout/presentation/checkout_screen.dart';
+import 'package:food_menu/src/features/orders/data/orders_repository.dart';
+import 'package:food_menu/src/features/orders/presentation/order_received_screen.dart';
 import 'package:food_menu/src/features/fulfilment/data/fulfilment_repository.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,6 +26,7 @@ import '../cart/fake_cart_repository.dart';
 import '../fulfilment/fake_fulfilment_repository.dart';
 import 'fake_checkout_repository.dart';
 import 'fake_payment_repository.dart';
+import '../orders/fake_orders_repository.dart';
 
 export '../address/fake_address_repository.dart';
 export '../auth/fake_auth_repository.dart';
@@ -32,6 +35,7 @@ export '../cart/fake_cart_repository.dart';
 export '../fulfilment/fake_fulfilment_repository.dart';
 export 'fake_checkout_repository.dart';
 export 'fake_payment_repository.dart';
+export '../orders/fake_orders_repository.dart';
 
 /// Everything the checkout reads, faked.
 ///
@@ -47,13 +51,15 @@ class CheckoutHarness {
     FakeBranchRepository? branches,
     FakeCheckoutRepository? checkout,
     FakePaymentRepository? payment,
+    FakeOrdersRepository? orders,
   })  : fulfilment = fulfilment ?? FakeFulfilmentRepository(),
         cart = cart ?? FakeCartRepository(cart: cartFromFixture('cart_with_item')),
         addresses = addresses ??
             FakeAddressRepository(book: [buildAddress(isDefault: true)]),
         branches = branches ?? FakeBranchRepository(),
         checkout = checkout ?? FakeCheckoutRepository(),
-        payment = payment ?? FakePaymentRepository();
+        payment = payment ?? FakePaymentRepository(),
+        orders = orders ?? FakeOrdersRepository();
 
   final FakeFulfilmentRepository fulfilment;
   final FakeCartRepository cart;
@@ -61,6 +67,7 @@ class CheckoutHarness {
   final FakeBranchRepository branches;
   final FakeCheckoutRepository checkout;
   final FakePaymentRepository payment;
+  final FakeOrdersRepository orders;
   final FakeBranchStore branchStore = FakeBranchStore();
   final FakeAuthRepository auth = FakeAuthRepository();
   final FakeTokenStore tokens = FakeTokenStore();
@@ -94,6 +101,7 @@ class CheckoutHarness {
         branchRepositoryProvider.overrideWithValue(branches),
         checkoutRepositoryProvider.overrideWithValue(checkout),
         paymentRepositoryProvider.overrideWithValue(payment),
+        ordersRepositoryProvider.overrideWithValue(orders),
         branchStoreProvider.overrideWithValue(branchStore),
         authRepositoryProvider.overrideWithValue(auth),
         tokenStoreProvider.overrideWithValue(tokens),
@@ -120,11 +128,19 @@ class CheckoutHarness {
           name: 'cart',
           builder: (_, _) => const Scaffold(body: Text('Cart')),
         ),
-        // The order lands the customer back on the menu until task 6.4.
         GoRoute(
           path: '/menu',
           name: 'menu',
           builder: (_, _) => const Scaffold(body: Text('Menu')),
+        ),
+        // The real screen, so a test can follow a placed order all the way
+        // to what the customer is shown.
+        GoRoute(
+          path: OrderReceivedScreen.routePath,
+          name: OrderReceivedScreen.routeName,
+          builder: (_, state) => OrderReceivedScreen(
+            orderId: int.tryParse(state.pathParameters['id'] ?? '') ?? -1,
+          ),
         ),
         GoRoute(
           path: LoginScreen.routePath,

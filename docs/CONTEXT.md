@@ -704,6 +704,33 @@ until then "Place order" validates and stops.
   `AuthValidation` does. Phone is **required here** and optional on the
   profile, and it borrows the profile's digit rule rather than restating it.
 
+### Reading an order back (task 6.4)
+`features/orders/`, over `GET fmp/v1/app/orders/{id}` (Pro). The screen the
+customer lands on after paying, and the model Phase 7 builds on.
+
+- **Nothing is carried over from the checkout.** The order-received screen is
+  given an id and reads the order from the server. The checkout's response
+  echoes the plugin's extension schema with its defaults rather than the saved
+  order, and a store can renumber, reprice or re-status an order in between.
+  It also makes the route survive being opened cold.
+- **Why not `wc/store/v1/order/{id}`** — it works, and answers items, totals
+  and addresses, but carries no order number, no date, no payment title and
+  none of the plugin's fields, including the tracking token. See
+  `FINDINGS.md`.
+- **The route replaces the stack** rather than being pushed: the cart is gone
+  and the checkout behind it is for an order already placed. A `PopScope`
+  sends the hardware back button home instead of out of the app.
+- **A failure here never says the order failed.** It was placed — the checkout
+  answered with it — so the error state says so and offers a retry.
+- `status` is WooCommerce's slug and `status_label` is the words; **branch on
+  neither**. A store can add statuses of its own and this app has no name for
+  them.
+- An ASAP order stores **no time at all**, so `eta` carries the store's own
+  estimate instead, composed server-side so it cannot disagree with the slot
+  list.
+- `tracking_token` is **empty until the first status change writes one**, so
+  task 7.3's button has to check `canTrack` rather than assume.
+
 ### Paying (task 6.3)
 `GET fmp/v1/app/payment-methods` (Pro), rendered as the design's radio list.
 

@@ -10,7 +10,7 @@ import '../../auth/data/auth_controller.dart';
 import '../../auth/presentation/login_screen.dart';
 import '../../cart/data/cart_controller.dart';
 import '../../cart/presentation/cart_screen.dart';
-import '../../menu/presentation/menu_screen.dart';
+import '../../orders/presentation/order_received_screen.dart';
 import '../../fulfilment/data/fulfilment_controller.dart';
 import '../../fulfilment/presentation/widgets/fulfilment_section.dart';
 import '../data/checkout_controller.dart';
@@ -33,10 +33,9 @@ import 'widgets/payment_section.dart';
 /// Built in passes. Task 5.4 added [FulfilmentSection] — the order type and
 /// the time. Task 6.1 added the rest of the screen: the address block,
 /// contact details, the order summary and the total bar. Task 6.2 made the
-/// button place the order, and 6.3 made the payment method the store's own.
-/// **Task 6.4 replaces the confirmation dialog** with the design's
-/// order-received screen, which re-reads the order rather than trusting what
-/// the checkout answered with.
+/// button place the order, 6.3 made the payment method the store's own, and
+/// 6.4 hands a placed order to [OrderReceivedScreen], which reads it back
+/// from the server rather than trusting what the checkout answered with.
 ///
 /// Nothing on this screen is computed from parts. The times come from
 /// `/app/slots`, the address from the address book, the money from the cart's
@@ -120,33 +119,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
 
-    await _confirm(order);
+    _confirm(order);
   }
 
-  /// Confirms the order, until task 6.4 draws the screen for it.
-  Future<void> _confirm(PlacedOrder order) async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Order placed'),
-        content: Text(
-          'Your order #${order.reference} is with the kitchen. '
-          'We will let you know as it progresses.',
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Done'),
-          ),
-        ],
-      ),
+  /// Hands the customer to the order, which reads itself back from the
+  /// server. Nothing about the order is carried over — see
+  /// [OrderReceivedScreen].
+  void _confirm(PlacedOrder order) {
+    context.goNamed(
+      OrderReceivedScreen.routeName,
+      pathParameters: {'id': '${order.id}'},
     );
-
-    if (!mounted) return;
-    // Back to the menu rather than to a checkout for a cart that no longer
-    // exists. Task 6.4 lands on the order instead.
-    context.goNamed(MenuScreen.routeName);
   }
 
   void _say(String message) {
