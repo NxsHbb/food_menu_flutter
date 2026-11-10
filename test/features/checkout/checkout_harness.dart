@@ -12,6 +12,7 @@ import 'package:food_menu/src/features/branch/data/branch_repository.dart';
 import 'package:food_menu/src/features/branch/data/branch_store.dart';
 import 'package:food_menu/src/features/cart/data/cart_repository.dart';
 import 'package:food_menu/src/features/checkout/data/checkout_repository.dart';
+import 'package:food_menu/src/features/checkout/data/payment_repository.dart';
 import 'package:food_menu/src/features/checkout/presentation/checkout_screen.dart';
 import 'package:food_menu/src/features/fulfilment/data/fulfilment_repository.dart';
 import 'package:go_router/go_router.dart';
@@ -22,6 +23,7 @@ import '../branch/fake_branch_repository.dart';
 import '../cart/fake_cart_repository.dart';
 import '../fulfilment/fake_fulfilment_repository.dart';
 import 'fake_checkout_repository.dart';
+import 'fake_payment_repository.dart';
 
 export '../address/fake_address_repository.dart';
 export '../auth/fake_auth_repository.dart';
@@ -29,6 +31,7 @@ export '../branch/fake_branch_repository.dart';
 export '../cart/fake_cart_repository.dart';
 export '../fulfilment/fake_fulfilment_repository.dart';
 export 'fake_checkout_repository.dart';
+export 'fake_payment_repository.dart';
 
 /// Everything the checkout reads, faked.
 ///
@@ -43,18 +46,21 @@ class CheckoutHarness {
     FakeAddressRepository? addresses,
     FakeBranchRepository? branches,
     FakeCheckoutRepository? checkout,
+    FakePaymentRepository? payment,
   })  : fulfilment = fulfilment ?? FakeFulfilmentRepository(),
         cart = cart ?? FakeCartRepository(cart: cartFromFixture('cart_with_item')),
         addresses = addresses ??
             FakeAddressRepository(book: [buildAddress(isDefault: true)]),
         branches = branches ?? FakeBranchRepository(),
-        checkout = checkout ?? FakeCheckoutRepository();
+        checkout = checkout ?? FakeCheckoutRepository(),
+        payment = payment ?? FakePaymentRepository();
 
   final FakeFulfilmentRepository fulfilment;
   final FakeCartRepository cart;
   final FakeAddressRepository addresses;
   final FakeBranchRepository branches;
   final FakeCheckoutRepository checkout;
+  final FakePaymentRepository payment;
   final FakeBranchStore branchStore = FakeBranchStore();
   final FakeAuthRepository auth = FakeAuthRepository();
   final FakeTokenStore tokens = FakeTokenStore();
@@ -87,6 +93,7 @@ class CheckoutHarness {
         addressRepositoryProvider.overrideWithValue(addresses),
         branchRepositoryProvider.overrideWithValue(branches),
         checkoutRepositoryProvider.overrideWithValue(checkout),
+        paymentRepositoryProvider.overrideWithValue(payment),
         branchStoreProvider.overrideWithValue(branchStore),
         authRepositoryProvider.overrideWithValue(auth),
         tokenStoreProvider.overrideWithValue(tokens),

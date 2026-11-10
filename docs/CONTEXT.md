@@ -704,6 +704,27 @@ until then "Place order" validates and stops.
   `AuthValidation` does. Phone is **required here** and optional on the
   profile, and it borrows the profile's digit rule rather than restating it.
 
+### Paying (task 6.3)
+`GET fmp/v1/app/payment-methods` (Pro), rendered as the design's radio list.
+
+- **The words are the merchant's.** WooCommerce gateway titles are translated
+  and routinely renamed, so nothing about a gateway is composed in Dart — only
+  its id, which is what goes on the order.
+- **Two lists, intersected.** The endpoint says what the store has *enabled*
+  (cart-independent, stable for the session); `Cart.paymentMethods` says what
+  is *available for this cart*. `PaymentMethods.offered` takes a nullable
+  list, because an unread cart and a cart nothing can pay for are different
+  answers. See `FINDINGS.md`.
+- **`supported` is the app's reach, not the store's.** A gateway needing a
+  redirect or a native SDK is still listed, drawn dimmed and unselectable, so
+  a store running only card gets an explanation instead of an empty section.
+  The server decides which ids those are, filterable with
+  `fmp_app_supported_gateways`.
+- **The method is resolved, never stored** — like the order type, the slot and
+  the address. A tap on an unsupported row can never reach an order.
+- No client-side validation that a gateway is enabled: **the Store API already
+  refuses one**, by name, and that message is what the customer is shown.
+
 ### Placing the order (task 6.2)
 `POST wc/store/v1/checkout`, the Store API's own route — the order, its
 totals, stock and the gateway are WooCommerce's business, and the plugin only

@@ -9,6 +9,8 @@ import '../../fulfilment/data/fulfilment_controller.dart';
 import '../../fulfilment/domain/order_types.dart';
 import '../domain/checkout_contact.dart';
 import '../domain/order_draft.dart';
+import '../domain/payment_method.dart';
+import 'payment_repository.dart';
 
 /// What the customer has typed or chosen on the checkout screen.
 ///
@@ -21,7 +23,13 @@ import '../domain/order_draft.dart';
 /// what lets [checkoutContactProvider] fall back to the account. An empty
 /// string means the customer cleared the field, and is left cleared.
 class CheckoutDetails {
-  const CheckoutDetails({this.name, this.phone, this.note = '', this.addressId});
+  const CheckoutDetails({
+    this.name,
+    this.phone,
+    this.note = '',
+    this.addressId,
+    this.paymentMethodId,
+  });
 
   final String? name;
   final String? phone;
@@ -34,17 +42,23 @@ class CheckoutDetails {
   /// picked up rather than frozen here — see [checkoutAddressProvider].
   final String? addressId;
 
+  /// The chosen gateway id, or null to follow the store's default. An id
+  /// again, and resolved the same way — see [selectedPaymentMethodProvider].
+  final String? paymentMethodId;
+
   CheckoutDetails copyWith({
     String? name,
     String? phone,
     String? note,
     String? addressId,
+    String? paymentMethodId,
   }) {
     return CheckoutDetails(
       name: name ?? this.name,
       phone: phone ?? this.phone,
       note: note ?? this.note,
       addressId: addressId ?? this.addressId,
+      paymentMethodId: paymentMethodId ?? this.paymentMethodId,
     );
   }
 
@@ -54,10 +68,12 @@ class CheckoutDetails {
       other.name == name &&
       other.phone == phone &&
       other.note == note &&
-      other.addressId == addressId;
+      other.addressId == addressId &&
+      other.paymentMethodId == paymentMethodId;
 
   @override
-  int get hashCode => Object.hash(name, phone, note, addressId);
+  int get hashCode =>
+      Object.hash(name, phone, note, addressId, paymentMethodId);
 }
 
 class CheckoutController extends Notifier<CheckoutDetails> {
@@ -72,6 +88,9 @@ class CheckoutController extends Notifier<CheckoutDetails> {
 
   void chooseAddress(String addressId) =>
       state = state.copyWith(addressId: addressId);
+
+  void choosePayment(String methodId) =>
+      state = state.copyWith(paymentMethodId: methodId);
 }
 
 final checkoutControllerProvider =
@@ -174,12 +193,23 @@ final class CheckoutBlocked extends CheckoutReadiness {
   final String reason;
 }
 
-/// Cash on delivery, v1's only payment method.
+/// The gateway in force.
 ///
-/// Hard-coded until task 6.3, which reads the gateways the store actually has
-/// enabled and lets the customer choose — a store without this one enabled is
-/// refused by the server today.
-const _codGateway = 'cod';
+/// Resolved on every read, like the order type, the slot and the address: a
+/// store can switch a gateway off while the screen is open, and a method the
+/// app cannot complete must never reach an order. Null means there is nothing
+/// this app can pay with.
+final selectedPaymentMethodProvider = Provider<PaymentMethod?>((ref) {
+  final methods = ref.watch(paymentMethodsProvider).value;
+  if (methods == null) return null;
+
+  return methods.resolve(
+    ref.watch(checkoutControllerProvider).paymentMethodId,
+    // WooCommerce's own answer for *this* cart, which is not the same as
+    // what the store has enabled. Null until the cart has been read.
+    ref.watch(cartControllerProvider).value?.paymentMethods,
+  );
+});
 
 /// Read fresh on every attempt, never remembered: the store can switch a type
 /// off, a slot can fill, and an address can be deleted while this screen is
@@ -224,6 +254,16 @@ final checkoutReadinessProvider = Provider<CheckoutReadiness>((ref) {
     return const CheckoutBlocked('Enter a name and phone number.');
   }
 
+  final payment = ref.watch(selectedPaymentMethodProvider);
+  if (payment == null) {
+    // Either the store has no gateway enabled at all, in which case the Store
+    // API would refuse the order anyway, or the only ones it has need a
+    // redirect this app cannot do yet.
+    return const CheckoutBlocked(
+      'This store has no payment method the app can use yet.',
+    );
+  }
+
   return CheckoutReady(
     OrderDraft(
       address: address,
@@ -234,7 +274,7 @@ final checkoutReadinessProvider = Provider<CheckoutReadiness>((ref) {
       // The server's own strings for both, never composed here.
       dateValue: slots.dateValue,
       timeValue: slot.timeValue,
-      paymentMethod: _codGateway,
+      paymentMethod: payment.id,
     ),
   );
 });

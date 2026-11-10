@@ -355,6 +355,7 @@ class Cart {
     required this.totals,
     required this.needsPayment,
     required this.needsShipping,
+    required this.paymentMethods,
     required this.errors,
   });
 
@@ -370,6 +371,10 @@ class Cart {
       ),
       needsPayment: json['needs_payment'] as bool? ?? false,
       needsShipping: json['needs_shipping'] as bool? ?? false,
+      paymentMethods: ((json['payment_methods'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false),
       errors: ((json['errors'] as List?) ?? const [])
           .map((e) => e is Map ? (e['message']?.toString() ?? '') : e.toString())
           .where((e) => e.isNotEmpty)
@@ -384,6 +389,7 @@ class Cart {
         totals: CartTotals.fromJson(const {}),
         needsPayment: false,
         needsShipping: false,
+        paymentMethods: const [],
         errors: const [],
       );
 
@@ -394,6 +400,12 @@ class Cart {
   final CartTotals totals;
   final bool needsPayment;
   final bool needsShipping;
+
+  /// Gateway ids that can pay for **this cart**, as WooCommerce works it out:
+  /// a gateway can be enabled store-wide and still be unavailable here, over
+  /// a country or an order total. The ids come with no words, which is what
+  /// `GET fmp/v1/app/payment-methods` answers.
+  final List<String> paymentMethods;
 
   /// Server-side complaints, e.g. a dish that went out of stock.
   final List<String> errors;

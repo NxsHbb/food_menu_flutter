@@ -117,6 +117,8 @@
   "items_weight": 0,
   "cross_sells": [],
   "errors": [],
-  "payment_methods": [],
+  "payment_methods": [
+    "cod"
+  ],
   "extensions": {}
 }

@@ -176,6 +176,7 @@ void main() {
           totals: base.totals,
           needsPayment: base.needsPayment,
           needsShipping: base.needsShipping,
+          paymentMethods: base.paymentMethods,
           errors: const ['Margherita has been removed from your cart.'],
         ),
       );

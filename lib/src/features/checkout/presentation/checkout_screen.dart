@@ -22,6 +22,7 @@ import 'widgets/checkout_card.dart';
 import 'widgets/checkout_total_bar.dart';
 import 'widgets/contact_details_section.dart';
 import 'widgets/order_summary_section.dart';
+import 'widgets/payment_section.dart';
 
 /// The design's checkout: how and when the order arrives, where it goes, who
 /// it is for, and what it comes to.
@@ -29,11 +30,13 @@ import 'widgets/order_summary_section.dart';
 /// Outside the tab shell, with its own back button, because the design shows
 /// no tab bar here.
 ///
-/// Built in two passes. Task 5.4 added [FulfilmentSection] — the order type
-/// and the time. Task 6.1 added the rest of the screen: the address block,
-/// contact details, the order summary and the total bar. **Payment is task
-/// 6.3 and placing the order is task 6.2**, and the card between contact
-/// details and the summary says so, where the design draws the payment list.
+/// Built in passes. Task 5.4 added [FulfilmentSection] — the order type and
+/// the time. Task 6.1 added the rest of the screen: the address block,
+/// contact details, the order summary and the total bar. Task 6.2 made the
+/// button place the order, and 6.3 made the payment method the store's own.
+/// **Task 6.4 replaces the confirmation dialog** with the design's
+/// order-received screen, which re-reads the order rather than trusting what
+/// the checkout answered with.
 ///
 /// Nothing on this screen is computed from parts. The times come from
 /// `/app/slots`, the address from the address book, the money from the cart's
@@ -198,7 +201,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           const ContactDetailsSection(),
                         ],
                         const SizedBox(height: AppTokens.space12),
-                        const _PaymentPending(),
+                        const PaymentSection(),
                         if (cart != null) ...[
                           const SizedBox(height: AppTokens.space12),
                           OrderSummarySection(cart: cart),
@@ -356,33 +359,6 @@ class _SignInRequired extends StatelessWidget {
           FilledButton(
             onPressed: () => context.pushNamed(LoginScreen.routeName),
             child: const Text('Sign in'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// What the order will be paid with, until task 6.3 draws the design's list.
-class _PaymentPending extends StatelessWidget {
-  const _PaymentPending();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final text = Theme.of(context).textTheme;
-
-    return CheckoutCard(
-      child: Row(
-        children: [
-          Icon(Icons.construction_outlined, size: 18, color: palette.muted),
-          const SizedBox(width: AppTokens.space10),
-          Expanded(
-            child: Text(
-              'Paying with cash on delivery. Choosing a payment method '
-              'arrives in task 6.3.',
-              style: text.bodySmall?.copyWith(color: palette.muted),
-            ),
           ),
         ],
       ),

@@ -57,8 +57,11 @@ Pro features.
 - **Cash on delivery enabled** (task 6.2). The Store API refuses an order when
   the store has no gateway at all, so the app cannot check out without it:
   `wp wc payment_gateway update cod --enabled=true --user=1`.
-- Two app-placed orders for `customer@foodmenu.test` are left in the store
-  (one delivery, one pickup) as real data for Phase 7's order history.
+- Three app-placed orders for `customer@foodmenu.test` are left in the store
+  (delivery and pickup, all cash on delivery) as real data for Phase 7's
+  order history.
+- Only `cod` is enabled. Turning `bacs` on is how task 6.3's "enabled but the
+  app cannot finish it" row was checked; it was turned back off afterwards.
 - **Add-on test data** (tasks 4.1 and 4.2): three groups on *Fresh Lemonade* — a
   required radio with price deltas, a checkbox with `max_selection` 3 and a
   deliberately non-numeric price, and a textarea with a placeholder and char
