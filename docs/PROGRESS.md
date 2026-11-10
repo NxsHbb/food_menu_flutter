@@ -1468,7 +1468,8 @@ simulator.
   surfaced until Phase 8.
 - **iOS device builds had no development team**, and once set, `com.foodmenu`
   turned out to be registrable under **only one** of the two Apple teams on this
-  machine. See `FINDINGS.md` — it constrains task 8.4.
+  machine. See `FINDINGS.md` — it constrains release signing (task 10.2,
+  numbered 8.4 when this was written).
 
 ### What running on a real device proved that tests could not
 Driving the Android device with `adb shell input`, end to end against the dev

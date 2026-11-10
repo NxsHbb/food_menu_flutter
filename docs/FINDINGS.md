@@ -605,7 +605,7 @@ this generic is widely contested, so this is not a free choice: **device builds,
 TestFlight and the App Store all require team `M34L8S85ZF`**, now set as
 `DEVELOPMENT_TEAM` in the Xcode project. Anyone building on another account
 will have to change the bundle ID, which has App Store consequences — worth
-knowing before task 8.4.
+knowing before task 10.2 (release builds and signing).
 
 ### What each target can actually verify
 | | Simulator / emulator | Physical Android | Physical iOS |
