@@ -1,0 +1,33 @@
+{
+    "branch": 0,
+    "timezone": "+00:00",
+    "now": "2026-11-10T04:39:24+00:00",
+    "type": "pickup",
+    "label": "Pickup",
+    "enabled": true,
+    "time_required": false,
+    "date": "2026-11-10",
+    "date_value": "November 10, 2026",
+    "day": 2,
+    "first_date": "2026-11-10",
+    "last_date": "2026-11-17",
+    "interval": 15,
+    "slot_limits_enabled": true,
+    "closed_reason": null,
+    "message": null,
+    "slots": [
+        {
+            "asap": true,
+            "label": "ASAP (15 min)",
+            "value": "",
+            "start": null,
+            "end": null,
+            "start_minutes": -1,
+            "available": true,
+            "remaining": null,
+            "reason": null,
+            "message": null,
+            "products": []
+        }
+    ]
+}

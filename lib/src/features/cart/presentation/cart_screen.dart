@@ -6,6 +6,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/store_api/models/cart.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../fulfilment/presentation/checkout_screen.dart';
 import '../../menu/presentation/menu_list_screen.dart';
 import '../data/cart_controller.dart';
 import 'widgets/cart_line_row.dart';
@@ -354,11 +355,7 @@ class _CheckoutBar extends StatelessWidget {
         MediaQuery.paddingOf(context).bottom + AppTokens.space12,
       ),
       child: FilledButton(
-        onPressed: () => ScaffoldMessenger.of(context)
-          ..removeCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(content: Text('Checkout arrives in Phase 6.')),
-          ),
+        onPressed: () => context.pushNamed(CheckoutScreen.routeName),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

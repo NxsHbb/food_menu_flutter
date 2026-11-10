@@ -2,6 +2,59 @@
 
 Newest first. One entry per completed task.
 
+## Task 5.4 — The pickup/delivery toggle and the slot list
+Branch `feat/fulfilment`, PR #37, with one plugin change on `mobile-app`
+(food-menu-pro). First Dart of Phase 5 and the first consumer of the three
+read endpoints. 54 new tests, 513 in total.
+
+### What landed
+`features/fulfilment/`: the order-type switch and the time row, on a new
+`CheckoutScreen` that sits outside the tab shell as the design shows it. The
+cart's "Go to checkout" now goes there instead of saying Phase 6. Contact
+details, address, payment and the summary are 6.1 and drop in as further
+sections.
+
+Nothing about availability is decided in Dart. The server generates and judges
+the list; the app renders it and remembers which chip was tapped. The type and
+the slot are both **resolved** rather than stored as objects, so a type the
+store switches off, or a slot that fills while the screen is open, falls back
+instead of being submitted.
+
+### One plugin fix was needed
+A Store API cart line reports the **variation** id, and carries no parent
+anywhere — verified by adding a pizza variation to a real cart. Per-dish order
+limits and timed rules are set on the parent, so a cart holding a large pizza
+silently missed the cap on the pizza. The client cannot resolve that, so the
+slots route now does.
+
+### Two Riverpod traps, both fetching the same slots twice
+Caught by a test that counted calls; the duplicate was invisible on screen.
+A `ref.watch` **after an `await`** registers late and rebuilds the provider
+when that dependency settles. And a `Map` is never `==` to an equal map, so
+publishing the cart as one re-triggered the fetch on every cart emission. Both
+are gone: the request is a single value object, `SlotRequest`, and the cart is
+published as the encoded string. Also `retry: null` on both providers, as the
+cart controller already does.
+
+### Running it on the device found what the tests could not
+Against the dev store's four-slot schedule everything looked right. On the
+OnePlus, pointed at a store open all day at a half-hour interval, the wrapped
+chip list ran to nearly forty chips down the screen and pushed the rest of the
+checkout out of sight. Switched to the design's single scrolling row, which is
+bounded whatever the hours — and the reason I had avoided it does not apply in
+a scroller.
+
+Verified on the device after the change: the toggle switches the title, the
+ASAP estimate and the chip format (delivery windows against pickup point
+times), and tapping a chip moves the selection. The iPhone could not be used —
+the live demo site runs the released plugin and 404s both endpoints.
+
+### Fixtures are captured, not written
+Six of them, taken from real responses on the dev store with a seeded
+schedule: both types, a full slot, a closed day, a cart-blocked day and a
+store that asks for no time at all. The store was restored afterwards and its
+settings diffed against the backup.
+
 ## Task 5.3 — The branch list (plugin)
 Branch `mobile-app`, PR food-menu-pro#16 — the first PR under the new rule that
 all plugin work stays on one long-lived branch. The Flutter side is task 5.5.

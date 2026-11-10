@@ -590,6 +590,42 @@ answers the week; this answers one day of it, already judged.
 - **Re-fetch after the cart changes.** Availability is a function of the cart,
   so adding a dish can take slots away.
 
+### Choosing how and when (task 5.4)
+`features/fulfilment/` — the type switch and the time list, on the checkout
+screen. The rest of checkout is task 6.1; it drops in as further sections.
+
+- **`CheckoutScreen` sits outside the tab shell**, like a dish, because the
+  design shows no tab bar on it. Reached from the cart's "Go to checkout".
+- **Nothing about availability is decided in Dart.** The server generates and
+  judges the list; this feature renders it and remembers which chip was
+  tapped. `FulfilmentChoice` holds only a type, a date and a slot identity.
+- **`slotsProvider` is keyed by `SlotRequest`**, a value object of type, date
+  and the encoded cart. Everything the fetch depends on is in that one
+  comparable key, so one cart means one request.
+- **Watch what it depends on *before* any `await`.** A `ref.watch` after an
+  asynchronous gap registers late and rebuilds the provider when that
+  dependency settles, which fetched the same slots twice.
+- `cartItemsProvider` publishes the cart as the **encoded string**, not a map:
+  two equal maps are never `==`, so a map re-triggered the fetch on every cart
+  emission.
+- **The selected slot is resolved, never stored as an object.** A choice is
+  kept as minutes-since-midnight and looked up in the current list, so adding
+  a dish or letting a time pass falls back to the earliest open slot instead
+  of submitting one the server has stopped offering. ASAP is -1.
+- **The type is resolved too**, against `enabled`, so a type the store
+  switches off mid-session is dropped rather than drawn.
+- `retry: (_, _) => null` on both providers. The section offers "Try again",
+  and a background retry would keep firing while the customer reads the error.
+- **The slot row scrolls horizontally**, as the design draws it. Wrapping was
+  tried: a store open all day at a half-hour interval offers nearly forty
+  slots, which ran down the screen and buried everything below.
+- Unavailable chips are drawn struck through and **explain themselves on tap**
+  with the server's own sentence. A chip that ignores taps reads as broken.
+- The date is shown under the title **only when it is not the store's today**,
+  which a kitchen's lead time can cause. The design has no date picker, so the
+  server's earliest fulfillable date is used and the date is said out loud
+  rather than left to look like tonight.
+
 ### Ingredients and nutrition
 Supplied by the plugin's `food-menu-pro` **Store API extension** on the
 product response, not by WooCommerce. Added in food-menu-pro#5; before that

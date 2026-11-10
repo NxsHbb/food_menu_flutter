@@ -1037,3 +1037,50 @@ The coordinate fix above was verified through a **real admin POST**: log in to
 to `edit-tags.php` with `action=editedtag`. Reverting the file and re-posting
 showed the values being dropped; restoring it showed them persisting. That
 round trip is the only honest check of any `filter_input`-based save.
+
+## A Store API cart line reports the variation id, never the parent
+`/app/slots` takes the cart so it can apply per-dish order limits and
+timed-product rules — both of which are set on the **parent** dish. But a
+Store API cart item's `id` is the *variation* id for a variable product, and
+the response carries no parent anywhere: checked by adding a Build Your Pizza
+variation to a real cart, which came back as `id: 28` with parent 27 nowhere
+in sight.
+
+So a cart holding a large pizza silently missed the cap set on the pizza. The
+client cannot fix this — it has no way to learn the parent — so the server
+resolves a variation to its parent on the way in, and two variations of one
+dish sum against the one cap. Fixed in food-menu-pro on `mobile-app`.
+
+## Two Riverpod traps, both of which fetched the same slots twice
+Found by a test that counted calls, not by watching the screen — the duplicate
+request was invisible in the UI.
+
+**A `ref.watch` after an `await` registers late.** `slotsProvider` awaited the
+order types and *then* watched the cart and the choice. The dependency is
+registered when the body resumes, and the provider is rebuilt when it settles,
+so the server was asked twice for one cart. Every watch now happens before any
+await — and better, the whole request is one value object.
+
+**A map is never `==` to an equal map.** The cart was published as
+`Map<int,int>`, so every emission from the cart controller looked like a
+change and re-triggered the fetch. It is published as the encoded string
+instead, which compares by value and is also exactly what the request needs.
+
+The general shape: **give an async provider one comparable key.** `SlotRequest`
+holds the type, the date and the encoded cart, and can only change when the
+answer would.
+
+## Running it found what 54 tests could not
+The tests all passed against a store whose schedule had a handful of slots. On
+the real device, pointed at a store open all day at a half-hour interval, the
+wrapped chip list ran to nearly forty slots down the screen and pushed the rest
+of the checkout out of sight.
+
+The design draws a single scrolling row, which is bounded whatever the store's
+hours — and the reason I had moved away from it (a delivery window label is too
+wide to sit beside another at 320pt) does not apply in a scroller, where every
+chip gets its natural width. The widget test still guards the narrow case; it
+simply asserts no overflow rather than a wrapped layout.
+
+Worth remembering when picking fixtures: a schedule with four slots is not a
+realistic store, and the layout only breaks at a realistic one.

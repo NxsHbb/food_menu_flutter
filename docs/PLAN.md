@@ -126,7 +126,7 @@ API layer and should be agreed before 5.5 starts.
 | 5.1 | `GET /fmp/v1/app/order-types` — whether pickup and delivery are enabled, with their weekly schedules | pro | done |
 | 5.2 | `GET /fmp/v1/app/slots` — selectable slots for a type and branch, respecting slot limits and timed products. Returns the design's flat list (`ASAP (15 min)`, `12:45`, …) rather than a date+time matrix | free + pro | done |
 | 5.3 | `GET /fmp/v1/app/branches` — branch list with per-branch rules | pro | done |
-| 5.4 | Flutter pickup/delivery toggle and slot list, driven by server availability | app | todo |
+| 5.4 | Flutter pickup/delivery toggle and slot list, driven by server availability | app + pro | done |
 | 5.5 | Flutter branch selection, persisted and applied to menu and cart requests | app | todo |
 
 ## Phase 6 — Native checkout
