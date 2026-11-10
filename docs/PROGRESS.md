@@ -2,6 +2,55 @@
 
 Newest first. One entry per completed task.
 
+## Task 6.4 — The order received screen
+Branch `feat/order-received`, PR #42, with the plugin half on `mobile-app`
+(food-menu-pro#21). 20 new tests, 631 in total. Phase 6 is one task from done.
+
+### What landed
+`features/orders/`: the design's order-received screen, and the `CustomerOrder`
+model Phase 7 will build on. The checkout's confirmation dialog is gone — a
+placed order now navigates to `/order-received/{id}`, which **reads the order
+back from the server**.
+
+### Neither of the two obvious sources would do
+`POST checkout` answers with the order, but its extension block is the
+plugin's *schema* with defaults rather than what was saved, so the time the
+customer chose is not in it. And `GET wc/store/v1/order/{id}` — which does
+work with the app's bearer token — carries no order number, no date, no
+payment title, and none of the plugin's fields, including the tracking token
+the design's "Track order" button needs.
+
+So the plugin grew `GET fmp/v1/app/orders/{id}`: the customer's own order,
+with money in minor units like everything else the app parses, someone else's
+order answered exactly as a missing one is, and the ASAP estimate reported
+back on an order that asked for no time. Writing it turned up the ASAP label
+and the currency block duplicated in two routes; both moved to `AppApiFns`.
+
+### What is on the screen, and what is not
+The design's tick, "Order placed!", the thanks line and the three tiles —
+Order, the store's word for the type over its own estimate, and the total.
+
+**"Track order" is not there.** Tracking is task 7.3 and there is nothing yet
+for the button to open; the token it needs is already in this payload, so it
+is a one-line change when that screen exists. Shipping a button that says
+"not built yet" would have left exactly the kind of stale stand-in task 4.7
+was raised for.
+
+### A stretch in a scroll view is an infinite height
+The three tiles share a height through `CrossAxisAlignment.stretch`, which
+inside a `SingleChildScrollView` throws "BoxConstraints forces an infinite
+height" — and arrives as a `pumpAndSettle` timeout several layers from the
+cause. `IntrinsicHeight` is the fix. A throwaway probe test found it in a
+minute where reading the stack traces had not.
+
+### Verified on the device
+Two real orders from the OnePlus. The screen shows `#64` / `#65`, "Delivery",
+"ASAP" and `$3.95`, read back by id — the fixtures for the tests are captured
+from the same endpoint. "Back to home" and the hardware back button both land
+on the menu rather than dropping out of the app. Centring the content needed
+a second pass: the first draft sat at the top, because `mainAxisAlignment` in
+a scroll view has nothing to centre within.
+
 ## Task 6.3 — Paying
 Branch `feat/payment-method`, PR #41, with the plugin half on `mobile-app`
 (food-menu-pro#20). 13 new tests, 611 in total.

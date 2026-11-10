@@ -2,6 +2,32 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The Store API can read an order back, but not enough of one
+`GET wc/store/v1/order/{id}?key=…` exists and answers with the items, the
+totals and the addresses — for the signed-in customer, with the app's bearer
+token, which is the part that was in doubt.
+
+It is still not enough. It carries **no order number**, no date, no payment
+title, and none of the plugin's own fields: not the order type, not the
+pickup or delivery time the customer chose, and not `_fmp_tracking_token`,
+without which the design's "Track order" button has nothing to open. Its
+`extensions` block comes back empty.
+
+The checkout's own response is no better — that one echoes the plugin's
+extension *schema* with its defaults rather than the saved order. So neither
+can be used, and `GET fmp/v1/app/orders/{id}` (food-menu-pro#21) is what the
+order-received screen reads.
+
+## `CrossAxisAlignment.stretch` in a scroll view asks for infinite height
+The order-received screen's three tiles are a `Row` with `stretch`, so they
+share a height. Inside a `SingleChildScrollView` that throws:
+"BoxConstraints forces an infinite height" — stretch means "as tall as the
+Row", and the Row's height is unbounded in a scroller.
+
+`IntrinsicHeight` around the Row is the fix. Worth knowing because the
+failure arrives as a `pumpAndSettle` timeout in whatever test touches the
+screen, several layers from the cause.
+
 ## WooCommerce already refuses a gateway the store has switched off
 Task 6.3 was written as "server-side validation that it is an enabled
 gateway", and that validation turned out to exist: `POST checkout` with

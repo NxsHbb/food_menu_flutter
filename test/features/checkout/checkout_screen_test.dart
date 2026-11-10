@@ -295,14 +295,17 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(harness.checkout.drafts, hasLength(1));
-      expect(find.text('Order placed'), findsOneWidget);
-      expect(find.textContaining('#1042'), findsOneWidget);
+
+      // The order is read **back** by id rather than rendered from what the
+      // checkout answered with.
+      expect(harness.orders.requested, [1042]);
+      expect(find.text('Order placed!'), findsOneWidget);
 
       // The cart is emptied server-side, so it has to be re-read: the mini
       // cart and the tab badge both watch it.
       expect(harness.cart.calls.where((c) => c == 'cart'), hasLength(2));
 
-      await tester.tap(find.text('Done'));
+      await tester.tap(find.text('Back to home'));
       await tester.pumpAndSettle();
 
       expect(find.text('Menu'), findsOneWidget);
@@ -410,7 +413,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Street address is required'), findsOneWidget);
-      expect(find.text('Order placed'), findsNothing);
+      expect(find.text('Order placed!'), findsNothing);
       expect(find.text('Place order'), findsOneWidget);
     });
 
@@ -425,7 +428,7 @@ void main() {
 
       expect(find.text('The order was not confirmed. Please try again.'),
           findsOneWidget);
-      expect(find.text('Order placed'), findsNothing);
+      expect(find.text('Order placed!'), findsNothing);
     });
 
     testWidgets('the button cannot be pressed twice', (tester) async {
