@@ -15,10 +15,12 @@ import '../../fulfilment/data/fulfilment_controller.dart';
 import '../../fulfilment/presentation/widgets/fulfilment_section.dart';
 import '../data/checkout_controller.dart';
 import '../data/checkout_repository.dart';
+import '../domain/checkout_failure.dart';
 import '../domain/order_draft.dart';
 import '../domain/placed_order.dart';
 import 'widgets/checkout_address_section.dart';
 import 'widgets/checkout_card.dart';
+import 'widgets/checkout_error_banner.dart';
 import 'widgets/checkout_total_bar.dart';
 import 'widgets/contact_details_section.dart';
 import 'widgets/order_summary_section.dart';
@@ -52,6 +54,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _scroll = ScrollController();
 
   /// Off until the first attempt, so a checkout that opens with an empty name
   /// does not greet the customer in red.
@@ -61,6 +64,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   /// twice. **Not a provider**: a second order is a second charge, and this
   /// has to be impossible, not merely unlikely.
   bool _placing = false;
+
+  /// The last refusal, kept on screen until it is dealt with.
+  ///
+  /// Here rather than in a provider because it belongs to this attempt from
+  /// this screen: leaving the checkout and coming back should not re-raise an
+  /// order that was refused ten minutes ago. The customer's **input** does
+  /// live in a provider, which is what makes returning to a refused checkout
+  /// worth doing at all.
+  CheckoutFailure? _failure;
 
   Future<void> _placeOrder() async {
     if (_placing) return;
@@ -84,8 +96,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   /// Sends it, and leaves the screen exactly as it was if the server says no.
+  ///
+  /// **Nothing is cleared on a refusal.** Every field, the address, the slot
+  /// and the payment method are where the customer left them, so trying again
+  /// is one tap rather than a second checkout.
   Future<void> _submit(OrderDraft draft) async {
-    setState(() => _placing = true);
+    setState(() {
+      _placing = true;
+      _failure = null;
+    });
     PlacedOrder? order;
 
     try {
@@ -98,28 +117,66 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         await ref.read(cartControllerProvider.notifier).reload();
       }
     } on ApiException catch (error) {
-      // The Store API's own sentence, which names what it rejected — "Street
-      // address is required" — and is more use than anything composed here.
-      // Task 6.5 gives the failure paths their own treatment.
-      if (mounted) _say(error.message);
+      if (mounted) await _refuse(error);
     } finally {
-      // **Before the dialog, not after it.** The button's spinner is an
-      // animation, and leaving it running behind a modal is a frame loop that
-      // never settles.
+      // **Before anything modal, not after it.** The button's spinner is an
+      // animation, and leaving it running behind a route or a dialog is a
+      // frame loop that never settles.
       if (mounted) setState(() => _placing = false);
     }
 
     if (!mounted || order == null) return;
 
-    // A 200 with no order is a refusal dressed as a success. Saying so beats
-    // confirming an order number of zero, and the cart is still there to try
-    // again with.
+    // A 200 with no order is a refusal dressed as a success. It goes in the
+    // banner like any other refusal: the cart is still there, and the
+    // customer's input with it.
     if (!order.exists) {
-      _say('The order was not confirmed. Please try again.');
+      setState(
+        () => _failure = const CheckoutFailure(
+          kind: CheckoutFailureKind.unknown,
+          message: 'The order was not confirmed.',
+        ),
+      );
+      _scrollToTop();
       return;
     }
 
     _confirm(order);
+  }
+
+  /// Takes a refusal apart and puts it on screen.
+  Future<void> _refuse(ApiException error) async {
+    final failure = CheckoutFailure.from(error);
+
+    // The cart the refusal handed back, when it carried one: a total mismatch
+    // answers with the refreshed cart, which is both faster and more accurate
+    // than asking for it again.
+    final refreshed = failure.refreshedCart;
+    if (refreshed != null) {
+      ref.read(cartControllerProvider.notifier).adopt(refreshed);
+    } else if (failure.staleCart) {
+      // It said the cart is the problem but did not say what it now is.
+      await ref.read(cartControllerProvider.notifier).reload();
+    }
+
+    if (!mounted) return;
+
+    setState(() => _failure = failure);
+
+    // The banner is above the fold only if the customer is already there.
+    _scrollToTop();
+  }
+
+  /// Puts the banner in view, since a refusal arrives while the customer is
+  /// looking at the button at the other end of the screen.
+  void _scrollToTop() {
+    if (!_scroll.hasClients) return;
+
+    _scroll.animateTo(
+      0,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
   /// Hands the customer to the order, which reads itself back from the
@@ -136,6 +193,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     ScaffoldMessenger.of(context)
       ..removeCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
   }
 
   @override
@@ -161,6 +224,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ? AutovalidateMode.onUserInteraction
                   : AutovalidateMode.disabled,
               child: ListView(
+                controller: _scroll,
                 padding: const EdgeInsets.fromLTRB(
                   AppTokens.space16,
                   AppTokens.space16,
@@ -170,6 +234,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 children: isEmpty
                     ? const [_EmptyCartCard()]
                     : [
+                        if (_failure case final failure?) ...[
+                          CheckoutErrorBanner(
+                            failure: failure,
+                            onDismiss: () => setState(() => _failure = null),
+                            onRetry: failure.canRetry ? _placeOrder : null,
+                          ),
+                          const SizedBox(height: AppTokens.space12),
+                        ],
                         const CheckoutCard(child: FulfilmentSection()),
                         const SizedBox(height: AppTokens.space12),
                         // Accounts are required to order, so a signed-out
@@ -181,7 +253,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         else ...[
                           const CheckoutAddressSection(),
                           const SizedBox(height: AppTokens.space12),
-                          const ContactDetailsSection(),
+                          // **Keyed, and it has to be.** The banner above is
+                          // inserted into this list on a refusal, and the
+                          // children are matched by position: without a key
+                          // every section below the insertion is rebuilt from
+                          // scratch, which throws away the very input this
+                          // screen is trying to keep.
+                          const ContactDetailsSection(
+                            key: ValueKey('contact-details'),
+                          ),
                         ],
                         const SizedBox(height: AppTokens.space12),
                         const PaymentSection(),

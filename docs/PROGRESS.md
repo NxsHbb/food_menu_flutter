@@ -2,6 +2,57 @@
 
 Newest first. One entry per completed task.
 
+## Task 6.5 — When the order is refused
+Branch `feat/checkout-failures`, PR #44. App only. 24 new tests, 655 in total.
+Phase 6 is one task from done.
+
+### What landed
+`CheckoutFailure` classifies the refusal and `CheckoutErrorBanner` shows it.
+A banner rather than a snackbar, because a refusal has to be read, acted on
+and still be there afterwards — a missing postcode is fixed three fields away.
+
+What the customer is offered follows the **kind**, not the message. A dropped
+connection gets "Try again", because the identical order could work. A
+rejected address does not, because it would be refused identically; it gets
+the server's own per-field complaints instead. A rate limit gets neither — it
+will work later, but not now, and a button would spend another attempt.
+
+### The guard that was missing
+The order now carries `expected_total`. WooCommerce refuses with a 409 when
+the real total is **higher** than the one the customer agreed to — a price or
+a fee that moved between the screen and the tap — instead of charging a total
+they never saw. The refusal hands back the refreshed cart in its own body, so
+the summary and the bar catch up without another request.
+
+An early probe made the parameter look ignored: it only compares one way, and
+the probe sent a number larger than the real total.
+
+### The bug this task existed to prevent, found by its own test
+The banner is inserted at the **front** of the checkout's list. Children are
+matched to elements by position, so every section below shifted by one, failed
+to match, and was rebuilt — new `State`, new controllers, and the name, phone
+and notes gone. The one thing 6.5 promises is that a refused order keeps its
+input, and the first version threw it away.
+
+`ContactDetailsSection` is keyed now. Anything stateful below a conditionally
+inserted sibling needs the same.
+
+### Also found
+WooCommerce entity-escapes its own error messages, so the total-mismatch
+sentence arrives with `&#036;` where the currency symbol belongs. Every server
+message now goes through `plainText()`, like every other field from WordPress.
+
+### Verified on the device
+On the OnePlus, with the wifi pulled between opening the checkout and tapping
+the button: the banner scrolls itself into view, says "Your order was not
+placed. Nothing has been charged.", and every field, the address and the
+payment method are untouched. Wifi back on, "Try again" sends the identical
+order and it lands as #67.
+
+### What 9.2 inherits
+A redirect gateway's abandoned payment is one more `CheckoutFailureKind`, and
+the banner and the kept input are already there for it.
+
 ## Task 6.4 — The order received screen
 Branch `feat/order-received`, PR #42, with the plugin half on `mobile-app`
 (food-menu-pro#21). 20 new tests, 631 in total. Phase 6 is one task from done.

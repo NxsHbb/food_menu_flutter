@@ -36,6 +36,7 @@ class ApiException implements Exception {
     this.retryAfter,
     this.field,
     this.index,
+    this.data,
   });
 
   final ApiFailure failure;
@@ -60,6 +61,16 @@ class ApiException implements Exception {
   /// The plugin's address validation names the field it rejected, so a form
   /// can put the message against the right input instead of in a banner.
   final String? field;
+
+  /// The server's whole `data` block, when it sent one.
+  ///
+  /// Kept because the interesting part of a refusal is often in there and
+  /// differs per route: the Store API names rejected address fields under
+  /// `data.errors`, invalid parameters under `data.params`, and — on a total
+  /// mismatch — hands back **the refreshed cart** under `data.cart`, which
+  /// saves asking for it again. Read it through a feature's own error type
+  /// rather than reaching in from a widget.
+  final Map<String, dynamic>? data;
 
   /// Which item of a submitted list [field] belongs to, from `data.index`.
   ///
@@ -129,6 +140,7 @@ class ApiException implements Exception {
     Duration? retryAfter;
     String? field;
     int? index;
+    Map<String, dynamic>? details;
     if (body is Map) {
       final code = body['code'];
       final message = body['message'];
@@ -137,6 +149,7 @@ class ApiException implements Exception {
 
       final data = body['data'];
       if (data is Map) {
+        details = data.cast<String, dynamic>();
         final seconds = data['retry_after'];
         if (seconds is num && seconds > 0) {
           retryAfter = Duration(seconds: seconds.toInt());
@@ -156,6 +169,7 @@ class ApiException implements Exception {
       retryAfter: retryAfter,
       field: field,
       index: index,
+      data: details,
     );
   }
 

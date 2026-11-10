@@ -21,6 +21,14 @@ class CartController extends AsyncNotifier<Cart> {
     return ref.read(cartRepositoryProvider).cart();
   }
 
+  /// Takes a cart the server handed back somewhere other than a cart route.
+  ///
+  /// The checkout's total-mismatch refusal carries the **refreshed cart** in
+  /// its error body, so adopting it is both faster and more accurate than
+  /// asking again — anything that changed in between would be missed by a
+  /// second request anyway.
+  void adopt(Cart cart) => state = AsyncData(cart);
+
   /// Line keys with a request in flight.
   final _pending = <String>{};
 
