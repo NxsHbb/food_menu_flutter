@@ -105,10 +105,15 @@ table ordering moot. The **write** path already exists: Pro registers a
 `food-menu-pro` Store API checkout extension with `fmp_order_time_type` and the
 pickup/delivery dates and times. Only the **read** path is missing.
 
+Task 5.2 turned out to need the **free** plugin too: the design's ASAP estimate
+("15 min", "20–35 min") had no setting anywhere — the only preparation setting
+is in whole days — and settings *inputs* live in the free plugin while their
+*registration* lives in Pro.
+
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 5.1 | `GET /fmp/v1/app/order-types` — whether pickup and delivery are enabled, with their weekly schedules | pro | done |
-| 5.2 | `GET /fmp/v1/app/slots` — selectable slots for a type and branch, respecting slot limits and timed products. Returns the design's flat list (`ASAP (15 min)`, `12:45`, …) rather than a date+time matrix | pro | todo |
+| 5.2 | `GET /fmp/v1/app/slots` — selectable slots for a type and branch, respecting slot limits and timed products. Returns the design's flat list (`ASAP (15 min)`, `12:45`, …) rather than a date+time matrix | free + pro | done |
 | 5.3 | `GET /fmp/v1/app/branches` — branch list with per-branch rules | free | todo |
 | 5.4 | Flutter pickup/delivery toggle and slot list, driven by server availability | app | todo |
 | 5.5 | Flutter branch selection, persisted and applied to menu and cart requests | app | todo |

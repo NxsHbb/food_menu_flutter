@@ -859,3 +859,106 @@ The sibling method is the opposite — `get_dropdown_options_data()` wants
 `html_entity_decode( $label ) . '-' . $oneBasedPosition`. They look like they
 should be the same and are not, which is now written down in the plugin's own
 notes so nobody unifies them.
+
+## Order date and time are stored in the site's display format, not ISO
+This one would have shipped silently. The checkout stores `fmp_{type}_date` and
+`fmp_{type}_time` as the **site's own `date_format` and `time_format`** —
+`November 10, 2026` and `1:00 pm` on the dev store — because the web checkout's
+inputs submit `fmParams.fm_date_format`/`fm_time_format`, and the Store API
+checkout extension saves whatever string it is given with no validation at all.
+
+Slot limits then count by matching those strings. So an app that sent
+`2026-11-10` and `13:00` would have produced orders that:
+
+- no slot limit counted, because nothing matched;
+- the admin order column and the kitchen monitor rendered unlike every order
+  placed on the web.
+
+Nothing would have errored. `/app/slots` therefore returns `date_value` and a
+per-slot `value` holding the exact strings to submit, and the Dart side is not
+allowed to format its own.
+
+The reverse holds when *reading*: the admin schedule screen writes 24-hour
+times while the checkout submits 12-hour ones, so one slot can hold both
+`13:00` and `1:00 pm`. Counting is keyed on **minutes since midnight** so the
+two are one slot, and the date is matched against both formats.
+
+## The web timepicker offers a time the availability check then refuses
+`applyScheduleBounds()` sets the picker's `maxTime` to the day's last closing
+time, inclusive, so a window of `11:00`–`13:00` offers `13:00`. But
+`is_time_within_schedule()` accepts `t >= start && t < end`, so the AJAX check
+answers "We are not open at this time" for the very time the picker just
+offered.
+
+`/app/slots` follows the check, not the picker: times step while `t < end`, so
+`13:00` is never offered for that window. Worth reporting upstream as a website
+bug rather than quietly reproducing it in the app.
+
+A related divergence, chosen on purpose: the web picker lays one grid across
+the whole day from the first opening time and then disables the gaps, so at an
+interval that does not divide the gap it can miss a later window's own opening
+minute — windows of `11:00`–`13:00` and `18:00`–`19:30` at 45 minutes offer
+`18:30` but not `18:00`. The endpoint starts each window on its own minute,
+which `is_time_within_schedule()` accepts.
+
+## Timed products only ever asked about now
+The whole timed-products feature evaluates its rules against `current_time()`:
+`check_single_condition()` compares the rule to today's date, this minute and
+this weekday. Nothing in the plugin could ask whether a dish is servable at
+some *other* moment, which is exactly what a slot list needs — otherwise a
+customer can preorder a breakfast-only dish for three in the afternoon.
+
+Agreed before building: evaluate the same rules at the slot's own moment. The
+method took an optional timestamp, with **null preserving every existing
+caller byte for byte**, and `TimedProducts::unavailable_at()` became the public
+way in. `fmp_timed_products_behavior` is deliberately not consulted there —
+that setting decides whether the *menu* hides or greys out a dish unorderable
+right now, which says nothing about whether the kitchen can serve it tomorrow.
+
+Checked at the boundaries: a 07:00–11:00 rule leaves 11:00 available and blocks
+11:01, because the plugin's own comparison is inclusive at both ends.
+
+## Per-product slot limits stop counting when slot limits are switched off
+`_fmp_slot_limit_exempt` is written to **every** order placed while
+`fmp_enable_order_slot_limits` is off, and the combined per-product query
+excludes exempt orders. So a store that uses per-product order limits but not
+slot caps counts nothing toward those limits — the per-product feature has its
+own switch and looks independent, but is not.
+
+`/app/slots` reproduces this on purpose. The checkout's own validation
+(`validate_product_limits_checkout`) uses the same query, so an endpoint that
+counted more honestly would mark slots unavailable that the checkout then
+happily accepted, which is worse than agreeing with it. Flagged on the PR as a
+plugin bug to fix in its own change.
+
+## A settings key must be registered in PHP or it is wiped on every save
+The free plugin's settings save is a whole-option rebuild: it walks
+`Fns::fmpAllSettingsFields()` and writes `$data[$key]` for each registered
+field, then `update_option()` with that array. Five schedule keys are explicitly
+preserved; everything else not in the registry is **dropped**.
+
+So adding a setting is two changes in two repos, and skipping either one is
+worse than doing nothing:
+
+- registered in Pro (`PickupDeliveryFns::settings_field()` and friends), or the
+  value is written back empty every time an admin presses Save;
+- rendered in the free plugin's React section, or there is no way to set it —
+  and a registered-but-unrendered key is posted empty by `buildFormData`,
+  which posts the whole settings state.
+
+## The free plugin's built assets cannot be reproduced
+`tlp-food-menu` commits its built `assets/js/*.min.js` but has **no
+`package-lock.json`**, so a fresh checkout cannot rebuild them as they are:
+
+- `npm install` fails on a peer conflict (`date-fns@4` against
+  `react-day-picker@8`, which wants `^2 || ^3`) — `--legacy-peer-deps` gets past it;
+- `npm run prod` then fails because webpack 5.112 rejects `webpackbar@5.0.2`'s
+  ProgressPlugin options — pinning webpack to 5.89 locally builds;
+- and a build from **pristine source** already rewrites 13 asset files, with
+  `admin-settings.min.js` alone growing ~18KB with no source change at all.
+
+So a three-field settings change cannot be shipped with its asset without
+dragging ~18KB of toolchain churn into that file plus twelve other rewritten
+files. Task 5.2's free PR therefore commits source only and says so; the asset
+is left to whoever owns the release toolchain. Anything needing a free-plugin
+asset rebuild should expect the same, and a lockfile is the real fix.
