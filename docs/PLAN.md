@@ -98,6 +98,7 @@ were not exposed anywhere until task 4.1.
 | 4.4 | Flutter add-on selection UI on the product detail screen, with live price preview | app | done |
 | 4.5 | Flutter cart: add, update quantity, remove, totals, empty state | app | done |
 | 4.6 | Floating mini cart, persisted across app restarts via the `Cart-Token` | app | done |
+| 4.7 | Wire the **quick-add `+`** on dish cards and menu rows. Found while verifying 6.2: it still answers "Add to cart is not built yet", a Phase 2 stand-in that Phase 4 never picked up. `Product.canAddDirectly` already gates it to simple, in-stock dishes with no add-ons | app | todo |
 
 ## Phase 5 — Order type and time slots
 Pickup and delivery only — the design has no dine-in, which also makes QR
@@ -138,7 +139,7 @@ No webview, so the earlier cart-handoff problem disappears.
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 6.1 | Flutter checkout screen: contact details, address block, order summary, per the design | app | done |
-| 6.2 | Place the order via `POST /wc/store/v1/checkout`, sending the `food-menu-pro` extension fields for order type, date and time, **and the branch by name** — the slot-counting queries match `fmp_location_name` | app | todo |
+| 6.2 | Place the order via `POST /wc/store/v1/checkout`, sending the `food-menu-pro` extension fields for order type, date and time, **and the branch** — the slot-counting queries match `fmp_location_name`, which the plugin now writes from the `X-FMP-Branch` header | app + pro | done |
 | 6.3 | Cash on delivery as the v1 payment method, with server-side validation that it is an enabled gateway | pro + app | todo |
 | 6.4 | Order received screen, read back from the API after the order is placed | app | todo |
 | 6.5 | Failure paths — declined order, validation errors, connectivity loss — return to a checkout that keeps its input | app | todo |
@@ -174,7 +175,9 @@ them.
 
 ## Open dependencies
 - **Payment gateways** — card and PayPal are deferred, so v1 needs cash on
-  delivery enabled on the WooCommerce site. To be confirmed.
+  delivery enabled on the WooCommerce site. **Enabled on the dev store** in
+  task 6.2; with no gateway at all the Store API refuses every order. Still to
+  be confirmed for production.
 - **Banner tap targets** — a banner currently opens the full menu, because
   `wp/v2/posts` only exposes *registered* meta and registering a field needs
   plugin code. Per-banner targets are a small follow-up: one

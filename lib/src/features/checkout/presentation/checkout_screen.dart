@@ -2,16 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/api_exception.dart';
+
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../auth/data/auth_controller.dart';
 import '../../auth/presentation/login_screen.dart';
 import '../../cart/data/cart_controller.dart';
 import '../../cart/presentation/cart_screen.dart';
+import '../../menu/presentation/menu_screen.dart';
 import '../../fulfilment/data/fulfilment_controller.dart';
-import '../../fulfilment/domain/order_types.dart';
 import '../../fulfilment/presentation/widgets/fulfilment_section.dart';
 import '../data/checkout_controller.dart';
+import '../data/checkout_repository.dart';
+import '../domain/order_draft.dart';
+import '../domain/placed_order.dart';
 import 'widgets/checkout_address_section.dart';
 import 'widgets/checkout_card.dart';
 import 'widgets/checkout_total_bar.dart';
@@ -50,51 +55,95 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   /// does not greet the customer in red.
   bool _autovalidate = false;
 
-  /// Why the order cannot be placed yet, in the order the customer would fix
-  /// it. Null means nothing is in the way.
-  ///
-  /// Each of these is re-read rather than remembered: the store can switch a
-  /// type off, a slot can fill and an address can be deleted while this
-  /// screen is open.
-  String? get _blocker {
-    final cart = ref.read(cartControllerProvider).value;
-    if (cart == null || cart.isEmpty) return 'Your cart is empty.';
+  /// True while the order is in flight, so the button cannot be pressed
+  /// twice. **Not a provider**: a second order is a second charge, and this
+  /// has to be impossible, not merely unlikely.
+  bool _placing = false;
 
-    if (!ref.read(isSignedInProvider)) return 'Sign in to place your order.';
+  Future<void> _placeOrder() async {
+    if (_placing) return;
 
-    final kind = ref.read(resolvedOrderTypeProvider);
-    if (kind == null) {
-      return 'This store is not taking orders right now.';
-    }
-
-    if (ref.read(selectedSlotProvider) == null) {
-      return 'Choose a time for your order.';
-    }
-
-    if (kind == OrderTypeKind.delivery &&
-        ref.read(checkoutAddressProvider) == null) {
-      return 'Add a delivery address first.';
-    }
-
-    return null;
-  }
-
-  void _placeOrder() {
-    final blocker = _blocker;
-    if (blocker != null) {
-      _say(blocker);
-      return;
-    }
-
+    // The form first. Everything it checks is on screen, so a message beside
+    // the field beats the same complaint in a snackbar — and when the form is
+    // not on screen at all, signed out or with an empty cart, it passes and
+    // the readiness below says the useful thing instead.
     if (!(_formKey.currentState?.validate() ?? false)) {
       setState(() => _autovalidate = true);
       return;
     }
 
-    // Task 6.2 posts the order from here, and 6.3 adds the payment method it
-    // carries. Everything the two need is already on the providers this
-    // screen reads.
-    _say('Payment and placing the order arrive in the next tasks.');
+    // Read, never watched: this is what is true at the moment of the tap.
+    switch (ref.read(checkoutReadinessProvider)) {
+      case CheckoutBlocked(:final reason):
+        _say(reason);
+      case CheckoutReady(:final draft):
+        await _submit(draft);
+    }
+  }
+
+  /// Sends it, and leaves the screen exactly as it was if the server says no.
+  Future<void> _submit(OrderDraft draft) async {
+    setState(() => _placing = true);
+    PlacedOrder? order;
+
+    try {
+      order = await ref.read(checkoutRepositoryProvider).placeOrder(draft);
+
+      // A successful checkout empties the cart server-side, so it has to be
+      // re-read rather than assumed — the mini cart and the tab badge both
+      // watch it.
+      if (order.exists) {
+        await ref.read(cartControllerProvider.notifier).reload();
+      }
+    } on ApiException catch (error) {
+      // The Store API's own sentence, which names what it rejected — "Street
+      // address is required" — and is more use than anything composed here.
+      // Task 6.5 gives the failure paths their own treatment.
+      if (mounted) _say(error.message);
+    } finally {
+      // **Before the dialog, not after it.** The button's spinner is an
+      // animation, and leaving it running behind a modal is a frame loop that
+      // never settles.
+      if (mounted) setState(() => _placing = false);
+    }
+
+    if (!mounted || order == null) return;
+
+    // A 200 with no order is a refusal dressed as a success. Saying so beats
+    // confirming an order number of zero, and the cart is still there to try
+    // again with.
+    if (!order.exists) {
+      _say('The order was not confirmed. Please try again.');
+      return;
+    }
+
+    await _confirm(order);
+  }
+
+  /// Confirms the order, until task 6.4 draws the screen for it.
+  Future<void> _confirm(PlacedOrder order) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Order placed'),
+        content: Text(
+          'Your order #${order.reference} is with the kitchen. '
+          'We will let you know as it progresses.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+    // Back to the menu rather than to a checkout for a cart that no longer
+    // exists. Task 6.4 lands on the order instead.
+    context.goNamed(MenuScreen.routeName);
   }
 
   void _say(String message) {
@@ -164,6 +213,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             CheckoutTotalBar(
               cart: cart,
               label: 'Place order',
+              busy: _placing,
               onPlaceOrder: _placeOrder,
             ),
         ],
@@ -313,7 +363,7 @@ class _SignInRequired extends StatelessWidget {
   }
 }
 
-/// Where the design's payment list goes, until task 6.3 fills it.
+/// What the order will be paid with, until task 6.3 draws the design's list.
 class _PaymentPending extends StatelessWidget {
   const _PaymentPending();
 
@@ -329,8 +379,8 @@ class _PaymentPending extends StatelessWidget {
           const SizedBox(width: AppTokens.space10),
           Expanded(
             child: Text(
-              'Payment method, and placing the order, arrive in tasks 6.2 '
-              'and 6.3.',
+              'Paying with cash on delivery. Choosing a payment method '
+              'arrives in task 6.3.',
               style: text.bodySmall?.copyWith(color: palette.muted),
             ),
           ),

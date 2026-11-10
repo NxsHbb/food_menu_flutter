@@ -286,23 +286,175 @@ void main() {
       expect(find.text('Enter the name for the order.'), findsNothing);
     });
 
-    testWidgets('a complete form gets as far as the next task', (tester) async {
-      await CheckoutHarness().pump(tester);
+    testWidgets('a complete form places it and confirms', (tester) async {
+      final harness = CheckoutHarness();
+      await harness.pump(tester);
 
       await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
       await tester.tap(find.text('Place order'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('arrive in the next tasks'),
-        findsOneWidget,
+      expect(harness.checkout.drafts, hasLength(1));
+      expect(find.text('Order placed'), findsOneWidget);
+      expect(find.textContaining('#1042'), findsOneWidget);
+
+      // The cart is emptied server-side, so it has to be re-read: the mini
+      // cart and the tab badge both watch it.
+      expect(harness.cart.calls.where((c) => c == 'cart'), hasLength(2));
+
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Menu'), findsOneWidget);
+    });
+
+    testWidgets('submits the server\'s own date and time, by type',
+        (tester) async {
+      final harness = CheckoutHarness();
+      await harness.pump(tester);
+
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      // The slot row scrolls, so the fourth chip has to be brought in before
+      // it can be tapped.
+      final chip = find.text('11:30 pm – 11:45 pm');
+      await tester.ensureVisible(chip);
+      await tester.pumpAndSettle();
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      final extension = harness.checkout.lastExtension;
+      expect(extension['fmp_order_time_type'], 'delivery');
+      expect(extension['fmp_delivery_date'], 'November 10, 2026');
+      expect(extension['fmp_delivery_time'], '11:30 pm');
+      // The pickup and dine-in keys still go, empty: the schema types them
+      // all as strings and an omitted one is rejected as null.
+      expect(extension['fmp_pickup_date'], '');
+      expect(extension['fmp_dinein_table'], '');
+      expect(extension.keys, hasLength(9));
+    });
+
+    testWidgets('a pickup order carries the pickup fields', (tester) async {
+      final harness = CheckoutHarness();
+      await harness.pump(tester);
+
+      await tester.tap(find.text('Pickup'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      final extension = harness.checkout.lastExtension;
+      expect(extension['fmp_order_time_type'], 'pickup');
+      expect(extension['fmp_pickup_date'], 'November 10, 2026');
+      expect(extension['fmp_delivery_date'], '');
+    });
+
+    testWidgets('ASAP submits no time at all', (tester) async {
+      // The server sends ASAP with an empty `value`, which is what the
+      // plugin reads as "as soon as possible".
+      final harness = CheckoutHarness();
+      await harness.pump(tester);
+
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      expect(harness.checkout.lastExtension['fmp_delivery_time'], '');
+    });
+
+    testWidgets('the address and the typed contact go on the order',
+        (tester) async {
+      final harness = CheckoutHarness(
+        addresses: FakeAddressRepository(book: [home]),
       );
+      await harness.pump(tester);
+
+      await tester.enterText(
+        find.byType(TextFormField).first,
+        'Nurul Huda Chowdhury',
+      );
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.enterText(find.byType(TextFormField).at(2), 'Gate code 4');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      final body = harness.checkout.lastBody;
+      final billing = body['billing_address'] as Map<String, dynamic>;
+      // Split on the **first** space, so the surname survives whole.
+      expect(billing['first_name'], 'Nurul');
+      expect(billing['last_name'], 'Huda Chowdhury');
+      expect(billing['address_1'], '6391 Elgin St.');
+      expect(billing['phone'], '01711 000111');
+      expect(billing['email'], 'customer@foodmenu.test');
+      expect(body['customer_note'], 'Gate code 4');
+      // Sent for pickup too, and the address the driver is given.
+      expect(body['shipping_address'], isA<Map<String, dynamic>>());
+      expect(body['payment_method'], 'cod');
+    });
+
+    testWidgets('a refused order says why and keeps the cart', (tester) async {
+      final harness = CheckoutHarness()
+        ..checkout.failNext = const ApiException(
+          failure: ApiFailure.http,
+          statusCode: 400,
+          code: 'woocommerce_rest_invalid_address',
+          message: 'There was a problem with the provided billing address: '
+              'Street address is required',
+        );
+      await harness.pump(tester);
+
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Street address is required'), findsOneWidget);
+      expect(find.text('Order placed'), findsNothing);
+      expect(find.text('Place order'), findsOneWidget);
+    });
+
+    testWidgets('an order with no id is not confirmed', (tester) async {
+      // A 200 with `order_id: 0` is a refusal dressed as a success.
+      final harness = CheckoutHarness()..checkout.order = placedOrder(id: 0);
+      await harness.pump(tester);
+
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('The order was not confirmed. Please try again.'),
+          findsOneWidget);
+      expect(find.text('Order placed'), findsNothing);
+    });
+
+    testWidgets('the button cannot be pressed twice', (tester) async {
+      // A second press is a second order, so the guard has to be certain
+      // rather than merely likely.
+      final harness = CheckoutHarness(
+        checkout: FakeCheckoutRepository(
+          delay: const Duration(milliseconds: 200),
+        ),
+      );
+      await harness.pump(tester);
+
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pump();
+
+      await tester.tap(find.byType(FilledButton).last, warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      expect(harness.checkout.drafts, hasLength(1));
     });
 
     testWidgets('delivery with no address is refused before the form',
         (tester) async {
       await CheckoutHarness(addresses: FakeAddressRepository()).pump(tester);
 
+      // The form is checked first, so it has to pass for the blocker to
+      // be what the customer is told.
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
       await tester.tap(find.text('Place order'));
       await tester.pumpAndSettle();
 
@@ -321,6 +473,9 @@ void main() {
         });
       await CheckoutHarness(fulfilment: fulfilment).pump(tester);
 
+      // The form is checked first, so it has to pass for the blocker to
+      // be what the customer is told.
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
       await tester.tap(find.text('Place order'));
       await tester.pumpAndSettle();
 
@@ -338,6 +493,9 @@ void main() {
         };
       await CheckoutHarness(fulfilment: fulfilment).pump(tester);
 
+      // The form is checked first, so it has to pass for the blocker to
+      // be what the customer is told.
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
       await tester.tap(find.text('Place order'));
       await tester.pumpAndSettle();
 

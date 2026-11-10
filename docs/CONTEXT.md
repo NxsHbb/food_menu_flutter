@@ -704,6 +704,44 @@ until then "Place order" validates and stops.
   `AuthValidation` does. Phone is **required here** and optional on the
   profile, and it borrows the profile's digit rule rather than restating it.
 
+### Placing the order (task 6.2)
+`POST wc/store/v1/checkout`, the Store API's own route — the order, its
+totals, stock and the gateway are WooCommerce's business, and the plugin only
+adds the pickup/delivery fields.
+
+- **`checkoutReadinessProvider` is the single answer to "can this be
+  ordered".** It returns either a `CheckoutReady` carrying the `OrderDraft` or
+  a `CheckoutBlocked` carrying the sentence to show. The two questions are the
+  same question: everything that blocks an order is a part the order is
+  missing. Read at the moment of the tap, never watched.
+- **The form is validated first**, because what it checks is on screen and a
+  message beside the field beats the same complaint in a snackbar. When the
+  form is not on screen at all — signed out, or an empty cart — it passes and
+  the readiness says the useful thing.
+- **`OrderDraft.toJson` is the payload**, built in the domain rather than the
+  repository so it can be asserted on without a network layer and resubmitted
+  unchanged by task 6.5.
+- **Send every key of the `food-menu-pro` extension, every time**, including
+  the dine-in ones this app never uses. An omitted key is null and the whole
+  request is rejected. See `FINDINGS.md`.
+- **The date and time are the server's own strings** — `date_value` from the
+  slot list and `value` from the slot — never composed in Dart. ASAP's value
+  is empty, which is what the plugin reads as "as soon as possible".
+- **An address is required for pickup too.** WooCommerce validates a billing
+  address on every order regardless of type.
+- **The branch is not in the payload.** The plugin reads `X-FMP-Branch`, which
+  the interceptor already sets, and resolves the name from the term itself
+  (food-menu-pro#19).
+- **The cart is emptied server-side** by a successful checkout, so the app
+  re-reads it rather than assuming — the mini cart and the tab badge watch it.
+- **The response cannot be trusted for the order's own fields**: its extension
+  block is the schema's empty defaults, not what was saved. Task 6.4 reads the
+  order back.
+- A 200 with `order_id: 0` is treated as a refusal, not an order.
+- Payment is **cash on delivery, hard-coded**, until task 6.3 reads the
+  store's enabled gateways. A store with no gateway enabled has every order
+  refused by the Store API.
+
 ### Ingredients and nutrition
 Supplied by the plugin's `food-menu-pro` **Store API extension** on the
 product response, not by WooCommerce. Added in food-menu-pro#5; before that

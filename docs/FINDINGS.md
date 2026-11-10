@@ -2,6 +2,54 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The checkout extension is all-or-nothing
+`POST wc/store/v1/checkout` rejects the whole request with
+`rest_invalid_param` when the `food-menu-pro` extension block is missing *any*
+of its nine keys — "extensions > food-menu-pro > fmp_pickup_date is not of
+type string". The schema types them all as strings and an omitted key arrives
+as null.
+
+So a delivery order still sends the pickup keys, and an app with no dine-in
+screen still sends `fmp_dinein_date`, `fmp_dinein_time` and
+`fmp_dinein_table`, all empty, plus `fmp_custom_fields: {}`. `OrderDraft`
+builds the full block every time for that reason, and a test counts the keys.
+
+Going the other way, the **response's** extension block is the schema's
+defaults — all empty — not what was saved. The order cannot be read back from
+the checkout response; task 6.4 re-reads it.
+
+## WooCommerce wants a billing address even for a pickup order
+A pickup customer never gives an address in the design, which draws the branch
+instead. WooCommerce does not care: `POST checkout` with a name, email and
+phone and no street is refused with `woocommerce_rest_invalid_address` —
+"Street address is required, Town / City is required" — whatever the order
+type, and whether or not the cart needs shipping.
+
+So an address is required to order at all, not only to have one delivered.
+The checkout asks for one on both types, and says so differently: "Add a
+delivery address first." against "Add an address to your account first.".
+
+## The branch never reached an order placed from the app
+The free plugin writes `fmp_location_name` from a posted checkout field or the
+`fmp_location_id` cookie, and the app has neither — so every app order was
+filed under no branch, and the per-slot counting, which matches orders on
+exactly that meta, never counted one. A branch's cap could be used up by app
+orders while the app was still being offered the slot.
+
+Fixed in the plugin (food-menu-pro#19) rather than worked around in Dart:
+`AppBranchScope` already reads `X-FMP-Branch` on every REST request, so it
+stamps the order too, resolving the name from the term server-side. The app
+sends nothing new — a name the client supplied could be stale or translated.
+
+## A spinner behind a modal is a frame loop that never settles
+`pumpAndSettle` timed out on the first "it places the order" test. The cause
+was not the dialog: the button's `CircularProgressIndicator` was still
+animating behind it, because the busy flag was cleared in a `finally` that ran
+*after* the dialog was dismissed.
+
+Clearing it before showing the dialog fixes both the test and the real screen,
+where a spinner was quietly running under the confirmation.
+
 ## Seeding a text field from a provider is a setState during build
 The checkout prefills its name and phone from the account, which arrives a
 frame or two after the first build. Writing `controller.text` from inside

@@ -54,6 +54,11 @@ Pro features.
 - Enabled: product add-ons, kitchen monitor, custom order statuses, QR table
   ordering, timed products, order timeline, pickup, delivery, dine-in.
 - Currency USD, taxes off.
+- **Cash on delivery enabled** (task 6.2). The Store API refuses an order when
+  the store has no gateway at all, so the app cannot check out without it:
+  `wp wc payment_gateway update cod --enabled=true --user=1`.
+- Two app-placed orders for `customer@foodmenu.test` are left in the store
+  (one delivery, one pickup) as real data for Phase 7's order history.
 - **Add-on test data** (tasks 4.1 and 4.2): three groups on *Fresh Lemonade* — a
   required radio with price deltas, a checkbox with `max_selection` 3 and a
   deliberately non-numeric price, and a textarea with a placeholder and char
