@@ -115,11 +115,12 @@ planned: locations are a free-plugin taxonomy, but every per-branch *rule* is
 Pro term meta and the whole `fmp/v1/app` namespace is Pro's, which free cannot
 reference.
 
-**5.5 needs a plugin change that is not yet planned.** The website scopes the
-menu to a branch through `woocommerce_product_query` and a `fmp_location_id`
-cookie, and the Store API runs neither — so branch selection currently has no
-effect on what the app sees. See `FINDINGS.md`; the work belongs in Pro's Store
-API layer and should be agreed before 5.5 starts.
+Task 5.5 needed the plugin too, as 5.3 flagged: the website scopes the menu
+through `woocommerce_product_query` and a `fmp_location_id` cookie, and the
+Store API runs neither. Agreed and built — Pro now scopes Store API product
+queries by an `X-FMP-Branch` header. **The cart is still not revalidated on a
+branch change**, which the website does, so a customer can carry a dish their
+new branch does not serve; that has to be settled at checkout, in Phase 6.
 
 | # | Task | Repo | Status |
 |---|---|---|---|
@@ -127,7 +128,7 @@ API layer and should be agreed before 5.5 starts.
 | 5.2 | `GET /fmp/v1/app/slots` — selectable slots for a type and branch, respecting slot limits and timed products. Returns the design's flat list (`ASAP (15 min)`, `12:45`, …) rather than a date+time matrix | free + pro | done |
 | 5.3 | `GET /fmp/v1/app/branches` — branch list with per-branch rules | pro | done |
 | 5.4 | Flutter pickup/delivery toggle and slot list, driven by server availability | app + pro | done |
-| 5.5 | Flutter branch selection, persisted and applied to menu and cart requests | app | todo |
+| 5.5 | Flutter branch selection, persisted and applied to menu and cart requests | app + pro | done |
 
 ## Phase 6 — Native checkout
 The design's checkout is a single native screen: a pickup/delivery toggle, the
@@ -137,10 +138,11 @@ No webview, so the earlier cart-handoff problem disappears.
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 6.1 | Flutter checkout screen: contact details, address block, order summary, per the design | app | todo |
-| 6.2 | Place the order via `POST /wc/store/v1/checkout`, sending the `food-menu-pro` extension fields for order type, date and time | app | todo |
+| 6.2 | Place the order via `POST /wc/store/v1/checkout`, sending the `food-menu-pro` extension fields for order type, date and time, **and the branch by name** — the slot-counting queries match `fmp_location_name` | app | todo |
 | 6.3 | Cash on delivery as the v1 payment method, with server-side validation that it is an enabled gateway | pro + app | todo |
 | 6.4 | Order received screen, read back from the API after the order is placed | app | todo |
 | 6.5 | Failure paths — declined order, validation errors, connectivity loss — return to a checkout that keeps its input | app | todo |
+| 6.6 | A cart carried across a branch switch can hold a dish the new branch does not serve. The website drops those lines; decide whether to warn, drop or let checkout refuse | app + pro | todo |
 
 ## Phase 7 — Orders and tracking
 | # | Task | Repo | Status |

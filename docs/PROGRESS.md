@@ -2,6 +2,60 @@
 
 Newest first. One entry per completed task.
 
+## Task 5.5 — Choosing a branch, and the menu following it
+Branch `feat/branch`, PR #38, with the plugin half on `mobile-app`
+(food-menu-pro). 29 new tests, 542 in total. Phase 5 is complete with this.
+
+### The gap 5.3 flagged, closed
+The website scopes the menu to a branch on `woocommerce_product_query` with a
+`fmp_location_id` cookie. The Store API fires neither, so a branch changed the
+hours but not the dishes. It turned out to have a clean fix: the Store API's
+`ProductQuery::get_results()` runs a plain `new WP_Query()`, so `pre_get_posts`
+reaches every product listing, search and collection count. Pro hooks it, reads
+an `X-FMP-Branch` header and merges in the free plugin's own `tax_query` —
+including the arm that matters most, that a dish filed under no location is
+sold everywhere.
+
+The route is taken from `rest_pre_dispatch` rather than sniffed from the URI,
+so the same header on `wc/v3` cannot change what an admin screen lists.
+
+### A header, and what it costs
+The branch has to reach the menu, the search, the counts and the cart. As a
+parameter it would have to be threaded through every call site and the one
+that was forgotten would quietly serve another branch's dishes. As a header
+set by an interceptor it cannot be forgotten.
+
+The cost: two branches produce identical-looking requests, so everything
+scoped by the branch watches `activeBranchIdProvider` purely as a cache key.
+That is a comment on four providers rather than a mechanism, and the part most
+likely to be lost by someone tidying up.
+
+### A provider the network layer awaits must never fail
+`selectedBranchProvider` is read by the interceptor before every request, so it
+cannot enter an error state and cannot retry — a throwing keystore has to mean
+"no branch chosen", and Riverpod's retry backoff would hold every request
+instead of letting the app run unscoped. A test that simulated an unreadable
+keystore found both, by timing out at thirty seconds.
+
+### Running it found the picker drawing under the cart bar
+The sheet was shown from the menu tab's own navigator, and the shell paints the
+floating cart bar in a Stack above that, so the bar covered the second branch.
+`useRootNavigator: true`. The widget test pumps the sheet with no shell around
+it, so there was no bar to be covered by — invisible until the handset.
+
+### Verified on the device, A against B
+Two probe branches, three dishes each, twelve sold everywhere. Searching
+"Marg" under Probe South finds Margherita; the same search under Probe North
+says "No dishes match". The list header goes 18 dishes to 15 on switching, and
+the picker shows each branch's address with "Open now" or "Closed today".
+
+### Left for Phase 6
+**The cart is not revalidated on a branch switch.** The website drops lines the
+new branch does not serve; the app cannot, so a customer can carry a dish
+across. Recorded as task 6.6, and 6.2 now notes that an order has to carry the
+branch **by name**, because the slot-counting queries match
+`fmp_location_name`.
+
 ## Task 5.4 — The pickup/delivery toggle and the slot list
 Branch `feat/fulfilment`, PR #37, with one plugin change on `mobile-app`
 (food-menu-pro). First Dart of Phase 5 and the first consumer of the three

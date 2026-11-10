@@ -1,0 +1,100 @@
+{
+    "multi_location": true,
+    "timezone": "+00:00",
+    "now": "2026-11-10T05:15:19+00:00",
+    "branches": [
+        {
+            "id": 50,
+            "name": "Probe North",
+            "slug": "probe-north",
+            "parent": 0,
+            "description": "",
+            "product_count": 3,
+            "address": "12 North Road\nDhaka 1207",
+            "coordinates": {
+                "latitude": 23.7806,
+                "longitude": 90.4193
+            },
+            "is_store": false,
+            "types": [
+                {
+                    "type": "pickup",
+                    "label": "Pickup",
+                    "enabled": true,
+                    "time_required": true,
+                    "has_custom_schedule": false,
+                    "time_interval": 15,
+                    "max_orders_per_slot": 0,
+                    "lead_days": 0,
+                    "open_today": true,
+                    "open_now": true,
+                    "today": {
+                        "day": 2,
+                        "windows": []
+                    }
+                },
+                {
+                    "type": "delivery",
+                    "label": "Delivery",
+                    "enabled": true,
+                    "time_required": true,
+                    "has_custom_schedule": false,
+                    "time_interval": 15,
+                    "max_orders_per_slot": 0,
+                    "lead_days": 0,
+                    "open_today": true,
+                    "open_now": true,
+                    "today": {
+                        "day": 2,
+                        "windows": []
+                    }
+                }
+            ]
+        },
+        {
+            "id": 51,
+            "name": "Probe South",
+            "slug": "probe-south",
+            "parent": 0,
+            "description": "",
+            "product_count": 4,
+            "address": "9 South Lane, Dhaka",
+            "coordinates": null,
+            "is_store": false,
+            "types": [
+                {
+                    "type": "pickup",
+                    "label": "Pickup",
+                    "enabled": true,
+                    "time_required": true,
+                    "has_custom_schedule": true,
+                    "time_interval": 15,
+                    "max_orders_per_slot": 0,
+                    "lead_days": 0,
+                    "open_today": false,
+                    "open_now": false,
+                    "today": {
+                        "day": 2,
+                        "windows": []
+                    }
+                },
+                {
+                    "type": "delivery",
+                    "label": "Delivery",
+                    "enabled": true,
+                    "time_required": true,
+                    "has_custom_schedule": true,
+                    "time_interval": 15,
+                    "max_orders_per_slot": 0,
+                    "lead_days": 0,
+                    "open_today": false,
+                    "open_now": false,
+                    "today": {
+                        "day": 2,
+                        "windows": []
+                    }
+                }
+            ]
+        }
+    ]
+}

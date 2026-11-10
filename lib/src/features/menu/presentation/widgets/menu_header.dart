@@ -17,6 +17,7 @@ class MenuHeader extends StatelessWidget {
     required this.greeting,
     required this.prompt,
     required this.onSearchTap,
+    this.onAddressTap,
     super.key,
   });
 
@@ -25,6 +26,10 @@ class MenuHeader extends StatelessWidget {
   final String greeting;
   final String prompt;
   final VoidCallback onSearchTap;
+
+  /// Opens the branch picker. Null leaves the line inert, which is what a
+  /// store with a single location wants.
+  final VoidCallback? onAddressTap;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +57,9 @@ class MenuHeader extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Column(
+                child: InkWell(
+                  onTap: onAddressTap,
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -80,14 +87,16 @@ class MenuHeader extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const Icon(
-                          Icons.keyboard_arrow_down,
-                          size: 18,
-                          color: Colors.white,
-                        ),
+                        if (onAddressTap != null)
+                          const Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 18,
+                            color: Colors.white,
+                          ),
                       ],
                     ),
                   ],
+                  ),
                 ),
               ),
               const _HeaderIconButton(icon: Icons.notifications_none),

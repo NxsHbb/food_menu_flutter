@@ -1084,3 +1084,57 @@ simply asserts no overflow rather than a wrapped layout.
 
 Worth remembering when picking fixtures: a schedule with four slots is not a
 realistic store, and the layout only breaks at a realistic one.
+
+## The Store API runs a plain `WP_Query`, so `pre_get_posts` reaches it
+The branch gap from task 5.3 turned out to have a clean fix. WooCommerce's
+`StoreApi\Utilities\ProductQuery::get_results()` builds its args and then runs
+`new \WP_Query()`, so `pre_get_posts` fires for every Store API product
+listing, search and collection-count. Pro hooks that, reads the branch from an
+`X-FMP-Branch` header and merges in the free plugin's own `tax_query`.
+
+Two details that make it safe:
+
+- **The route comes from `rest_pre_dispatch`**, not from sniffing
+  `REQUEST_URI`, so "is this the Store API" is exact and the same header on
+  `wc/v3` or a staff route is ignored. Verified: `wp/v2/posts` is unaffected.
+- **Merged under `AND`**, so a category filter and the branch both hold. A
+  category of three burgers, one filed to another branch, correctly returns
+  two — and that test only means anything because one of them is filed
+  somewhere; with all three "sold everywhere" the merge looks right while
+  doing nothing.
+
+## A header is a better carrier than a parameter for a cross-cutting scope
+The branch has to reach the menu, the search, the collection counts and the
+cart. As a query parameter it would have to be threaded through every call
+site, and the one that was forgotten would silently return another branch's
+dishes. As a header set by an interceptor it cannot be forgotten.
+
+The cost is that **requests become indistinguishable to a cache**: two
+branches produce the same URL. So everything scoped by the branch watches
+`activeBranchIdProvider` as a cache key even though it does not use the value.
+That is a comment on four providers rather than a mechanism, and it is the
+part most likely to be dropped by someone tidying up.
+
+## A provider the network layer awaits must never fail
+`selectedBranchProvider` is read by an interceptor before every request. Two
+things follow, and a test that simulated an unreadable keystore found both:
+
+- **It cannot enter an error state.** A throwing store has to mean "no branch
+  chosen", or the first menu load hangs behind a keychain problem.
+- **It cannot retry.** Riverpod retries a failed build with a growing backoff;
+  with the interceptor awaiting it, that holds every request rather than
+  letting the app run unscoped. The test timed out at thirty seconds, which is
+  what the backoff looks like from the outside.
+
+The same reasoning already applies to the cart token, and is worth applying to
+anything else the interceptors come to depend on.
+
+## A bottom sheet from a shell branch comes up under the shell's own overlay
+The branch picker was shown with `showModalBottomSheet(context)` from the menu
+tab, and the floating cart bar drew **over** it, hiding the second branch. The
+shell paints that bar in a `Stack` above its `navigationShell`, so a sheet
+pushed onto the branch's own navigator is below it. `useRootNavigator: true`
+fixes it.
+
+Only visible by running it: the widget test pumps the sheet without the shell
+around it, so there is no cart bar to be covered by.

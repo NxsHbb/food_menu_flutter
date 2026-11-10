@@ -1,0 +1,52 @@
+{
+    "multi_location": false,
+    "timezone": "+00:00",
+    "now": "2026-11-10T05:15:19+00:00",
+    "branches": [
+        {
+            "id": 0,
+            "name": "Food Menu Dev",
+            "slug": "",
+            "parent": 0,
+            "description": "",
+            "product_count": 0,
+            "address": "12 Kitchen Lane, Dhaka",
+            "coordinates": null,
+            "is_store": true,
+            "types": [
+                {
+                    "type": "pickup",
+                    "label": "Pickup",
+                    "enabled": true,
+                    "time_required": true,
+                    "has_custom_schedule": false,
+                    "time_interval": 15,
+                    "max_orders_per_slot": 0,
+                    "lead_days": 0,
+                    "open_today": true,
+                    "open_now": true,
+                    "today": {
+                        "day": 2,
+                        "windows": []
+                    }
+                },
+                {
+                    "type": "delivery",
+                    "label": "Delivery",
+                    "enabled": true,
+                    "time_required": true,
+                    "has_custom_schedule": false,
+                    "time_interval": 15,
+                    "max_orders_per_slot": 0,
+                    "lead_days": 0,
+                    "open_today": true,
+                    "open_now": true,
+                    "today": {
+                        "day": 2,
+                        "windows": []
+                    }
+                }
+            ]
+        }
+    ]
+}

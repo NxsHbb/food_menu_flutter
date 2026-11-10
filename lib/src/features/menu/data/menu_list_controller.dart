@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/store_api/models/product.dart';
+import '../../branch/data/branch_controller.dart';
 import 'menu_repository.dart';
 
 /// What the list screen is currently asking for.
@@ -144,6 +145,10 @@ final menuQueryProvider =
 class MenuListController extends AsyncNotifier<MenuListState> {
   @override
   Future<MenuListState> build() async {
+    // The branch is a cache key here too — it travels on a header, so two
+    // branches produce identical-looking requests with different answers.
+    ref.watch(activeBranchIdProvider);
+
     final query = ref.watch(menuQueryProvider);
     final page = await ref
         .watch(menuRepositoryProvider)

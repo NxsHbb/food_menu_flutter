@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../branch/data/branch_controller.dart';
+import '../../branch/presentation/widgets/branch_picker_sheet.dart';
 import '../../cart/presentation/widgets/cart_bar.dart';
 import '../data/banner_repository.dart';
 import '../data/menu_repository.dart';
@@ -37,13 +39,17 @@ class MenuScreen extends ConsumerWidget {
     final products = ref.watch(menuProductsProvider);
     final selectedId = ref.watch(selectedCategoryProvider);
 
+    final branches = ref.watch(branchesProvider).value;
+    final branch = ref.watch(activeBranchProvider);
+
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () async {
           ref
             ..invalidate(menuCategoriesProvider)
             ..invalidate(menuProductsProvider)
-            ..invalidate(bannersProvider);
+            ..invalidate(bannersProvider)
+            ..invalidate(branchesProvider);
           await Future.wait([
             ref.read(menuCategoriesProvider.future),
             ref.read(menuProductsProvider.future),
@@ -54,14 +60,23 @@ class MenuScreen extends ConsumerWidget {
           slivers: [
             SliverToBoxAdapter(
               child: MenuHeader(
-                // Placeholder copy until branches (5.5) and accounts (3.3)
-                // can supply the real values.
-                addressLabel: 'Deliver to',
-                address: 'Choose a branch',
+                addressLabel: branches?.multiLocation == false
+                    ? 'Ordering from'
+                    : 'Deliver to',
+                // The branch's own name once one is settled. Until the list
+                // arrives the design's own placeholder stands, rather than a
+                // blank line that shifts when it loads.
+                address: branch?.name ?? 'Choose a branch',
                 greeting: 'Welcome',
                 prompt: 'What are you craving?',
                 onSearchTap: () =>
                     context.goNamed(MenuListScreen.routeName),
+                // Inert for a store with one location: there is nothing to
+                // choose between, and a chevron that opens a list of one
+                // reads as a bug.
+                onAddressTap: branches?.multiLocation == false
+                    ? null
+                    : () => BranchPickerSheet.show(context),
               ),
             ),
             SliverToBoxAdapter(
