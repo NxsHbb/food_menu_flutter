@@ -110,11 +110,22 @@ Task 5.2 turned out to need the **free** plugin too: the design's ASAP estimate
 is in whole days — and settings *inputs* live in the free plugin while their
 *registration* lives in Pro.
 
+Task 5.3 went the other way, into **Pro** rather than the free plugin as
+planned: locations are a free-plugin taxonomy, but every per-branch *rule* is
+Pro term meta and the whole `fmp/v1/app` namespace is Pro's, which free cannot
+reference.
+
+**5.5 needs a plugin change that is not yet planned.** The website scopes the
+menu to a branch through `woocommerce_product_query` and a `fmp_location_id`
+cookie, and the Store API runs neither — so branch selection currently has no
+effect on what the app sees. See `FINDINGS.md`; the work belongs in Pro's Store
+API layer and should be agreed before 5.5 starts.
+
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 5.1 | `GET /fmp/v1/app/order-types` — whether pickup and delivery are enabled, with their weekly schedules | pro | done |
 | 5.2 | `GET /fmp/v1/app/slots` — selectable slots for a type and branch, respecting slot limits and timed products. Returns the design's flat list (`ASAP (15 min)`, `12:45`, …) rather than a date+time matrix | free + pro | done |
-| 5.3 | `GET /fmp/v1/app/branches` — branch list with per-branch rules | free | todo |
+| 5.3 | `GET /fmp/v1/app/branches` — branch list with per-branch rules | pro | done |
 | 5.4 | Flutter pickup/delivery toggle and slot list, driven by server availability | app | todo |
 | 5.5 | Flutter branch selection, persisted and applied to menu and cart requests | app | todo |
 

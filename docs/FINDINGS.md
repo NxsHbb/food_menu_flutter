@@ -962,3 +962,78 @@ dragging ~18KB of toolchain churn into that file plus twelve other rewritten
 files. Task 5.2's free PR therefore commits source only and says so; the asset
 is left to whoever owns the release toolchain. Anything needing a free-plugin
 asset rebuild should expect the same, and a lockfile is the real fix.
+
+## Branch selection does not reach the Store API
+The free plugin scopes the menu to the chosen branch in two places —
+`FoodLocation::filterByLocation()` on the `rt_fm_sc_query_args` filter, for
+shortcodes, and `FoodLocation::filterShopByLocation()` on
+`woocommerce_product_query`, for the shop page. Both read the branch from a
+**`fmp_location_id` cookie**, and both add the same `tax_query`: products in
+this location, **OR** products with no location at all.
+
+The app browses through `wc/store/v1/products`, and the Store API builds its
+own query. It does not fire `woocommerce_product_query`, and it has no cookie.
+So today, passing a branch to the app's API changes the hours and the slots but
+**not which dishes come back** — every product from every branch is listed.
+
+This makes task 5.5 ("branch selection, persisted and applied to menu and cart
+requests") impossible in Dart alone, and setting a cookie from the client is
+not the fix either: the Store API would still not consult it, and the app has
+no business pretending to be a browser. The work belongs in Pro's Store API
+layer — a product-query filter honouring a branch parameter, mirroring the
+free plugin's `tax_query` including its "no location means everywhere" arm.
+Agree it before 5.5 starts.
+
+Related, and already handled: the cart is validated against the branch
+(`validateCartLocation()` removes items belonging to another one), so switching
+branch can empty a cart. The app has to expect that rather than assume its
+local cart survives a branch change.
+
+## An order records its branch by name, not by id
+`FoodLocation::location_update_meta()` stores **both** `fmp_location_name` and
+`fmp_location_id` on the order, but the per-slot counting queries match on
+**`fmp_location_name`** — `PickupDelivery::get_slot_order_count()` and
+`get_combined_slot_order_ids()` both look up the term and compare its `name`.
+`/app/slots` does the same, because agreeing with the checkout matters more
+than being tidy.
+
+So an order placed by the app must carry the branch's **name**, spelled exactly
+as the term is, or it will not count against that branch's slot limits. Renaming
+a branch in WordPress therefore orphans the slot counts of every order already
+placed against it — worth knowing before anyone renames one, and an argument
+for fixing the plugin to count on the id at some point.
+
+## Two bugs found on the food location screen
+Both were in the way of task 5.3 and are fixed in food-menu-pro#16.
+
+**Coordinates were never saved.** The location term screen renders Latitude and
+Longitude, defaults them to Googleplex (`37.4224428, -122.0842467`) when empty,
+and feeds them to a map preview — but `location_save_meta_field()`'s whitelist
+did not include them, so `filter_input_array()` never read them and every value
+an admin typed was dropped on Update. Fixing the save made the fake defaults
+dangerous rather than merely odd: with saving working, pressing Update would
+have written a California coordinate into every branch. Both the save and the
+defaults are fixed, and the fields no longer hide behind the Google Maps
+switch, since coordinates are a fact about the store rather than a map feature.
+
+**The address textarea corrupted its own value**, escaping element content with
+`esc_attr()` instead of `esc_textarea()` and printing it on its own indented
+line. Each save round-tripped more leading whitespace and another layer of
+entity escaping, so `&` became `&amp;` and then `&amp;amp;`. Fixed at the
+source; `BranchesApi` also decodes and trims on read to clean existing rows.
+
+Worth remembering for the other `fmp_loc_*` fields: that whitelist is the only
+thing that saves them, so a field added to the markup and not to the list looks
+completely normal and silently does nothing.
+
+## `filter_input_array( INPUT_POST, … )` cannot be tested from the CLI
+It reads the real request, not `$_POST`, so assigning `$_POST` in a script and
+calling the handler proves nothing — it returns null and the handler quietly
+does nothing, which looks exactly like the bug it was meant to prove fixed.
+
+The coordinate fix above was verified through a **real admin POST**: log in to
+`wp-login.php` with curl keeping a cookie jar, fetch
+`term.php?taxonomy=tpl-food-location&tag_ID=<id>`, scrape `_wpnonce`, then post
+to `edit-tags.php` with `action=editedtag`. Reverting the file and re-posting
+showed the values being dropped; restoring it showed them persisting. That
+round trip is the only honest check of any `filter_input`-based save.

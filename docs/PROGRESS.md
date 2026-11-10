@@ -2,6 +2,70 @@
 
 Newest first. One entry per completed task.
 
+## Task 5.3 — The branch list (plugin)
+Branch `mobile-app`, PR food-menu-pro#16 — the first PR under the new rule that
+all plugin work stays on one long-lived branch. The Flutter side is task 5.5.
+No Dart changed. Phase 5's read endpoints are complete with this.
+
+### It went into Pro, not the free plugin as planned
+Locations *are* a free-plugin feature — `tpl-food-location` is registered in
+`PostTypesController` and the term holds only what WordPress gives it. But
+every per-branch **rule** is Pro's `fmp_loc_*` term meta, and the whole
+`fmp/v1/app` namespace is Pro's too. Free can reference neither, and Pro
+already depends on free, so there was only one direction this could go.
+
+### The list is never empty
+A store with no branches still has somewhere its customers collect from, and
+the design's header says "Pick up from" on the first screen. So that case comes
+back as one entry built from **WooCommerce's own store address**, with `id: 0`
+— already what `branch=0` means to `/order-types` and `/slots` — and
+`is_store: true`. The app has no empty case to code around.
+
+The week is not inlined per branch; `/order-types?branch=<id>` answers it, and
+repeating it per branch would make the payload grow with the store. Everything
+here reads through `AppSchedules`, and the three routes were cross-checked on
+the same branch to prove they agree.
+
+### Two plugin bugs were in the way
+**Coordinates were never saved.** The location screen renders Latitude and
+Longitude, defaults them to Googleplex when empty and draws them on a map, but
+they were missing from the save whitelist, so every value an admin typed was
+dropped on Update. Fixing the save made the fake defaults actively dangerous —
+pressing Update would have written a California coordinate into every branch —
+so those went too, and the fields no longer hide behind the Google Maps switch.
+
+**The address textarea corrupted its own value**, using `esc_attr()` on element
+content and printing it on an indented line, so each save added more whitespace
+and another layer of entity escaping. Fixed at the source, with a bounded
+decode-and-trim on read for rows already damaged.
+
+The coordinate fix had to be verified through a **real admin POST over HTTP**:
+`filter_input_array( INPUT_POST, … )` ignores a hand-built `$_POST`, so a CLI
+test returns null and looks exactly like the bug. Reverting the file and
+re-posting showed the values dropped; restoring it showed them kept.
+
+### The thing that changes the plan
+**Branch selection does not reach the Store API.** The free plugin scopes the
+menu with `woocommerce_product_query` and a `fmp_location_id` cookie, and the
+Store API runs neither — so a branch changes the hours and the slots but not
+which dishes come back. Task 5.5 cannot be done in Dart alone; it needs a
+product-query filter in Pro's Store API layer first, mirroring the free
+plugin's `tax_query` including its "no location means available everywhere"
+arm. Flagged in `PLAN.md` and `FINDINGS.md` to agree before 5.5 starts.
+
+Also recorded: an order records its branch by **name**, and the slot-counting
+queries match on that name, so renaming a branch orphans the slot counts of
+every order already placed against it.
+
+### Verified on the dev store, then restored
+Four branches, two of them children of a third: hierarchy, a branch with its
+own pickup hours falling back to the store for delivery, an out-of-range
+latitude coming back null, a branch with no coordinates, `open_now` true inside
+a window and false outside, and a deliberately double-escaped address coming
+back clean. Settings were backed up and diffed against the backup afterwards,
+the probe branches deleted, the multi-location switch put back off, and the PHP
+server stopped — it was not running before.
+
 ## Task 5.2 — Selectable slots (plugin, both of them)
 Branches `mobile-app-slots` (PR food-menu-pro#15) and
 `mobile-app-asap-estimate` (PR tlp-food-menu#4). The Flutter side is task 5.4.
