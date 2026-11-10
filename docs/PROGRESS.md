@@ -2,6 +2,50 @@
 
 Newest first. One entry per completed task.
 
+## Task 6.3 — Paying
+Branch `feat/payment-method`, PR #41, with the plugin half on `mobile-app`
+(food-menu-pro#20). 13 new tests, 611 in total.
+
+### What landed
+The design's payment list, over a new `GET fmp/v1/app/payment-methods`. The
+gateway on the order is the store's own id rather than the `cod` constant
+task 6.2 left behind.
+
+### The validation the task asked for already existed
+`POST checkout` with a disabled gateway answers
+`woocommerce_rest_checkout_payment_method_disabled`, naming it. So Pro adds no
+validation of its own, deliberately — what it adds is the **list**. The Store
+API's cart reports gateway ids and nothing else, and the words beside a radio
+button are the merchant's: translated, and renamed often enough that "Cash on
+delivery" cannot be a string in the client. A store that calls it "Pay the
+rider" means it.
+
+### Enabled, available, and supported are three different things
+- **Enabled** is the store's setting, cart-independent — the new endpoint.
+- **Available** is WooCommerce's answer for one cart, which can narrow by
+  country or total — `Cart.payment_methods`, now parsed.
+- **Supported** is this app's reach: cash on delivery is the only gateway v1
+  can carry to a placed order. The server says which, so a site can widen it
+  with `fmp_app_supported_gateways` without an app release.
+
+An unsupported gateway is still drawn, dimmed and unselectable, because a
+store running only card would otherwise show an empty section and no reason
+why.
+
+### Null is not empty
+`PaymentMethods.offered` takes a nullable list of available ids. Null is "the
+cart has not been read yet" and the whole list stands; an empty list is a real
+answer — nothing can pay for this cart — and nothing is shown. Collapsing the
+two blanked the section on first paint, and the two tests that disagreed about
+it are what found it.
+
+### Verified on the device
+Cash on delivery renders with the store's own title and description, selected,
+and an order placed from the handset is `cod` / "Cash on delivery" on the
+server. Turning **bank transfer** on as well draws it above, dimmed, with
+"Other methods are coming to the app soon." — tapping it does nothing and the
+order still goes out as `cod`. The store was put back to cash-only afterwards.
+
 ## Task 6.2 — Placing the order
 Branch `feat/place-order`, PR #40, with the plugin half on `mobile-app`
 (food-menu-pro#19). 22 new tests, 598 in total.

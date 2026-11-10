@@ -140,7 +140,7 @@ No webview, so the earlier cart-handoff problem disappears.
 |---|---|---|---|
 | 6.1 | Flutter checkout screen: contact details, address block, order summary, per the design | app | done |
 | 6.2 | Place the order via `POST /wc/store/v1/checkout`, sending the `food-menu-pro` extension fields for order type, date and time, **and the branch** — the slot-counting queries match `fmp_location_name`, which the plugin now writes from the `X-FMP-Branch` header | app + pro | done |
-| 6.3 | Cash on delivery as the v1 payment method, with server-side validation that it is an enabled gateway | pro + app | todo |
+| 6.3 | Cash on delivery as the v1 payment method, with server-side validation that it is an enabled gateway | pro + app | done |
 | 6.4 | Order received screen, read back from the API after the order is placed | app | todo |
 | 6.5 | Failure paths — declined order, validation errors, connectivity loss — return to a checkout that keeps its input | app | todo |
 | 6.6 | A cart carried across a branch switch can hold a dish the new branch does not serve. The website drops those lines; decide whether to warn, drop or let checkout refuse | app + pro | todo |
@@ -176,8 +176,9 @@ them.
 ## Open dependencies
 - **Payment gateways** — card and PayPal are deferred, so v1 needs cash on
   delivery enabled on the WooCommerce site. **Enabled on the dev store** in
-  task 6.2; with no gateway at all the Store API refuses every order. Still to
-  be confirmed for production.
+  task 6.2; with no gateway at all the Store API refuses every order. Task 6.3
+  made the app say so rather than fail silently, but a production store still
+  needs one the app can complete. To be confirmed.
 - **Banner tap targets** — a banner currently opens the full menu, because
   `wp/v2/posts` only exposes *registered* meta and registering a field needs
   plugin code. Per-banner targets are a small follow-up: one

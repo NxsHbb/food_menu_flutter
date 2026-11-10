@@ -2,6 +2,32 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## WooCommerce already refuses a gateway the store has switched off
+Task 6.3 was written as "server-side validation that it is an enabled
+gateway", and that validation turned out to exist: `POST checkout` with
+`payment_method: cheque` on a store where cheque is disabled answers
+`woocommerce_rest_checkout_payment_method_disabled` — "Check payments is not
+available for this order—please choose a different payment method".
+
+So Pro adds no validation of its own, deliberately. What it adds is the
+**list**: the Store API's cart reports gateway ids and nothing else, and the
+words beside a radio button are the merchant's, translated and often renamed.
+`GET fmp/v1/app/payment-methods` answers with the title and description, and
+with `supported` — whether this app can carry that gateway through to a
+placed order, which is the app's reach rather than the store's.
+
+## Enabled is not available, and an empty list is not an unknown one
+Two different questions, and the app needs both. `/app/payment-methods` lists
+what the store has **enabled**, which does not depend on a cart and is stable
+for the session. `Cart.payment_methods` lists what is **available for that
+cart**, which WooCommerce recomputes per order and can narrow by country or
+total. The checkout intersects them.
+
+`PaymentMethods.offered` therefore takes a **nullable** list: null is "the
+cart has not been read yet" and leaves the whole list standing, while an
+empty list is a real answer — nothing can pay for this cart — and leaves
+nothing to show. Collapsing the two blanked the section on first paint.
+
 ## The checkout extension is all-or-nothing
 `POST wc/store/v1/checkout` rejects the whole request with
 `rest_invalid_param` when the `food-menu-pro` extension block is missing *any*

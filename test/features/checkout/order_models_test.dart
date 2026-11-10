@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/features/checkout/domain/checkout_contact.dart';
 import 'package:food_menu/src/features/checkout/domain/order_draft.dart';
+import 'package:food_menu/src/features/checkout/domain/payment_method.dart';
 import 'package:food_menu/src/features/checkout/domain/placed_order.dart';
 import 'package:food_menu/src/features/fulfilment/domain/order_types.dart';
 
@@ -174,6 +175,62 @@ void main() {
       });
 
       expect(order.payment?.isSuccess, isFalse);
+    });
+  });
+
+  group('the payment methods', () {
+    final mixed = PaymentMethods.fromJson(const {
+      'default': 'cod',
+      'methods': [
+        {'id': 'bacs', 'title': 'Direct bank transfer', 'supported': false},
+        {'id': 'cod', 'title': 'Cash on delivery', 'supported': true},
+      ],
+    });
+
+    test('an unread cart leaves the whole list standing', () {
+      // Null is "we have not asked yet", which must not be read as "nothing
+      // is available" and blank the section on first paint.
+      expect(mixed.offered(null), hasLength(2));
+    });
+
+    test('a cart nothing can pay for offers nothing', () {
+      expect(mixed.offered(const []), isEmpty);
+    });
+
+    test('only what this cart can use', () {
+      // Enabled store-wide is not the same as available for this order.
+      expect(
+        mixed.offered(const ['cod']).map((m) => m.id),
+        ['cod'],
+      );
+    });
+
+    test('resolves to the choice when the app can finish it', () {
+      final chosen = mixed.resolve('cod', const ['bacs', 'cod']);
+      expect(chosen?.id, 'cod');
+    });
+
+    test('never resolves to one the app cannot finish', () {
+      // A tap on an unsupported row must not be able to reach an order.
+      final chosen = mixed.resolve('bacs', const ['bacs', 'cod']);
+      expect(chosen?.id, 'cod');
+    });
+
+    test('falls back to the store default, then to the first usable', () {
+      final noDefault = PaymentMethods.fromJson(const {
+        'default': '',
+        'methods': [
+          {'id': 'cod', 'title': 'Cash', 'supported': true},
+        ],
+      });
+
+      expect(mixed.resolve(null, const ['bacs', 'cod'])?.id, 'cod');
+      expect(noDefault.resolve(null, const ['cod'])?.id, 'cod');
+    });
+
+    test('is null when nothing on offer can be finished', () {
+      expect(mixed.resolve('bacs', const ['bacs']), isNull);
+      expect(PaymentMethods.empty.resolve(null, const ['cod']), isNull);
     });
   });
 }

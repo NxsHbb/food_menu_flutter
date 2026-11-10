@@ -1,0 +1,17 @@
+{
+  "default": "cod",
+  "methods": [
+    {
+      "id": "bacs",
+      "title": "Direct bank transfer",
+      "description": "Make your payment directly into our bank account. Please use your Order ID as the payment reference.",
+      "supported": false
+    },
+    {
+      "id": "cod",
+      "title": "Cash on delivery",
+      "description": "Pay with cash upon delivery.",
+      "supported": true
+    }
+  ]
+}

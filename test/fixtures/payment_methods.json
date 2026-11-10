@@ -1,0 +1,11 @@
+{
+  "default": "cod",
+  "methods": [
+    {
+      "id": "cod",
+      "title": "Cash on delivery",
+      "description": "Pay with cash upon delivery.",
+      "supported": true
+    }
+  ]
+}

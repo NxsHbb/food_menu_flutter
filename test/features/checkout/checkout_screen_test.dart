@@ -503,6 +503,122 @@ void main() {
     });
   });
 
+  group('the payment method', () {
+    testWidgets('is the store\'s own, not a label composed here',
+        (tester) async {
+      await CheckoutHarness().pump(tester);
+
+      expect(find.text('Payment method'), findsOneWidget);
+      expect(find.text('Cash on delivery'), findsOneWidget);
+      expect(find.text('Pay with cash upon delivery.'), findsOneWidget);
+    });
+
+    testWidgets('goes on the order by its gateway id', (tester) async {
+      final harness = CheckoutHarness();
+      await harness.pump(tester);
+
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      expect(harness.checkout.lastBody['payment_method'], 'cod');
+    });
+
+    testWidgets('one the app cannot finish is shown but not choosable',
+        (tester) async {
+      // A store running only card would otherwise show an empty section and
+      // no reason why.
+      final harness = CheckoutHarness(
+        // Both are available for this cart; only one is one the app can
+        // finish.
+        cart: FakeCartRepository(
+          cart: cartFromFixture(
+            'cart_with_item',
+            paymentMethods: ['bacs', 'cod'],
+          ),
+        ),
+        payment: FakePaymentRepository(
+          methods: paymentMethodsFromFixture('payment_methods_mixed'),
+        ),
+      );
+      await harness.pump(tester);
+
+      expect(find.text('Direct bank transfer'), findsOneWidget);
+      expect(find.textContaining('coming to the app soon'), findsOneWidget);
+
+      await tester.tap(find.text('Direct bank transfer'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      // The tap did nothing: cash on delivery is still what is submitted.
+      expect(harness.checkout.lastBody['payment_method'], 'cod');
+    });
+
+    testWidgets('a store the app cannot pay at all refuses the order',
+        (tester) async {
+      final harness = CheckoutHarness(
+        cart: FakeCartRepository(
+          cart: cartFromFixture('cart_with_item', paymentMethods: ['stripe']),
+        ),
+        payment: FakePaymentRepository(
+          methods: PaymentMethods.fromJson(const {
+            'default': '',
+            'methods': [
+              {'id': 'stripe', 'title': 'Card', 'supported': false},
+            ],
+          }),
+        ),
+      );
+      await harness.pump(tester);
+
+      expect(find.textContaining('not in the app yet'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('This store has no payment method the app can use yet.'),
+        findsOneWidget,
+      );
+      expect(harness.checkout.drafts, isEmpty);
+    });
+
+    testWidgets('a gateway the cart cannot use is left out', (tester) async {
+      // Enabled store-wide is not the same as available for this order, and
+      // the cart is WooCommerce's own answer for that.
+      final harness = CheckoutHarness(
+        payment: FakePaymentRepository(
+          methods: paymentMethodsFromFixture('payment_methods_mixed'),
+        ),
+      );
+      await harness.pump(tester);
+
+      // The fixture cart offers `cod` only.
+      expect(find.text('Cash on delivery'), findsOneWidget);
+      expect(find.text('Direct bank transfer'), findsNothing);
+    });
+
+    testWidgets('a failed load offers a retry that asks again',
+        (tester) async {
+      final harness = CheckoutHarness()
+        ..payment.failNext = const ApiException(
+          failure: ApiFailure.network,
+          message: 'No connection.',
+        );
+      await harness.pump(tester);
+
+      expect(find.text('No connection.'), findsOneWidget);
+
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Cash on delivery'), findsOneWidget);
+    });
+  });
+
   group('signed out', () {
     testWidgets('is asked for an account instead of an address',
         (tester) async {

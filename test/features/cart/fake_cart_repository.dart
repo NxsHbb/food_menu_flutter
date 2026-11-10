@@ -129,13 +129,22 @@ class FakeCartRepository implements CartRepository {
       totals: _cart.totals,
       needsPayment: _cart.needsPayment,
       needsShipping: _cart.needsShipping,
+      paymentMethods: _cart.paymentMethods,
       errors: _cart.errors,
     );
   }
 }
 
 /// Reads a cart payload from `test/fixtures`.
-Cart cartFromFixture(String name) {
-  final json = jsonDecode(File('test/fixtures/$name.json').readAsStringSync());
-  return Cart.fromJson(json as Map<String, dynamic>);
+///
+/// [paymentMethods] patches the captured payload rather than the model, for
+/// the cases where which gateways a cart can use is the thing under test —
+/// the fixtures were captured from a store with one.
+Cart cartFromFixture(String name, {List<String>? paymentMethods}) {
+  final json = jsonDecode(File('test/fixtures/$name.json').readAsStringSync())
+      as Map<String, dynamic>;
+
+  if (paymentMethods != null) json['payment_methods'] = paymentMethods;
+
+  return Cart.fromJson(json);
 }
