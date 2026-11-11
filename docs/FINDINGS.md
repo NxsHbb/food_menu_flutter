@@ -2,6 +2,56 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## What the vendor's own feature list does and does not settle
+`FEATURES-FROM-DEVELOPER.md`, from the plugin developer, lives **outside this
+repo** in the sibling folder `../food menu files/`. It is the master inventory
+behind the Food Menu landing page — 24 Pro sections, 15 free ones, written
+from the settings panel and controllers.
+
+Checked line by line against both plugin codebases on 2026-11-11. It is
+substantially accurate and is the best statement of *intent* available, but it
+is marketing copy and **not a specification**. Four claims do not hold:
+
+| Claim | What the code does |
+|---|---|
+| 9.3 "customers check progress with order ID and email" | The tracking page is keyed solely on `fmp_tracking_token` from the URL. There is no lookup form anywhere |
+| 9.4 "configurable link format" | `fmp_tracking_link_format` is an `htmlFor` on a read-only `<code>` block showing `/fmp-track/{token}`. Nothing writes or reads it as an option. The **expiry** is configurable |
+| 5.6 "Minimum lead time — no orders for 5 minutes from now" | The lead time is `delivery_preparation_day`, in **whole days**. `pickup_prep_minutes` exists but is consumed only by `AppApiFns::asap_label()`, which this project added; it gates nothing on the website |
+| 5.4 detail page "per-item overrides" | Per **shortcode**, not per dish — `$scDetailsMetaFields` / `fmp_sc_details_settings`. There is no app equivalent, and none is wanted: an app has no shortcodes |
+
+So: treat it as a map of what the product claims to be, and the code as what it
+is. Where the two disagree the code wins, and the disagreement is worth sending
+back — these four were.
+
+## Reservations, tips, discounts and the special menu are now free features
+The vendor list marks all four "(now Free)", and the code agrees: the
+controllers live in `tlp-food-menu`, and the `has_pro()` calls inside them gate
+**extras** only — the reservation form's country list, the special menu's
+presets and page exclusions, and a guard in `Discount` that steps aside so Pro
+can price the cart item without double-discounting. Switch Pro off and all four
+still work.
+
+This does not change v1's scope, but it changes the weight of one exclusion.
+**Reservations are no longer a Pro extra**; they lead the free half of the
+product, so every site that can run this app also has a booking engine the app
+has no screen for. Recorded so the decision is re-made deliberately rather than
+inherited.
+
+## Two parity worries that turned out to be already handled
+Checked while reviewing the vendor list, and both were already right. Recorded
+so nobody investigates them twice:
+
+- **Closed days and holidays.** `AppSchedules::closed_days()` calls the same
+  `FnsPro::get_offday_schedule()` the website's own checkout uses, so a day the
+  store is shut has no slots in the app either. Task 5.2 covered it.
+- **Per-branch overrides.** `AppSchedules::interval()` and `slot_cap()` both
+  take the location, so a branch running its own hours, intervals and slot caps
+  is honoured. Task 5.3 covered it.
+
+The pattern worth keeping: a feature named in the vendor list is not a gap
+until the `fmp/v1/app` namespace has been grepped for it. Two of the five
+things that looked missing were not.
+
 ## The tracking route answers a history, and the design wanted a plan
 `GET fmp/v1/track/{token}` returns the timeline entries an order has passed
 through and nothing else. **Every one carries `completed: true`** — the
@@ -632,9 +682,17 @@ hooks and form fields, so they need Store API extension
 It documents `/qr-codes`, `/order-statuses`, `/timed-products`, `/reports`,
 `/inventory-logs` and `/order-timeline` as top-level routes. On a live install
 the actual paths differ — `/orders/statuses`, `/orders/{id}/timeline`,
-`/reports/valuation`, `/reports/waste-cost` etc. — and `/qr-codes` and
-`/timed-products` are not registered at all. Enumerate
+`/reports/valuation`, `/reports/waste-cost` etc. Enumerate
 `?rest_route=/fmp/v1` on the running site rather than trusting the table.
+
+> **Corrected 2026-11-11.** This originally said `/qr-codes` and
+> `/timed-products` "are not registered at all". They are — **when the feature
+> is switched on**. Both register conditionally, and QR table ordering and
+> timed products were off on the dev site when this was first written. A later
+> enumeration with them on returned 71 routes including both. The lesson is the
+> one the entry already gives, pointed at itself: enumerate the running site,
+> and say *when* you enumerated it, because a conditional route is absent and
+> present on the same install.
 
 ## Ingredients and nutrition in online-ordering mode — RESOLVED
 > **Resolved** by food-menu-pro#5, which adds both to WooCommerce products and

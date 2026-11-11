@@ -285,6 +285,13 @@ the shape of each one is worth not repeating.
 Staff dashboard, kitchen monitor, inventory, POS printing, role manager,
 reservations and the visual floor plan, dine-in and QR table ordering.
 
+**Reservations deserve a second look before v1 ships.** They are no longer a
+Pro extra — the vendor's feature list leads the free half with them, and the
+code agrees — so every site that can run this app also takes bookings the app
+cannot show. Still out of scope, still the right call for v1, but now an
+exclusion worth re-making rather than one inherited from when it was a Pro
+feature. See `FINDINGS.md`.
+
 Deferred to **v2**:
 - **Coupons** — the cart's code field and the discount line in totals.
 - **Upsells** — the cart's cross-sell carousel, i.e. the Order Bumps feature.
@@ -303,6 +310,12 @@ the Store API returns whether or not the app asks for them. What the app still
 has to do is say so before the cart, which is Phase 9.
 
 ## Open dependencies
+- **The app requires Food Menu Pro, and the free plugin alone cannot run it.**
+  Every `fmp/v1/app/*` route lives in `food-menu-pro`, so a free site has no
+  accounts, no add-ons, no order types, no slots and no orders endpoint. Worth
+  stating because the vendor's own feature list leads with how much is free —
+  reservations, tips, discounts and the special menu among it — and none of
+  that changes this. Not a decision to make, a fact to put on the listing.
 - **Payment gateways** — card and PayPal are deferred, so v1 needs cash on
   delivery enabled on the WooCommerce site. **Enabled on the dev store** in
   task 6.2; with no gateway at all the Store API refuses every order. Task 6.3
