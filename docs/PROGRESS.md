@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Task 8.4 — Choosing a date
-Branch `feat/date-strip`. **App-only**, no plugin change. 12 new tests, 845 in
+Branch `feat/date-strip`, PR #57. **App-only**, no plugin change. 12 new tests, 845 in
 total.
 
 ### What landed
