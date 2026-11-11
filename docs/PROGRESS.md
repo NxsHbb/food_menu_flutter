@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Task 8.5 — Choosing how it is delivered
-Branch `feat/shipping-rates`. **App-only**, no plugin change. 7 new tests, 852
+Branch `feat/shipping-rates`, PR #58. **App-only**, no plugin change. 7 new tests, 852
 in total.
 
 ### What landed
