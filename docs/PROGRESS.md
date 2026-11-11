@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Task 7.4 — Reorder
-Branch `feat/reorder`, PR #TBD, with the plugin half on `mobile-app`
+Branch `feat/reorder`, PR #52, with the plugin half on `mobile-app`
 (food-menu-pro#27). 15 new tests, 785 in total. **Phase 7 is done.**
 
 **Still not run on a device** — the OnePlus is locked and in airplane mode, as
