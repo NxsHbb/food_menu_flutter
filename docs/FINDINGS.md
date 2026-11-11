@@ -2,6 +2,68 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## Add-ons and variable dishes are mutually exclusive, in three places
+The website never renders add-ons on a variable product, and
+`AppCartAddons::add_to_cart_data()` says so in as many words — it returns
+early for one, so no `fmp_addons` is built and no `fmp_addon_selection` is
+recorded. Two other places had not been told:
+
+- **`/app/products/{id}/addons` published them anyway.** Build Your Pizza
+  offered a Cutlery group the cart then dropped without a word. A customer
+  answered a question that could not reach the order.
+- **`AppReorderApi::line()` asked the parent whether the dish takes choices.**
+  With no recorded selection and a parent carrying a global group, every
+  variable order was refused `choices_not_recorded` — including one the app
+  itself had placed a minute earlier.
+
+Both now apply the same rule as the cart. The test for it is not a unit test:
+order a variable dish on a store with a global add-on group, then reorder it.
+
+## Internal line meta is only hidden if you let WooCommerce hide it
+`get_formatted_meta_data( '', true )` looks like "give me everything, I will
+pick" and is, which is why the order screen showed the customer
+`_addons_price` and the raw `_fmp_addon_selection` JSON. Both are
+underscore-prefixed, which is the whole convention for "not for display".
+
+Calling it with **no arguments** does three jobs at once:
+
+- drops underscore-prefixed meta — the internal keys,
+- drops an attribute already spelled out in a variation's name, which is what
+  printed `Medium` under "Build Your Pizza – Medium",
+- resolves `display_key` through `wc_attribute_label`.
+
+And `wp_strip_all_tags` is not enough on its own: the value carries a price as
+`woocommerce-Price-amount` markup, and stripping it leaves `&#036;2.50`.
+`wp_specialchars_decode` does not help — it knows five named entities and this
+one is numeric. `html_entity_decode( …, ENT_QUOTES, 'UTF-8' )` does. Safe
+here because the app draws the string as text and never as markup.
+
+## The timeline now uses the phone's clock, reversing task 7.3
+7.3 rendered each stage's time server-side, on the restaurant's clock, arguing
+that "ready at 9:33 pm" only means something in the kitchen. A device
+disproved it: the dev store keeps its books in UTC — as a great many
+WordPress sites do, since nobody changes the default — so one screen showed a
+header reading `Today, 2:52 PM` above a timeline reading
+`November 11, 2026 at 8:52 am`, for the same order, neither labelled.
+
+The app now draws `at_utc` through `relativeDateTime`, like every other date
+in the app, and keeps the server's `at` string as the fallback for a payload
+that carries no instant. The store's clock is still the right idea for a
+*store* that has set its time zone; it is not worth a contradiction on the
+screen for every store that has not.
+
+## Five tasks without a device pass cost six defects
+7.2, 7.3, 7.4, 8.1 and 8.2 all shipped green — analyzer, 822 tests — and
+every one of the defects above survived that. The suite could not have caught
+them: three were plugin payload decisions no Dart test sees, and the other
+three needed a real order, a real store time zone and a real variable dish on
+screen at once.
+
+The practical rule: **a task that changes what a customer sees is not done
+until it has been run.** When the phone is unavailable, say so in
+`PROGRESS.md` — that is what made this sweep possible — and clear the backlog
+at the first opportunity rather than letting it reach five.
+
 ## A checkout field's key is its position, and that is load-bearing
 The website writes each Order Extra Field answer under `custom_{index}` — the
 field's index in the `fmp_order_custom_fields` option — and the admin order

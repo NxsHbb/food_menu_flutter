@@ -106,6 +106,7 @@ class OrderStage {
     required this.color,
     required this.reached,
     required this.at,
+    required this.atUtc,
     required this.note,
   });
 
@@ -116,6 +117,7 @@ class OrderStage {
       color: json['color'] as String? ?? '',
       reached: json['reached'] == true,
       at: json['at'] as String? ?? '',
+      atUtc: DateTime.tryParse(json['at_utc'] as String? ?? ''),
       note: json['note'] as String? ?? '',
     );
   }
@@ -133,11 +135,22 @@ class OrderStage {
   /// When it was reached, **already formatted in the restaurant's time zone**
   /// and the site's own format. Empty for a stage still to come.
   ///
-  /// A string and not a [DateTime] on purpose: "Ready at 9:33 pm" is only
-  /// meaningful on the kitchen's clock, so the server renders it and the app
-  /// does not re-zone it onto the phone's. The payload carries a UTC instant
-  /// too, which nothing needs yet.
+  /// Kept as the fallback for a payload with no instant, and no longer what
+  /// the screen draws — see [atUtc].
   final String at;
+
+  /// The same moment as an instant, from `at_utc`. Null for a stage still to
+  /// come, or for a payload that carried no instant.
+  ///
+  /// **This is what the timeline draws**, re-zoned onto the phone like every
+  /// other date in the app. Task 7.3 chose the store's clock instead,
+  /// reasoning that "ready at 9:33 pm" only means anything in the kitchen.
+  /// A device disproved it: the dev store keeps its books in UTC, as a great
+  /// many WordPress sites do, so an order placed at 2:52 PM showed a header
+  /// reading 2:52 PM above a timeline reading 8:52 am — two times for one
+  /// event, neither labelled. The phone's clock is the one the customer was
+  /// looking at when they ordered. See `FINDINGS.md`.
+  final DateTime? atUtc;
 
   /// The store's note for this stage. Empty unless `fmp_tracking_show_notes`
   /// is on, which the server decides — the app just draws what arrives.

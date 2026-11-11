@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
+import 'package:food_menu/src/core/util/relative_date.dart';
 import 'package:food_menu/src/features/orders/data/orders_repository.dart';
 import 'package:food_menu/src/features/orders/presentation/order_detail_screen.dart';
 import 'package:food_menu/src/features/orders/presentation/orders_screen.dart';
@@ -221,9 +222,50 @@ void main() {
       for (final stage in repo.trackingAnswer.stages) {
         expect(find.text(stage.label), findsWidgets);
       }
-      // The store's note and its own formatted time, which the app does not
-      // re-zone onto the phone's clock.
       expect(find.text('Kitchen has it'), findsOneWidget);
+
+      // **The phone's clock, not the store's.** The instant goes through the
+      // app's own formatter, so a store keeping its books in UTC cannot put
+      // a time on the timeline that disagrees with the header above it.
+      // Asserted against the formatter rather than a literal, because the
+      // machine running the suite has a time zone of its own.
+      expect(
+        find.text(relativeDateTime(DateTime.parse('2026-11-10T08:59:40Z'))),
+        findsWidgets,
+      );
+      expect(find.text('November 10, 2026 at 8:59 am'), findsNothing);
+    });
+
+    testWidgets('falls back to the store\'s own string with no instant',
+        (tester) async {
+      final fixture = trackingFixture();
+      repo.trackingAnswer = OrderTracking(
+        orderId: fixture.orderId,
+        number: fixture.number,
+        status: fixture.status,
+        statusLabel: fixture.statusLabel,
+        statusColor: fixture.statusColor,
+        isActive: fixture.isActive,
+        isFailed: fixture.isFailed,
+        hasTimeline: fixture.hasTimeline,
+        step: fixture.step,
+        stages: [
+          for (final stage in fixture.stages)
+            OrderStage(
+              status: stage.status,
+              label: stage.label,
+              color: stage.color,
+              reached: stage.reached,
+              at: stage.at,
+              atUtc: null,
+              note: stage.note,
+            ),
+        ],
+      );
+      await pump(tester);
+
+      // An older plugin sends no `at_utc`. Showing nothing at all would be
+      // worse than showing the store's clock.
       expect(find.text('November 10, 2026 at 8:59 am'), findsWidgets);
     });
 

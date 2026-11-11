@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/util/relative_date.dart';
 import '../../domain/customer_order.dart';
 import '../../domain/order_tracking.dart';
 import 'order_progress_bar.dart';
@@ -190,10 +191,12 @@ class _Stage extends StatelessWidget {
                     style: text.bodySmall?.copyWith(color: palette.muted),
                   ),
                 ],
-                if (stage.at.isNotEmpty) ...[
+                // The phone's clock, like every other date in the app — the
+                // server's own formatting only as a fallback.
+                if (_when(stage).isNotEmpty) ...[
                   const SizedBox(height: AppTokens.space2),
                   Text(
-                    stage.at,
+                    _when(stage),
                     style: text.labelSmall?.copyWith(color: palette.muted2),
                   ),
                 ],
@@ -203,6 +206,17 @@ class _Stage extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// When the stage was reached, on the phone's clock.
+  ///
+  /// Falls back to the server's own formatted string where a payload carries
+  /// no instant — an older plugin, or a status the store recorded without
+  /// one — so the line is never blank when there is a time to show.
+  String _when(OrderStage stage) {
+    final utc = stage.atUtc;
+
+    return utc != null ? relativeDateTime(utc) : stage.at;
   }
 
   /// Enough to clear a label, its note and its time without the dots drifting

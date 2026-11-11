@@ -2,6 +2,67 @@
 
 Newest first. One entry per completed task.
 
+## Task 8.8 — What the first device pass found
+Branch `fix/device-sweep`, PR #55, with the plugin half on `mobile-app`
+(food-menu-pro#29). 3 new tests,
+824 in total. **The backlog task**: 7.2, 7.3, 7.4, 8.1 and 8.2 had all shipped
+without a device pass because the OnePlus was locked, and the phone came back.
+
+### The sweep itself
+Signed in on the device, ordered a variable dish with the store's three
+checkout questions answered, placed order #72, tracked it, walked the history
+both tabs, and reordered from a past row. Everything those five tasks claimed
+is true — including `_fmp_custom_fields` arriving as
+`{"custom_0":"Flat 3B","custom_1":"A friend","custom_2":["Nuts","Gluten"]}`,
+under the key the admin metabox, kitchen monitor and emails read.
+
+Then six defects, none of which the suite could have caught.
+
+### The two that broke a feature outright
+**A variable-dish order could never be reordered.** `AppCartAddons` skips
+add-ons on a variable product on purpose, so nothing is ever recorded for one
+— and `AppReorderApi::line()` asked the *parent* whether the dish takes
+choices, found the dev store's global group, and refused. Order #72 was
+refused by the app that had just placed it.
+
+**The app asked a question the cart threw away.** `/app/products/{id}/addons`
+published the Cutlery group for Build Your Pizza, which the website would
+never render and the cart would never apply. Both now follow the same rule as
+the cart.
+
+### The three that looked broken
+The order screen printed `_addons_price` and the raw `_fmp_addon_selection`
+JSON at the customer, and `&#036;2.50` where a price belonged:
+`get_formatted_meta_data( '', true )` overrides the `_` hide-prefix that makes
+underscore meta private. **Calling it with no arguments fixed the duplicated
+size too** — it drops an attribute already spelled out in a variation's name,
+which is what printed `Medium` under "Build Your Pizza – Medium". Entities
+needed `html_entity_decode`; `wp_specialchars_decode` knows five named ones
+and this is numeric.
+
+The dish header kept reading "from $8.50 to $15.00" over a button charging
+$11.50, because only the add bar followed the resolved variation.
+
+### The one that reverses an earlier decision
+7.3 drew each stage's time on the **restaurant's** clock, server-formatted.
+The dev store keeps its books in UTC, as most WordPress sites do, so the
+screen showed `Today, 2:52 PM` in its header above `November 11, 2026 at
+8:52 am` in its timeline. The app now re-zones `at_utc` like every other date
+and keeps `at` as the fallback. See `FINDINGS.md` for why that beats the
+original reasoning.
+
+### Verified on the Android device, against the dev site
+Each fix re-walked after the rebuild: no add-on group on the pizza, header
+and button both $11.50, the lemonade line reading
+`Medium 12" ($2.50) · Mushrooms ($0.75) · Basil · Extra napkins please`,
+timeline and header agreeing on `Today, 12:29 PM`, and order #72 reordering
+into a cart line that says Medium.
+
+### Dev-site state
+Order **#72 is new and kept**, set to `completed` to reach the footer reorder
+path. It is the reproduction for the variable-dish reorder refusal and it
+populates the Past tab. Nothing else changed.
+
 ## Task 8.2 — Order Extra Fields
 Branch `feat/checkout-fields`, PR #54, with the plugin half on `mobile-app`
 (food-menu-pro#28). 17 new tests, 822 in total.

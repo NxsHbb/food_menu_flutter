@@ -129,6 +129,19 @@ void main() {
       expect(find.textContaining(r'$11.50'), findsWidgets);
       expect(find.text('Choose options'), findsNothing);
     });
+
+    testWidgets('leaves no range above the button charging for a size',
+        (tester) async {
+      await pump(tester);
+      await tapTerm(tester, 'Medium');
+
+      // A device found the headline still reading "from $8.50 to $15.00"
+      // over a button charging $11.50 — two prices for one dish, one of
+      // them not the one being taken.
+      expect(find.text('from'), findsNothing);
+      expect(find.text(r'$8.50'), findsNothing);
+      expect(find.textContaining(r'to $15.00'), findsNothing);
+    });
   });
 
   group('adding', () {
