@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Task 8.8 — What the first device pass found
-Branch `fix/device-sweep`, with the plugin half on `mobile-app`
+Branch `fix/device-sweep`, PR #55, with the plugin half on `mobile-app`
 (food-menu-pro#29). 3 new tests,
 824 in total. **The backlog task**: 7.2, 7.3, 7.4, 8.1 and 8.2 had all shipped
 without a device pass because the OnePlus was locked, and the phone came back.
