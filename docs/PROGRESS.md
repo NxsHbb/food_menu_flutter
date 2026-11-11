@@ -319,7 +319,7 @@ placed. Nothing has been charged.", and every field, the address and the
 payment method are untouched. Wifi back on, "Try again" sends the identical
 order and it lands as #67.
 
-### What 9.2 inherits
+### What 12.2 inherits
 A redirect gateway's abandoned payment is one more `CheckoutFailureKind`, and
 the banner and the kept input are already there for it.
 
@@ -1786,10 +1786,10 @@ simulator.
   keep Android's HTTPS-only default.
 - **A release build would have had no `INTERNET` permission.** Flutter's
   template declares it only in the debug and profile manifests. Would not have
-  surfaced until Phase 8.
+  surfaced until the release phase — Phase 13 now, Phase 8 when this was written.
 - **iOS device builds had no development team**, and once set, `com.foodmenu`
   turned out to be registrable under **only one** of the two Apple teams on this
-  machine. See `FINDINGS.md` — it constrains release signing (task 10.2,
+  machine. See `FINDINGS.md` — it constrains release signing (task 13.2,
   numbered 8.4 when this was written).
 
 ### What running on a real device proved that tests could not

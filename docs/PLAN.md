@@ -158,17 +158,64 @@ No webview, so the earlier cart-handoff problem disappears.
 | 7.3 | Live order tracking against the existing public `GET /fmp/v1/track/{token}`, with the status timeline. **Also owns the design's progress strip and estimate card**, both of which are drawn from a step out of four that only tracking knows — 7.2 left the space rather than guessing a step from the status slug | app | todo |
 | 7.4 | **Reorder.** In the design on past rows and in the order footer, and left out of 7.2 on purpose: an order records its add-ons as *display text*, not as ids, so nothing can rebuild the selection faithfully. Needs the plugin to store a re-submittable selection on the line at checkout, then a reorder route. WooCommerce's own `order_again` does not help — neither plugin hooks `woocommerce_order_again_cart_item_data`, so it would drop every choice too | pro + app | todo |
 
-## Phase 8 — Hardening
+## Phase 8 — Ordering gaps
+Found by auditing both plugins against the app, not by a new design. Every
+task here is a dish or an order **the website can take and the app cannot**,
+so they are holes in phases 2–6 rather than new features.
+
+They come **before hardening on purpose**: Phase 11's error sweep and test
+pass would otherwise be written against a checkout about to grow fields and a
+menu about to grow a state.
+
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 8.1 | Offline and error handling pass: retries, empty states, connectivity loss | app | todo |
-| 8.2 | Widget and integration test coverage for cart, add-ons, slots and checkout handoff | app | todo |
+| 8.1 | **A variable dish cannot be ordered at all.** The detail screen has no variation picker, and `CartRepository.addItem` sends only `id`, `quantity` and the add-on extension — never `variation`. `canAddDirectly` correctly keeps the quick-add `+` off a variable dish, which lands the customer on a detail screen whose Add button is live, posts an incomplete body, and lets the server say no. Needs the attribute UI, `variation` on add-to-cart, and the button gated on a complete selection the way `requires_choices` gates add-ons. Store API already publishes `attributes` and `variations`, and the plugin already resolves a variation to its parent for add-ons and food data | app | todo |
+| 8.2 | **Order Extra Fields never reach an order.** `fmp_order_custom_fields` lets a store define its own checkout fields — label, type, required, options — saved as order meta and shown on the checkout, the order form, the admin order and the kitchen monitor. `OrderDraft` hardcodes `fmp_custom_fields: {}`, so every one of them is dropped, including required ones. Needs a route publishing the definitions and the checkout section that renders, validates and submits them | pro + app | todo |
+| 8.3 | **A timed dish looks orderable when it is not.** `AppProductStoreApi` publishes `ingredients`, `nutrition` and `requires_choices`, and nothing about availability, so a breakfast-only dish is offered at nine at night — then refused by `woocommerce_is_purchasable` on add, or dropped from the cart by `remove_unavailable_from_cart` without a word. The website hides it or greys it out per `fmp_timed_products_behavior`. Needs the flag on the product payload and that treatment in the menu; `TimedProducts::unavailable_at()`, built for 5.2, already answers the question | pro + app | todo |
+| 8.4 | **No date can be chosen.** `preorder_max_days`, `first_date` and `last_date` all arrive on `/app/slots` and are used nowhere — the app shows the earliest date as a label and offers no other, while the website takes orders days ahead. Needs a date strip on the fulfilment section, bounded by those fields, with the slot list reloading per date | app | todo |
+| 8.5 | **Delivery has no shipping rate.** Nothing reads the cart's `shipping_rates` or calls `POST /cart/select-shipping-rate`; the app only renders `total_shipping` once something else has set it. A store with zones or more than one delivery method gives the customer no choice, and a cart with no rate selected can refuse checkout outright | app | todo |
+| 8.6 | **A pickup order sends a delivery address.** 6.1 sends `shipping_address` on both types, reasoning that WooCommerce copies billing into shipping anyway. It also feeds shipping calculation, so a pickup order may collect a delivery fee. Verify against a store with a shipping zone, then send it only where it belongs — the **billing** address stays required on both types, per `FINDINGS.md` | app | todo |
+| 8.7 | **`fmp/v1/app/*` never checks `fm_food_menu_type`.** Every other ordering feature in both plugins gates on `online_ordering`; the app namespace does not, so it takes orders on a site running as a showcase menu with ordering switched off. Needs the gate on the ordering routes and a reason the app can show instead of a blank menu | pro + app | todo |
 
-## Phase 9 — Payment methods
+## Phase 9 — Discounts and promotions
+The plugin's own discount and promotion features, as distinct from
+WooCommerce's sale prices, which the app has had since 2.3.
+
+The **cart** already charges correctly — task 4.3 settled that, and
+`FINDINGS.md` records why a line is not base price plus add-ons. What is
+missing is everywhere else: the menu does not say a dish is discounted, and
+the order does not record that it was.
+
+| # | Task | Repo | Status |
+|---|---|---|---|
+| 9.1 | **The menu shows the undiscounted price.** The automatic discount reaches the website through `woocommerce_get_price_html` and the cart through `woocommerce_add_cart_item`, and never touches the product price object the Store API serves — there is no `woocommerce_product_get_price` filter in either plugin. So a dish card reads full price and the cart then charges less, with no explanation in between. Needs the charged price and the pre-discount price on the product payload, and the struck-through pair on cards, rows and the detail screen | pro + app | todo |
+| 9.2 | **No discount badge.** `fmp_discount_badge_display` drives the website's "x% off" badge, injected into price HTML; the app has no equivalent. Follows 9.1's payload, and finally gives the design's coupon banner something true to say | pro + app | todo |
+| 9.3 | **An app order records no discount.** `fmp_discount_off` is written on `woocommerce_checkout_update_order_meta`, which the Store API never fires, so an app order's total drops by the fixed discount and nothing on the order, the emails or the admin says why. Needs the same meta written from the Store API's own order hook, next to where `AppBranchScope` already stamps the branch | pro | todo |
+| 9.4 | **Tips.** `enable_tip`, `allow_tip_for` and `fmp_checkout_show_tips` are a customer **input** on the website's checkout, not server-side arithmetic as this plan assumed. Needs the configured amounts and scope published, and a tip row on the checkout that writes to the cart | pro + app | todo |
+| 9.5 | **Special Menu.** `fmp_special_menus` and `fmp_menu_offer` are the plugin's own promo data — chosen dishes, offer text, a duration — and the app's banner carousel reads WordPress posts instead. Needs the special menu published and drawn, which also gives a banner a tap target and closes the open question 2.5 left | pro + app | todo |
+
+## Phase 10 — Settings, reviews and notifications
+Features the website has and the app does not, **none of which stops an order
+being placed**. Last of the parity work for that reason.
+
+| # | Task | Repo | Status |
+|---|---|---|---|
+| 10.1 | **The detail page's eight `hide_*` toggles are ignored.** `hide_image`, `hide_price`, `hide_summery`, `hide_taxonomy`, `hide_description`, `hide_ingredient`, `hide_nutrition` and `hide_reviews` each switch a section off on the website; the app draws all eight whatever the store asked for. Needs them published and respected | pro + app | todo |
+| 10.2 | **The checkout's `fmp_checkout_show_*` toggles are ignored.** Order type, your location, shipping address, order notes, coupon and tips are each switchable on the website and fixed in the app. Needs the ones the app can honour published and respected, and the rest recorded here as deliberately app-owned rather than left looking unnoticed | pro + app | todo |
+| 10.3 | **Reviews are read-only and partial.** The app shows the star, rating and count on a dish card and nothing else; the website has a full reviews tab. Needs the list via `wc/store/v1/products/reviews` and, for a signed-in customer, leaving one. Gated by 10.1's `hide_reviews` | app | todo |
+| 10.4 | **Push notifications.** The website tells a customer by email, WhatsApp and SMS; the app has no channel at all, which leaves even task 7.3's tracking as something the customer must open the app to see. Account's Notifications row is already a stub waiting for it. **The one task here that can be dropped without blocking release**: it needs Firebase and APNs setup per store, device tokens stored against the customer, and a send on every status change | pro + app | todo |
+
+## Phase 11 — Hardening
+| # | Task | Repo | Status |
+|---|---|---|---|
+| 11.1 | Offline and error handling pass: retries, empty states, connectivity loss | app | todo |
+| 11.2 | Widget and integration test coverage for cart, add-ons, slots and checkout handoff | app | todo |
+
+## Phase 12 — Payment methods
 Cash on delivery is all task 6.3 left v1 with. This phase adds the rest, in
 order of what each costs, and **sits between hardening and release on
-purpose**: 9.3 changes platform dependencies and permissions, which 10.1 and
-10.2 then audit and sign.
+purpose**: 12.3 changes platform dependencies and permissions, which 13.1 and
+13.2 then audit and sign.
 
 Most of the machinery is already in place and unused:
 
@@ -177,7 +224,7 @@ Most of the machinery is already in place and unused:
   one line.
 - **Sending gateway data** — `POST /checkout` takes `payment_data` as
   `{key, value}` pairs. Nothing sends it yet; `OrderDraft.toJson` is the one
-  place that would. **Each gateway defines its own keys**, which is why 9.3 is
+  place that would. **Each gateway defines its own keys**, which is why 12.3 is
   per-gateway work rather than one card flow.
 - **Coming back** — `payment_result.redirect_url` is already parsed onto
   `PlacedOrder`, and the order-received screen already re-reads the order.
@@ -186,19 +233,57 @@ Most of the machinery is already in place and unused:
 
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 9.1 | Offline gateways — bank transfer and cheque. They collect nothing at checkout (`has_fields` is false), so the only missing piece is the gateway's **payment instructions**: return them from `GET /app/orders/{id}` and show them on the order received screen, or a customer is never told where to send the money. Then add the ids to the supported list | pro + app | todo |
-| 9.2 | Redirect gateways — open `payment_result.redirect_url`, handle the return, the cancel and the abandon, and reconcile by re-reading the order. One flow covers **PayPal and every regional processor** (bKash, SSLCommerz, Razorpay, Paystack…), with no per-gateway Dart | app | todo |
-| 9.3 | Native card — Stripe via `flutter_stripe` and `payment_data`, which brings Apple Pay and Google Pay with it. **The one task here that can be dropped without blocking release**: it needs platform SDKs, a merchant setup per store, and it is per-gateway work | app + pro | todo |
+| 12.1 | Offline gateways — bank transfer and cheque. They collect nothing at checkout (`has_fields` is false), so the only missing piece is the gateway's **payment instructions**: return them from `GET /app/orders/{id}` and show them on the order received screen, or a customer is never told where to send the money. Then add the ids to the supported list | pro + app | todo |
+| 12.2 | Redirect gateways — open `payment_result.redirect_url`, handle the return, the cancel and the abandon, and reconcile by re-reading the order. One flow covers **PayPal and every regional processor** (bKash, SSLCommerz, Razorpay, Paystack…), with no per-gateway Dart | app | todo |
+| 12.3 | Native card — Stripe via `flutter_stripe` and `payment_data`, which brings Apple Pay and Google Pay with it. **The one task here that can be dropped without blocking release**: it needs platform SDKs, a merchant setup per store, and it is per-gateway work | app + pro | todo |
 
-## Phase 10 — Release
+## Phase 13 — Release
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 10.1 | App icon, splash, display name, permissions audit on both platforms | app | todo |
-| 10.2 | Release builds, signing, and store metadata | app | todo |
+| 13.1 | App icon, splash, display name, permissions audit on both platforms | app | todo |
+| 13.2 | Release builds, signing, and store metadata | app | todo |
+
+## Planned or built the wrong way
+From the same audit. These are **planning** mistakes rather than missing
+features — a decision that was wrong, or a gap closed with a silent default
+instead of a task. Each is owned by a task above; they are recorded because
+the shape of each one is worth not repeating.
+
+- **5.2 took the design's word and dropped preordering.** Returning the
+  design's flat slot list "rather than a date+time matrix" quietly settled the
+  plugin's own `fmp_preorder_max_days` out of the app. This is the same class
+  of mistake as 5.5's branch scoping — the website does something through a
+  path the app does not travel — and that one was caught. *Owned by 8.4.*
+- **A missing feature was closed with an empty default.** `fmp_custom_fields:
+  {}` went in as a schema requirement — every registered key, every time — and
+  the feature behind the key was never written down as absent. Nothing in this
+  plan mentioned custom fields until now. An empty default is how a gap stops
+  looking like one. *Owned by 8.2.*
+- **The detail screen leans on a server rejection for variable dishes.** The
+  Add button is live, posts no `variation`, and lets the API refuse it. That is
+  exactly the pattern task 4.7 was opened to fix for add-ons, reintroduced for
+  the product type WooCommerce ships with. *Owned by 8.1.*
+- **Pickup sends a delivery address.** The reasoning in 6.1 — WooCommerce
+  copies billing into shipping anyway — is true and incomplete: the shipping
+  address also feeds shipping calculation. *Owned by 8.6.*
+- **Tips were filed as server-side cart behaviour.** They are a customer input
+  on the website's checkout. The app can render whatever the server puts in
+  totals, and can never put a tip there itself, so "it may still appear in
+  totals" was never a substitute for the feature. *Owned by 9.4.* Coupons were
+  filed the same way and stay v2 deliberately — unlike tips, they were always
+  scheduled rather than assumed away.
+- **Banners were planned around plugin code rather than with it.** 2.5 chose
+  `wp/v2/posts` to avoid touching the plugin, then needed plugin code anyway
+  for a tap target, and bypassed the Special Menu feature the plugin already
+  had. *Owned by 9.5.*
+- **Dine-in's exclusion was never costed.** Dropping it because the design has
+  no screen for it is a fair call; what was never recorded is what the app does
+  on a store that enables **only** dine-in — it offers no order type at all.
+  See Open dependencies.
 
 ## Deliberately out of scope for v1
 Staff dashboard, kitchen monitor, inventory, POS printing, role manager,
-reservations and the visual floor plan, dine-in and QR table ordering, tips.
+reservations and the visual floor plan, dine-in and QR table ordering.
 
 Deferred to **v2**:
 - **Coupons** — the cart's code field and the discount line in totals.
@@ -206,27 +291,35 @@ Deferred to **v2**:
 
 **No longer deferred:** card and PayPal payment were v2 on the assumption that
 both needed a native SDK. PayPal does not — it is a redirect gateway, which
-task 9.2 covers along with every regional processor. Card still does, and is
-task 9.3.
+task 12.2 covers along with every regional processor. Card still does, and is
+task 12.3.
 
-Tips and automatic discounts are server-side cart behaviour, so they may still
-appear in totals returned by the Store API even though the app does not drive
-them.
+**No longer out of scope:** tips. They were listed here as server-side cart
+behaviour, which they are not — see "Planned or built the wrong way" — and
+they are now task 9.4.
+
+Automatic discounts *are* server-side arithmetic, and do appear in the totals
+the Store API returns whether or not the app asks for them. What the app still
+has to do is say so before the cart, which is Phase 9.
 
 ## Open dependencies
 - **Payment gateways** — card and PayPal are deferred, so v1 needs cash on
   delivery enabled on the WooCommerce site. **Enabled on the dev store** in
   task 6.2; with no gateway at all the Store API refuses every order. Task 6.3
   made the app say so rather than fail silently, but a production store still
-  needs one the app can complete. Phase 9 widens that to bank transfer,
+  needs one the app can complete. Phase 12 widens that to bank transfer,
   cheque and the redirect gateways. To be confirmed.
-- **Banner tap targets** — a banner currently opens the full menu, because
-  `wp/v2/posts` only exposes *registered* meta and registering a field needs
-  plugin code. Per-banner targets are a small follow-up: one
-  `register_post_meta` call plus a field on `PromoBanner`. Say if wanted.
-- **The design's coupon banner** ("10% off / SAVE10") cannot be reproduced as
-  drawn, because coupons are v2. The seeded equivalent carries an "Offer"
-  badge and no code.
+- ~~**Banner tap targets**~~ **Scheduled** as task 9.5, which draws the
+  plugin's own Special Menu instead of inventing a meta field for a WordPress
+  post.
+- ~~**The design's coupon banner** ("10% off / SAVE10") cannot be reproduced as
+  drawn, because coupons are v2.~~ Still true of the *code*, but task 9.2 gives
+  the badge a real discount to name.
+- **A store that enables only dine-in has no order type in the app.**
+  `allow_order_type_for` and the per-type switches let a store run dine-in
+  alone, and v1 serves pickup and delivery only, so the fulfilment section
+  would offer nothing. Decide whether that is a refusal with an explanation, a
+  reason to bring dine-in forward, or a documented limitation. To be confirmed.
 - ~~**The heart is absent from dish cards and rows until task 3.6.**~~
   **Resolved** — hearts are on dish cards, menu rows and the dish detail
   screen, and the wishlist screen is reachable from Account.
@@ -236,7 +329,7 @@ them.
 - **The iOS bundle ID is tied to one Apple team.** `com.foodmenu` can only be
   registered under `M34L8S85ZF`; another team is refused it outright. Device
   builds, TestFlight and the App Store all depend on that account. Anyone
-  building elsewhere must change the bundle ID. Confirm before task 10.2.
+  building elsewhere must change the bundle ID. Confirm before task 13.2.
 - **Customer registration must be enabled on the store.** Task 3.1 follows
   WooCommerce's My Account registration setting rather than overriding it, so a
   store running the app needs `woocommerce_enable_myaccount_registration` on.
