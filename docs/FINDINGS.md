@@ -2,6 +2,34 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The website already writes the words for a timed dish
+`get_schedule_text_for_product()` composes "Unavailable", "Will be Available:
+8:00 am – 11:00 am" and "Will be Unavailable: …" for the badge the storefront
+paints, translated and in the store's own date and time formats. The app
+publishes that string rather than its own, so the two can never word the same
+rule differently — the same reason the add-ons route calls
+`FrontendPAddon::addon_lists()` instead of reading the meta.
+
+What the app does **not** take from it is the bare "Available". The text falls
+back to that for a dish no rule covers, which on a normal menu would be a
+label on every card and information about none, so the route drops it by
+comparing against the same translated literal.
+
+## `$moment` was undefined in the plugin's own rule matcher
+`find_matched_rule_for_product()` passed `$moment` to `is_rule_unavailable()`.
+The method has no such parameter, so PHP 8 emitted a warning and passed null
+on every call — which happens to be the "now" the branch above it asks for, so
+the behaviour was accidentally correct and nobody noticed.
+
+It was noticed from the app, because a warning printed mid-response made the
+Store API's JSON unparseable and the menu would not load at all on a site with
+`display_errors` on. Fixed by using the default, which is exactly what PHP was
+already doing.
+
+The lesson is narrower than "run with WP_DEBUG": **a REST payload is the one
+place a harmless PHP notice is not harmless**, because it lands inside the
+response body rather than beside it.
+
 ## Add-ons and variable dishes are mutually exclusive, in three places
 The website never renders add-ons on a variable product, and
 `AppCartAddons::add_to_cart_data()` says so in as many words — it returns

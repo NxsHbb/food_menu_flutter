@@ -60,7 +60,10 @@ class MenuRepository {
     );
 
     return Paged(
-      items: raw.items.map(Product.fromJson).toList(growable: false),
+      items: raw.items
+          .map(Product.fromJson)
+          .where((product) => !product.hiddenByStore)
+          .toList(growable: false),
       total: raw.total,
       totalPages: raw.totalPages,
       page: raw.page,
@@ -90,6 +93,12 @@ class MenuRepository {
     return raw
         .whereType<Map>()
         .map((e) => Product.fromJson(e.cast<String, dynamic>()))
+        // **A store that asked for its unserved dishes to disappear.** Done
+        // here rather than in the query, because the plugin's timed rules
+        // are not a taxonomy the Store API can filter on. The cost is that a
+        // page of twenty can arrive as nineteen; the alternative is a dish
+        // the store does not want seen.
+        .where((product) => !product.hiddenByStore)
         .toList(growable: false);
   }
 }

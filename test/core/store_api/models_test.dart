@@ -141,6 +141,88 @@ void main() {
       expect(product.canAddDirectly, isFalse);
     });
 
+    test('a dish outside its hours is not orderable', () {
+      final product = Product.fromJson({
+        'id': 14,
+        'name': 'Margherita',
+        'prices': const {'price': '900', 'currency_minor_unit': 2},
+        // The server keeps saying yes to both of these: a timed dish is
+        // purchasable and in stock right up to the moment it is refused.
+        'is_purchasable': true,
+        'is_in_stock': true,
+        'extensions': const {
+          'food-menu-pro': {
+            'timed': {
+              'available': false,
+              'behavior': 'disable',
+              'note': 'Will be Available: 8:00 am – 11:00 am',
+            },
+          },
+        },
+      });
+
+      expect(product.isOrderable, isFalse);
+      expect(product.canAddDirectly, isFalse);
+      expect(product.hiddenByStore, isFalse);
+      expect(
+        product.unavailableReason,
+        'Will be Available: 8:00 am – 11:00 am',
+      );
+    });
+
+    test('a store that asked for disappear hides the dish', () {
+      final product = Product.fromJson({
+        'id': 15,
+        'name': 'Breakfast Burrito',
+        'prices': const {'price': '900', 'currency_minor_unit': 2},
+        'extensions': const {
+          'food-menu-pro': {
+            'timed': {'available': false, 'behavior': 'disappear', 'note': ''},
+          },
+        },
+      });
+
+      expect(product.hiddenByStore, isTrue);
+      // Still describable, for a favourite or a link that reaches it anyway.
+      expect(product.unavailableReason, 'Unavailable');
+    });
+
+    test('out of stock outranks the clock', () {
+      final product = Product.fromJson({
+        'id': 16,
+        'name': 'Sold Out Special',
+        'prices': const {'price': '900', 'currency_minor_unit': 2},
+        'is_in_stock': false,
+        'stock_availability': const {'text': 'Out of stock'},
+        'extensions': const {
+          'food-menu-pro': {
+            'timed': {
+              'available': false,
+              'behavior': 'disable',
+              'note': 'Will be Available: 8:00 am – 11:00 am',
+            },
+          },
+        },
+      });
+
+      expect(product.unavailableReason, 'Out of stock');
+    });
+
+    test('a plugin that sends no timed block serves everything', () {
+      final product = Product.fromJson({
+        'id': 17,
+        'name': 'Iced Latte',
+        'prices': const {'price': '395', 'currency_minor_unit': 2},
+      });
+
+      expect(product.timed.available, isTrue);
+      expect(product.timed.behavior, TimedBehavior.disable);
+      expect(product.timed.note, isEmpty);
+      expect(product.isOrderable, isTrue);
+      expect(product.hiddenByStore, isFalse);
+      expect(product.unavailableReason, isEmpty);
+    });
+
     test('parses a variable product price range', () {
       final prices = ProductPrices.fromJson(const {
         'price': '900',

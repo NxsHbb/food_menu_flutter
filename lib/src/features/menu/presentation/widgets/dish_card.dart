@@ -47,20 +47,28 @@ class DishCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (image == null)
-                    const DishImagePlaceholder()
-                  else
-                    Image.network(
-                      image.src,
-                      fit: BoxFit.cover,
-                      // A dish whose photo fails to load still has to look
-                      // deliberate, so fall back to the same placeholder.
-                      errorBuilder: (_, _, _) => const DishImagePlaceholder(),
-                      loadingBuilder: (context, child, progress) =>
-                          progress == null
-                              ? child
-                              : const DishImagePlaceholder(),
-                    ),
+                  // **Dimmed when the dish cannot be ordered.** The design has
+                  // no unavailable card, and dimming the photo alone reads as
+                  // inactive at a glance while the name, price and the store's
+                  // reason underneath stay at full contrast.
+                  Opacity(
+                    opacity: product.isOrderable ? 1 : 0.4,
+                    child: image == null
+                        ? const DishImagePlaceholder()
+                        : Image.network(
+                            image.src,
+                            fit: BoxFit.cover,
+                            // A dish whose photo fails to load still has to
+                            // look deliberate, so fall back to the same
+                            // placeholder.
+                            errorBuilder: (_, _, _) =>
+                                const DishImagePlaceholder(),
+                            loadingBuilder: (context, child, progress) =>
+                                progress == null
+                                    ? child
+                                    : const DishImagePlaceholder(),
+                          ),
+                  ),
                   Positioned(
                     top: AppTokens.space8,
                     right: AppTokens.space8,
@@ -152,9 +160,23 @@ class _RatingRow extends StatelessWidget {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
 
+    // **What is wrong with the dish beats what nobody has said about it.**
+    // A dish outside its hours says so here in the store's own words, which
+    // is the only place a card has room for them.
+    final reason = product.unavailableReason;
+
+    if (reason.isNotEmpty) {
+      return Text(
+        reason,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: text.bodySmall?.copyWith(color: palette.muted),
+      );
+    }
+
     if (product.reviewCount == 0) {
       return Text(
-        product.isInStock ? 'No reviews yet' : 'Unavailable',
+        'No reviews yet',
         style: text.bodySmall?.copyWith(color: palette.muted),
       );
     }

@@ -52,14 +52,18 @@ class DishRow extends StatelessWidget {
                 child: SizedBox(
                   width: 76,
                   height: 76,
-                  child: image == null
-                      ? const DishImagePlaceholder(stripeWidth: 5)
-                      : Image.network(
-                          image.thumbnail,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              const DishImagePlaceholder(stripeWidth: 5),
-                        ),
+                  // Dimmed for a dish that cannot be ordered, as on the card.
+                  child: Opacity(
+                    opacity: product.isOrderable ? 1 : 0.4,
+                    child: image == null
+                        ? const DishImagePlaceholder(stripeWidth: 5)
+                        : Image.network(
+                            image.thumbnail,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                const DishImagePlaceholder(stripeWidth: 5),
+                          ),
+                  ),
                 ),
               ),
               const SizedBox(width: AppTokens.space12),
@@ -88,7 +92,18 @@ class DishRow extends StatelessWidget {
                         ),
                       ],
                     ),
-                    if (description.isNotEmpty) ...[
+                    // **The reason displaces the description.** A row has
+                    // two lines of secondary text and why the dish cannot be
+                    // ordered is worth more than what is in it.
+                    if (product.unavailableReason.isNotEmpty) ...[
+                      const SizedBox(height: AppTokens.space2),
+                      Text(
+                        product.unavailableReason,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.bodySmall?.copyWith(color: palette.muted),
+                      ),
+                    ] else if (description.isNotEmpty) ...[
                       const SizedBox(height: AppTokens.space2),
                       Text(
                         description,
