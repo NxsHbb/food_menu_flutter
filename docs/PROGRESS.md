@@ -2,6 +2,57 @@
 
 Newest first. One entry per completed task.
 
+## Task 8.1 — Variable dishes
+Branch `feat/variations`, PR #53. 20 new tests, 805 in total. **App-only, no
+plugin change** — but it needed the dev site's demo data fixed first.
+
+**Still not run on a device.** The OnePlus is locked and in airplane mode, as
+for 7.2, 7.3 and 7.4.
+
+### What landed
+An attribute picker on the dish screen, drawn like an add-on group because to
+a customer "Size: small, medium, large" and "Choose your size" are the same
+question. The chosen variation is read back as a product of its own for its
+price and its stock, `variation` goes out on add-to-cart, and the cart line
+says which size it is.
+
+### The demo data was the first bug
+`Build Your Pizza`'s three sizes had **empty** attribute values, which
+WooCommerce reads as "any" — three variations matching every size, at three
+different prices. Through the Store API that was `value: null` everywhere,
+which looked at first like an API limitation for custom attributes. It was
+not. The attribute was also named `pa_size`, which is what a customer would
+have read on the website. Both fixed, and `LOCAL_DEV.md` records it.
+
+The app still treats an empty value as a **wildcard**, because a store may
+genuinely use one — "Large, any crust" is a real variation.
+
+### Reading the live payload settled the design
+No prices on `variations[]`, and `include=` does not return variations, so
+they cannot be batched. But `GET /products/{variation_id}` works and carries
+the variation's own price **and stock** — a size can be sold out while the
+dish is not. So the chosen variation is fetched on demand and cached per id;
+flipping back to a size already seen costs nothing.
+
+Matching is on `name` and `slug`, never ids: a custom attribute comes back
+with `id: 0` on the attribute and every term.
+
+### Three things found on the way
+- **The cart line would have shown nothing.** `item_data` is empty for a
+  variable line; the size is only in the item's `variation` key. Two sizes of
+  one dish were about to be two identical rows.
+- **`_addedLine` matched the parent id**, and a variable line comes back under
+  the variation's. Harmless today — the only caller ignores the result — so it
+  was closed rather than left as a trap.
+- **An unresolvable combination is named**, not posted. Every attribute
+  answered and still no match means the store never made it, and saying so
+  beats letting the server answer "no such variation", which reads as a fault.
+
+### The fixtures were stale again
+`product_variable.json` carried the broken `value: null` data, so a test could
+not have caught any of this. Re-captured, along with a new
+`product_variation.json` for the Medium pizza.
+
 ## Task 7.4 — Reorder
 Branch `feat/reorder`, PR #52, with the plugin half on `mobile-app`
 (food-menu-pro#27). 15 new tests, 785 in total. **Phase 7 is done.**

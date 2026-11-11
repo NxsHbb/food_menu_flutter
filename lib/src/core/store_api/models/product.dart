@@ -183,6 +183,8 @@ class Product {
     required this.isPurchasable,
     required this.hasOptions,
     required this.requiresChoices,
+    required this.attributes,
+    required this.variations,
     required this.onSale,
     required this.averageRating,
     required this.reviewCount,
@@ -222,6 +224,8 @@ class Product {
       // else. It knows nothing about add-ons — see [requiresChoices].
       hasOptions: json['has_options'] as bool? ?? false,
       requiresChoices: _flag(json, 'requires_choices'),
+      attributes: _list(json['attributes'], ProductAttribute.fromJson),
+      variations: _list(json['variations'], ProductVariation.fromJson),
       onSale: json['on_sale'] as bool? ?? false,
       // Sent as a string, e.g. "4.50", not a number.
       averageRating: double.tryParse(json['average_rating']?.toString() ?? '') ?? 0,
@@ -275,6 +279,16 @@ class Product {
   /// False on a site whose plugin predates the field, which leaves the old
   /// behaviour rather than hiding every quick add.
   final bool requiresChoices;
+
+  /// The dish's attributes. Only those with [ProductAttribute.hasVariations]
+  /// pick a variation; the rest are descriptive and are not drawn.
+  final List<ProductAttribute> attributes;
+
+  /// One entry per combination the store actually made, with the terms that
+  /// name it. **No prices here** — the Store API sends none, so the chosen
+  /// variation is read back as a product of its own.
+  final List<ProductVariation> variations;
+
   final bool onSale;
   final double averageRating;
   final int reviewCount;
@@ -345,6 +359,12 @@ class Product {
         .toList(growable: false);
   }
 
+  /// The attributes a customer has to answer, in the order the store set.
+  List<ProductAttribute> get variableAttributes => [
+        for (final attribute in attributes)
+          if (attribute.hasVariations && attribute.terms.isNotEmpty) attribute,
+      ];
+
   /// True when ordering this dish means choosing something first.
   ///
   /// Either half is enough: a variable product needs a variation, and a dish
@@ -358,4 +378,108 @@ class Product {
 
   @override
   String toString() => 'Product($id, $name, ${prices.price.format()})';
+}
+
+/// One of a dish's attributes — "Size", "Crust".
+class ProductAttribute {
+  const ProductAttribute({
+    required this.name,
+    required this.taxonomy,
+    required this.hasVariations,
+    required this.terms,
+  });
+
+  factory ProductAttribute.fromJson(Map<String, dynamic> json) {
+    return ProductAttribute(
+      name: json['name'] as String? ?? '',
+      taxonomy: json['taxonomy'] as String? ?? '',
+      hasVariations: json['has_variations'] == true,
+      terms: _list(json['terms'], AttributeTerm.fromJson),
+    );
+  }
+
+  /// The label as the store wrote it, and **the key `cart/add-item` takes** —
+  /// it sanitises the name to the variation's own meta key, so `Size` and
+  /// `size` both resolve.
+  ///
+  /// There is no separate human label to fall back on. A store that names an
+  /// attribute `pa_size` has that on its own website too.
+  final String name;
+
+  /// Empty for a *custom* attribute, which is the common case in a restaurant
+  /// — typed into the product rather than registered as a taxonomy. Such an
+  /// attribute has `id: 0` everywhere, which is why nothing here matches on
+  /// ids.
+  final String taxonomy;
+
+  /// Whether answering this picks a variation. False means it is descriptive.
+  final bool hasVariations;
+
+  final List<AttributeTerm> terms;
+}
+
+/// One choice within an attribute — "Large".
+class AttributeTerm {
+  const AttributeTerm({required this.name, required this.slug});
+
+  factory AttributeTerm.fromJson(Map<String, dynamic> json) {
+    final name = json['name'] as String? ?? '';
+
+    return AttributeTerm(
+      name: name,
+      // For a custom attribute the slug **is** the name, which is also what a
+      // variation stores as its value.
+      slug: json['slug'] as String? ?? name,
+    );
+  }
+
+  /// What the customer reads.
+  final String name;
+
+  /// What a variation's attribute value is matched against.
+  final String slug;
+}
+
+/// One combination the store made, and the terms that name it.
+class ProductVariation {
+  const ProductVariation({required this.id, required this.attributes});
+
+  factory ProductVariation.fromJson(Map<String, dynamic> json) {
+    final raw = json['attributes'];
+    final attributes = <String, String>{};
+
+    if (raw is List) {
+      for (final entry in raw.whereType<Map>()) {
+        final name = entry['name'] as String? ?? '';
+        if (name.isEmpty) continue;
+
+        // Null is WooCommerce's "any": this variation serves every term of
+        // that attribute. Kept as an empty string, and treated as a wildcard
+        // where it is matched.
+        attributes[name] = entry['value'] as String? ?? '';
+      }
+    }
+
+    return ProductVariation(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      attributes: attributes,
+    );
+  }
+
+  /// The variation's own product id — what the cart line reports, and what to
+  /// read back for its price and stock.
+  final int id;
+
+  /// Attribute name to the term slug it is fixed to. An empty value is "any".
+  final Map<String, String> attributes;
+}
+
+/// Reads a list of maps into models, dropping anything that is not a map.
+List<T> _list<T>(Object? raw, T Function(Map<String, dynamic>) read) {
+  if (raw is! List) return const [];
+
+  return raw
+      .whereType<Map>()
+      .map((e) => read(e.cast<String, dynamic>()))
+      .toList(growable: false);
 }

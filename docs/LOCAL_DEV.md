@@ -86,6 +86,14 @@ Pro features.
   Margherita to both and Build Your Pizza to Uptown. The settings option was
   backed up to JSON and diffed clean afterwards, the terms deleted and all 18
   products are visible again. Nothing from it remains.
+- **Build Your Pizza's variations were repaired for task 8.1.** All three
+  sizes had **empty** attribute values, which WooCommerce reads as "any" —
+  three variations matching every size at three different prices — and the
+  attribute was named `pa_size` as if it were a taxonomy. Now: a custom
+  attribute called `Size`, with 28/29/30 carrying `Small`, `Medium`, `Large`.
+  Kept, not restored: the old state was broken rather than deliberate, and
+  the live demo site is likely seeded the same way — worth checking before
+  the iPhone is pointed at it.
 - **Order 70, kept for task 7.4.** Placed through the app's own flow with a
   radio, two checkboxes and a textarea on *Fresh Lemonade*, so it carries a
   recorded `_fmp_addon_selection` and reorders cleanly. Its other line, an

@@ -2,6 +2,64 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## An empty variation attribute means "any", and looks like broken data
+`Build Your Pizza`'s three sizes were seeded with **empty** attribute values —
+`{"pa_size": ""}` on every variation. WooCommerce reads an empty value as
+**any**, so all three matched every size, at three different prices, and the
+website would have served whichever came first.
+
+Through the Store API that surfaced as `value: null` on every variation, which
+made the dish unorderable by anything that matches a term to a variation. The
+first read of it looked like a Store API limitation for custom attributes. It
+was not; it was the demo data.
+
+The attribute was also *named* `pa_size`, as if it were a taxonomy, when it is
+a custom attribute — so "pa_size" is what a customer would have read on the
+website too. Both fixed on the dev site: the attribute is `Size`, and the
+variations carry `Small`, `Medium`, `Large`.
+
+**The app still honours "any".** `VariationSelection` treats an empty value as
+a wildcard rather than a literal, because a store may genuinely use one — a
+"Large, any crust" variation is a real thing. Matching it literally would make
+it match nothing.
+
+## What the Store API gives for a variable dish, and what it does not
+Settled by reading the live payload rather than the docs:
+
+- `attributes[]` has `name`, `taxonomy`, `has_variations` and `terms[]`. For a
+  **custom** attribute — what a restaurant types in rather than registering —
+  `taxonomy` is null and **every id is 0**, on the attribute and on every
+  term. So nothing can be matched on ids; `name` and `slug` are the only
+  identifiers that work for both custom and taxonomy attributes.
+- `variations[]` has `id` and the attribute values that name it, **and no
+  prices**. There is no price per variation anywhere on the parent.
+- `GET /products/{variation_id}` *does* work and returns the variation as a
+  product of its own, with its price and its own stock state. A variation can
+  be sold out while the dish is not, so this is worth reading rather than
+  interpolating from the parent's range.
+- `include=28,29,30` returns **nothing**: the products collection excludes
+  variations. They can only be fetched one at a time.
+
+So the app reads the chosen variation on demand, cached per id by
+`productProvider`, and flipping back to a size already seen costs no request.
+
+### The add-to-cart contract
+`{ id: <parent>, quantity, variation: [{ attribute, value }] }`. The **parent's**
+id, not the variation's — the server resolves it and answers with a line under
+the variation's own id, which `FINDINGS.md` already records elsewhere.
+
+`attribute` is sent **verbatim from the payload**. The Store API sanitises it
+to the variation's meta key itself, so `Size` and `size` both resolve to
+`attribute_size`; sending what the payload gave us keeps one fewer rule in the
+app.
+
+### `item_data` is empty for a variable line
+The chosen size is in the cart item's **`variation`** key and nowhere else, so
+a line summary built only from `item_data` shows two sizes of one dish as two
+identical rows. Order lines are fine without any of this:
+`get_formatted_meta_data()` already formats the variation attributes, so
+`/app/orders/{id}` carries "Size: Small" as ordinary line meta.
+
 ## The selection was always there — just never kept
 The reorder problem looked like it needed new data. It did not. By the time
 `AppCartAddons::add_to_cart_data` runs, the app has already sent exactly what a

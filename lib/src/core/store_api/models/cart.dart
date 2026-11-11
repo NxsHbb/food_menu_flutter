@@ -244,6 +244,7 @@ class CartItem {
     required this.totals,
     required this.images,
     required this.itemData,
+    this.variation = const [],
     required this.quantityLimits,
     required this.shortDescription,
     required this.addons,
@@ -271,6 +272,18 @@ class CartItem {
           .whereType<Map>()
           .map((e) => CartItemData.fromJson(e.cast<String, dynamic>()))
           .toList(growable: false),
+      // `attribute` is the store's label for it, `value` the chosen term.
+      variation: ((json['variation'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) {
+            final entry = e.cast<String, dynamic>();
+            return CartItemData(
+              name: entry['attribute'] as String? ?? '',
+              value: entry['value'] as String? ?? '',
+            );
+          })
+          .where((d) => d.value.isNotEmpty)
+          .toList(growable: false),
       quantityLimits: json['quantity_limits'] is Map
           ? QuantityLimits.fromJson(
               (json['quantity_limits'] as Map).cast<String, dynamic>(),
@@ -294,6 +307,13 @@ class CartItem {
 
   /// The server's own display copy for the line. See [CartItemData].
   final List<CartItemData> itemData;
+
+  /// The attributes that picked this line's variation — "Size: Small".
+  ///
+  /// **Not in `item_data`**, which the Store API leaves empty for a variable
+  /// product, so without this two sizes of the same dish are two identical
+  /// looking lines.
+  final List<CartItemData> variation;
   final QuantityLimits quantityLimits;
   final String shortDescription;
 
