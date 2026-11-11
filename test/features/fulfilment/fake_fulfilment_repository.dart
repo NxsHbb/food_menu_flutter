@@ -90,3 +90,12 @@ OrderTypes orderTypesFromFixture(String name) =>
     OrderTypes.fromJson(_fixture(name));
 
 SlotList slotsFromFixture(String name) => SlotList.fromJson(_fixture(name));
+
+/// The delivery payload as a store that has **not** switched pre-ordering on
+/// sends it: no `last_date`, so the earliest date is the only one.
+SlotList slotsWithoutPreorder({String name = 'slots_delivery'}) {
+  final json = _fixture(name);
+  json['last_date'] = null;
+
+  return SlotList.fromJson(json);
+}

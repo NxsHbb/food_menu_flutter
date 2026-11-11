@@ -7,6 +7,7 @@ import '../../../../core/theme/app_tokens.dart';
 import '../../data/fulfilment_controller.dart';
 import '../../domain/order_types.dart';
 import '../../domain/slots.dart';
+import 'date_strip.dart';
 import 'order_type_toggle.dart';
 import 'slot_picker.dart';
 
@@ -82,6 +83,10 @@ class _Slots extends ConsumerWidget {
     // ours to compose once the label is translated.
     final title = slots == null ? 'Time' : '${slots.label} time';
 
+    // Which dates the store takes orders for. One is the common case and
+    // draws no strip at all.
+    final dates = slots?.choosableDates ?? const <String>[];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -103,19 +108,34 @@ class _Slots extends ConsumerWidget {
               ),
           ],
         ),
-        if (slots != null && today != null && slots.date != today)
+        // **Only when there is nothing to pick.** A store that takes orders
+        // for one date still has to say which, because a kitchen's lead time
+        // can push the earliest slot to another day and "3:00 am" then looks
+        // like tonight. `dateValue` is the store's own rendering, which saves
+        // inventing a date format the site does not use. With a strip above,
+        // the chosen chip says it already.
+        if (slots != null &&
+            today != null &&
+            slots.date != today &&
+            dates.length < 2)
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
-              // The design has no date picker, so when a kitchen's lead time
-              // pushes the earliest slot to another day the date has to be
-              // said out loud — otherwise "3:00 am" looks like tonight.
-              // `dateValue` is the store's own rendering of it, which saves
-              // inventing a date format the site does not use.
               slots.dateValue,
               style: text.bodySmall?.copyWith(color: palette.muted),
             ),
           ),
+        if (slots != null && dates.length > 1) ...[
+          const SizedBox(height: AppTokens.space12),
+          DateStrip(
+            dates: dates,
+            selected: slots.date,
+            storeToday: today,
+            onSelected: ref
+                .read(fulfilmentControllerProvider.notifier)
+                .chooseDate,
+          ),
+        ],
         const SizedBox(height: AppTokens.space12),
         switch (async) {
           AsyncError(:final error) => _Error(

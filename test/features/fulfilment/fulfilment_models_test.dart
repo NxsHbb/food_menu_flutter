@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:food_menu/src/features/fulfilment/presentation/widgets/date_strip.dart';
+
 import 'fake_fulfilment_repository.dart';
 
 void main() {
@@ -186,6 +188,96 @@ void main() {
     test('nothing is choosable, so the resolved slot is null', () {
       expect(blocked.firstAvailable, isNull);
       expect(blocked.resolve(null), isNull);
+    });
+  });
+
+  group('the dates a store takes orders for', () {
+    SlotList withDates({required String first, String? last}) {
+      return SlotList.fromJson({
+        'type': 'delivery',
+        'date': first,
+        'first_date': first,
+        'last_date': last,
+        'slots': const <dynamic>[],
+      });
+    }
+
+    test('spans first to last, inclusive', () {
+      final dates = withDates(
+        first: '2026-11-10',
+        last: '2026-11-13',
+      ).choosableDates;
+
+      expect(dates, [
+        '2026-11-10',
+        '2026-11-11',
+        '2026-11-12',
+        '2026-11-13',
+      ]);
+    });
+
+    test('a null last date means that one date only', () {
+      // Not "no limit": the store sends `last_date` only when it has turned
+      // pre-ordering on, and without it the website offers today alone.
+      expect(
+        withDates(first: '2026-11-10').choosableDates,
+        ['2026-11-10'],
+      );
+    });
+
+    test('crosses a month end without skipping a day', () {
+      final dates = withDates(
+        first: '2026-11-29',
+        last: '2026-12-02',
+      ).choosableDates;
+
+      expect(dates, [
+        '2026-11-29',
+        '2026-11-30',
+        '2026-12-01',
+        '2026-12-02',
+      ]);
+    });
+
+    test('caps a store that pre-orders a year ahead', () {
+      final dates = withDates(
+        first: '2026-11-10',
+        last: '2027-11-10',
+      ).choosableDates;
+
+      // A strip of 365 chips is not a date picker.
+      expect(dates, hasLength(30));
+      expect(dates.first, '2026-11-10');
+    });
+
+    test('a last date before the first is ignored', () {
+      expect(
+        withDates(first: '2026-11-10', last: '2026-11-09').choosableDates,
+        ['2026-11-10'],
+      );
+    });
+  });
+
+  group('what a date chip is called', () {
+    test('names today and tomorrow against the store clock', () {
+      expect(
+        dateChipLabel('2026-11-10', storeToday: '2026-11-10'),
+        'Today',
+      );
+      expect(
+        dateChipLabel('2026-11-11', storeToday: '2026-11-10'),
+        'Tomorrow',
+      );
+      expect(
+        dateChipLabel('2026-11-12', storeToday: '2026-11-10'),
+        'Thu 12 Nov',
+      );
+    });
+
+    test('dates everything when the store has not said what day it is', () {
+      // Guessing from the phone would read "Today" on the wrong chip for a
+      // customer ordering from another timezone.
+      expect(dateChipLabel('2026-11-10'), 'Tue 10 Nov');
     });
   });
 }

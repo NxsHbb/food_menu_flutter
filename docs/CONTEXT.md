@@ -699,10 +699,27 @@ screen renders as its first section. The screen itself is
   slots, which ran down the screen and buried everything below.
 - Unavailable chips are drawn struck through and **explain themselves on tap**
   with the server's own sentence. A chip that ignores taps reads as broken.
-- The date is shown under the title **only when it is not the store's today**,
-  which a kitchen's lead time can cause. The design has no date picker, so the
-  server's earliest fulfillable date is used and the date is said out loud
-  rather than left to look like tonight.
+- **The date strip** (task 8.4) is drawn from `first_date` and `last_date`,
+  one chip per date, labelled against the **store's** today — "Today",
+  "Tomorrow", then "Thu 13 Nov". It appears only when there is more than one
+  date to pick; the lone-date case keeps the old line under the title, which
+  a kitchen's lead time can make necessary.
+  - **A null `last_date` means today only**, not "no limit": the store sends
+    one only when `fmp_preorder_max_days` is above zero. The route itself is
+    laxer — see `FINDINGS.md`.
+  - A day the store is closed is **still offered**, and answers with the
+    store's own "closed" message. The app cannot know a store's weekly
+    closures without asking for that date.
+  - Changing the date **clears the chosen slot**, because slot identity is
+    minutes within a day and the same number means a different time of a
+    different day.
+  - The date is submitted as the server's own `date_value` for the date in
+    force, never a string the app formats.
+- **A scheduled order says which day it is for.** `CustomerOrder.scheduledDate`
+  is the order's stored date, and empty for an ASAP order, which has no time
+  and so no day to be wrong about. Drawn on the order-received tile and beside
+  the estimate. Before the date strip every order was for the earliest date and
+  a bare time was unambiguous; now it is not.
 
 ### The checkout screen (task 6.1)
 `features/checkout/` — the screen the design draws, around
