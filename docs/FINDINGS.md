@@ -2,6 +2,88 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The tracking route answers a history, and the design wanted a plan
+`GET fmp/v1/track/{token}` returns the timeline entries an order has passed
+through and nothing else. **Every one carries `completed: true`** — the
+website's own tracking page (`Timeline.js`) draws them as a list, marks the
+last one current unless it matches `fmp_tracking_completed_status`, and stops
+there. There is no four-step model, no percentage and no notion of a stage
+still to come anywhere in either plugin.
+
+The design assumes the opposite: four fixed steps, `pct` of `[12,45,78,100]`,
+and different labels for pickup and delivery. Task 7.2 had recorded the gap as
+"a step index only the tracking route knows", which turned out to be wrong in
+both halves — the tracking route does not know it, and the estimate card never
+needed it.
+
+Three consequences, agreed before building:
+
+- **The estimate card needed no tracking at all.** It is the order's own `eta`
+  and type, both already on `/app/orders/{id}`. It was withheld for a reason
+  that did not hold.
+- **The progress strip needed a stage model that did not exist.** Inferring
+  one from a status slug is exactly what 7.1 and 7.2 both refused.
+- **So the plugin publishes it**, for the app only. The website's route keeps
+  its payload and its expiry, and its page keeps drawing the history.
+
+## A store declares its order of statuses by dragging them
+The only sequence either plugin has. The Order Statuses screen sorts with
+`@dnd-kit/sortable`, `save_statuses` replaces the whole array in that order,
+and the shipped presets are pipelines — *Order Received, Prepping, In Oven,
+Ready*. The admin copy calls them "workflow steps".
+
+It covers the **middle only**. WooCommerce's own statuses are in
+`PROTECTED_SLUGS` and cannot be redefined, so `pending`, `processing` and
+`completed` sit outside the declared list and no end-to-end pipeline exists to
+count against. `AppTrackingApi` therefore builds an order's stages as:
+
+1. **What happened** — the timeline in time order, every entry reached.
+2. **What is still to come** — the enabled custom statuses, in the declared
+   order, not recorded *and* falling after the last one that was. A step
+   earlier in the pipeline that never happened was skipped, not pending.
+3. **The end** — `fmp_tracking_completed_status`, unless already present.
+
+A store with no custom statuses gets **two** stages, not the design's four:
+where the order is, and completed. That is the honest answer for a store that
+never described a pipeline, and the strip reads it the same way.
+
+### A finished order has no future, and completed is the easy one to miss
+The early return was written for cancelled and refunded, which is the obvious
+case — nothing is still to come for an order nobody is cooking. **Completed
+needed it just as much**: without it the declared pipeline was appended after
+completion and a delivered order read "2 of 6", with three steps apparently
+still ahead of it. Caught only once the history row started drawing a strip
+from the same numbers.
+
+`is_failed` separates the two endings as finished-minus-completed, rather than
+by listing cancelled, refunded and failed — so a store that renames
+*completed* to "Picked up" still has exactly one success and the rest
+failures.
+
+## The order fixtures had gone stale by two fields
+`order_delivery.json` and `order_pickup.json` were captured before task 7.2
+added `status_color` and `is_active` to the single-order payload, so every
+test using them was asserting against a payload the server no longer sends —
+and `is_active` defaulting to false silently withheld the new estimate card
+from both.
+
+Re-capturing was not an option: the only pickup order on the dev site has
+since been cancelled, and there is no processing one to capture. Diffed
+against the live route instead, which showed the two missing keys and nothing
+else of shape, and both were added with the values the live route returns.
+
+The lesson is about captures generally: a fixture stops being a capture the
+moment the payload grows, and nothing fails to say so — the parser fills the
+gap with a default and the tests keep passing.
+
+## A cash-on-delivery order's first stage reads "Pending payment"
+WooCommerce writes `pending` and then `processing` in the same second, and the
+timeline records both, so the strip opens on a status about money for an order
+that was never going to be paid online. The website's own page shows it too,
+and it is the store's own label, so it is drawn as recorded rather than
+filtered — the app is not the place to decide a store's statuses are noise.
+Worth knowing before anyone reads it as a bug.
+
 ## An order does not record its add-ons in a re-submittable form
 An order line keeps its chosen add-ons as **display text** —
 `[Make it a meal] = No thanks` — with no group id and no option id. So

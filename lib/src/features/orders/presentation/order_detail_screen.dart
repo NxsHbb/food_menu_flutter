@@ -9,18 +9,21 @@ import '../../../core/util/relative_date.dart';
 import '../../../core/widgets/dish_image_placeholder.dart';
 import '../data/orders_repository.dart';
 import '../domain/customer_order.dart';
+import '../domain/order_tracking.dart';
 import 'orders_screen.dart';
 import 'widgets/order_status_pill.dart';
+import 'widgets/order_tracking_card.dart';
 
-/// One order in full — the design's "Order tracking" screen, minus tracking.
+/// One order in full — the design's "Order tracking" screen.
 ///
-/// **The timeline and the estimate card are not here.** Both are drawn from a
-/// step out of four, which the order payload has no notion of; only the
-/// tracking route knows where an order has got to. They are task 7.3, and
-/// they are left out rather than faked from the status slug — a store can add
-/// statuses of its own, and a guessed step would be confidently wrong.
+/// **Two requests, deliberately.** The order itself is settled: its items,
+/// totals and address will not change. Its progress is the one part that
+/// does, so the estimate card, the strip and the timeline read
+/// `/app/orders/{id}/tracking` separately. A tracking failure then costs the
+/// timeline rather than the screen — the rest of the order is still worth
+/// drawing, and task 7.2 proved the screen stands without it.
 ///
-/// **Nor is "Reorder".** An order records its add-ons as display text, not as
+/// **"Reorder" is still not here.** An order records its add-ons as display text, not as
 /// ids, so a faithful reorder needs the plugin to store a re-submittable
 /// selection first. Raised as its own task rather than shipped as a button
 /// that quietly drops every choice the customer made.
@@ -42,7 +45,12 @@ class OrderDetailScreen extends ConsumerWidget {
       body: switch (order) {
         AsyncLoading() => const Center(child: CircularProgressIndicator()),
         AsyncError(:final error) => _DetailError(error: error, id: orderId),
-        AsyncData(:final value) => _Detail(order: value),
+        AsyncData(:final value) => _Detail(
+            order: value,
+            // Null while it loads and after it fails. The card draws the
+            // estimate from the order either way and says so for the rest.
+            tracking: ref.watch(orderTrackingProvider(orderId)).value,
+          ),
       },
     );
   }
@@ -61,9 +69,10 @@ void closeOrder(BuildContext context) {
 }
 
 class _Detail extends StatelessWidget {
-  const _Detail({required this.order});
+  const _Detail({required this.order, required this.tracking});
 
   final CustomerOrder order;
+  final OrderTracking? tracking;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +131,8 @@ class _Detail extends StatelessWidget {
               AppTokens.space24,
             ),
             children: [
+              OrderTrackingCard(order: order, tracking: tracking),
+              const SizedBox(height: AppTokens.space12),
               _ItemsCard(order: order),
               const SizedBox(height: AppTokens.space12),
               _DetailsCard(order: order),
@@ -332,7 +343,12 @@ class _DetailsCard extends StatelessWidget {
       children: [
         if (order.paymentMethodTitle.isNotEmpty)
           _DetailRow(label: 'Payment', value: order.paymentMethodTitle),
-        if (order.eta.isNotEmpty)
+        // **Only once the order is over.** While it is still coming the
+        // estimate belongs in the card at the top, where the design puts it
+        // and where task 7.3 draws it; repeating it here said the same thing
+        // twice. Afterwards it is no longer a promise but a record of the
+        // slot the customer chose, which this list is the right home for.
+        if (order.eta.isNotEmpty && !order.isActive)
           _DetailRow(
             label: isPickup ? 'Ready' : 'Estimated',
             value: order.eta,

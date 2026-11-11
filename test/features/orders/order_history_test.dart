@@ -9,6 +9,7 @@ import 'package:food_menu/src/features/auth/data/token_store.dart';
 import 'package:food_menu/src/features/orders/data/orders_repository.dart';
 import 'package:food_menu/src/features/orders/presentation/order_detail_screen.dart';
 import 'package:food_menu/src/features/orders/presentation/orders_screen.dart';
+import 'package:food_menu/src/features/orders/presentation/widgets/order_progress_bar.dart';
 import 'package:food_menu/src/features/orders/presentation/widgets/order_row.dart';
 import 'package:go_router/go_router.dart';
 
@@ -152,6 +153,47 @@ void main() {
       // The eta is still in the payload; a finished order just has no use
       // for it, and showing one would read as still coming.
       expect(find.textContaining('ETA'), findsNothing);
+    });
+
+    testWidgets('an active row draws the strip the server measured',
+        (tester) async {
+      repo.history[OrderGroup.active] = [
+        summaryFixture(progress: const {'step': 1, 'stage_count': 4}),
+      ];
+      await pump(tester);
+
+      final bar = tester.widget<OrderProgressBar>(
+        find.byType(OrderProgressBar),
+      );
+      // One third along, from the server's own pair — never counted here, and
+      // never guessed from the status slug.
+      expect(bar.fraction, closeTo(1 / 3, 0.001));
+      expect(bar.dimmed, isFalse);
+    });
+
+    testWidgets('a row with no progress has no strip at all', (tester) async {
+      // The store keeps no timeline, or the order predates it. A bar stuck at
+      // the left would read as an order nobody has started.
+      repo.history[OrderGroup.active] = [summaryFixture()];
+      await pump(tester);
+
+      expect(find.byType(OrderProgressBar), findsNothing);
+      // The estimate still shows: it does not come from the timeline.
+      expect(find.textContaining('ETA'), findsOneWidget);
+    });
+
+    testWidgets('a row with neither strip nor estimate has no footer',
+        (tester) async {
+      repo.history[OrderGroup.active] = [summaryFixture(eta: '')];
+      await pump(tester);
+
+      expect(find.byType(OrderProgressBar), findsNothing);
+      expect(find.textContaining('ETA'), findsNothing);
+      // No divider either, rather than one over an empty row.
+      expect(
+        find.descendant(of: find.byType(OrderRow), matching: find.byType(Divider)),
+        findsNothing,
+      );
     });
 
     testWidgets('tapping a row opens that order', (tester) async {

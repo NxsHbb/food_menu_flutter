@@ -142,8 +142,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Outside the shell on purpose: the design shows the tab bar only on
       // home, menu, cart, orders, account and wishlist. A dish is a
       // full-screen view with its own close button, so it covers the bar.
-      // Checkout is here for the same reason; order received and order
-      // tracking will join it.
+      // Checkout is here for the same reason, and so is order received.
+      // **Order tracking never joined them**: the design's tracking screen
+      // turned out to be the order screen itself, so task 7.3 filled the one
+      // nested in the Orders tab rather than adding a second.
       // Auth sits outside the shell and is pushed, not navigated to: the
       // customer is sent here mid-task — placing an order, saving a
       // favourite — and popping returns them to it. The design has no auth

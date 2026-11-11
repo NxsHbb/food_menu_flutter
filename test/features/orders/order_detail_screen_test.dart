@@ -6,6 +6,7 @@ import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/orders/data/orders_repository.dart';
 import 'package:food_menu/src/features/orders/presentation/order_detail_screen.dart';
 import 'package:food_menu/src/features/orders/presentation/orders_screen.dart';
+import 'package:food_menu/src/features/orders/presentation/widgets/order_progress_bar.dart';
 import 'package:food_menu/src/features/orders/presentation/widgets/order_status_pill.dart';
 import 'package:go_router/go_router.dart';
 
@@ -62,7 +63,15 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(OrderStatusPill), findsOneWidget);
-    expect(find.text(repo.answer.statusLabel), findsOneWidget);
+    // Scoped to the pill: the tracking card names the current stage too, and
+    // on most orders that is the same word as the status.
+    expect(
+      find.descendant(
+        of: find.byType(OrderStatusPill),
+        matching: find.text(repo.answer.statusLabel),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('lists every line with its quantity', (tester) async {
@@ -106,21 +115,151 @@ void main() {
   testWidgets('names the payment method', (tester) async {
     await pump(tester);
 
+    // Below the fold since the tracking card went in above it, and the body
+    // is a lazy ListView — so it has to be scrolled to rather than found.
+    await tester.scrollUntilVisible(
+      find.text(repo.answer.paymentMethodTitle),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+
     expect(
       find.text(repo.answer.paymentMethodTitle),
       findsOneWidget,
     );
   });
 
-  testWidgets('neither tracking nor reorder is pretended at', (tester) async {
+  testWidgets('reorder is still not pretended at', (tester) async {
     await pump(tester);
 
-    // Both are deliberately absent: the timeline needs the tracking route
-    // (task 7.3), and a faithful reorder needs the plugin to record a
-    // re-submittable add-on selection. A button for either would be a
-    // stand-in, which is what task 4.7 existed to clean up.
+    // Tracking arrived with task 7.3. Reorder has not: a faithful one needs
+    // the plugin to record a re-submittable add-on selection, and a button
+    // without it would be a stand-in — which is what task 4.7 existed to
+    // clean up.
     expect(find.text('Reorder'), findsNothing);
-    expect(find.textContaining('Track'), findsNothing);
+  });
+
+  group('the tracking card', () {
+    testWidgets('reads tracking separately from the order', (tester) async {
+      await pump(tester, id: 64);
+
+      // Two requests on purpose: the order is settled, its progress is the
+      // one part that moves.
+      expect(repo.requested, [64]);
+      expect(repo.trackingRequested, [64]);
+    });
+
+    testWidgets('draws the estimate while the order is active',
+        (tester) async {
+      await pump(tester);
+
+      // "Arriving", not the design's "Arriving in": the plugin's estimate can
+      // be the literal word ASAP, and "Arriving in ASAP" does not read.
+      expect(find.text('Arriving'), findsOneWidget);
+      expect(find.text(repo.answer.eta), findsOneWidget);
+    });
+
+    testWidgets('a pickup order is ready rather than arriving',
+        (tester) async {
+      repo.answer = orderFromFixture('order_pickup');
+      // A pipeline with no stage called "Ready", so the only match is the
+      // estimate's own title.
+      repo.trackingAnswer = trackingFixture(
+        stages: const [
+          ('processing', 'Processing', true),
+          ('completed', 'Completed', false),
+        ],
+      );
+      await pump(tester);
+
+      expect(find.text('Ready'), findsOneWidget);
+      expect(find.text('Arriving'), findsNothing);
+    });
+
+    testWidgets('a finished order claims no estimate', (tester) async {
+      repo.answer = CustomerOrder.fromJson({
+        ...jsonFixture('order_delivery'),
+        'status': 'completed',
+        'status_label': 'Completed',
+        'is_active': false,
+      });
+      repo.trackingAnswer = trackingFixture(
+        status: 'completed',
+        statusLabel: 'Completed',
+        isActive: false,
+        stages: const [
+          ('processing', 'Processing', true),
+          ('completed', 'Completed', true),
+        ],
+      );
+      await pump(tester);
+
+      // "Arriving ASAP" on a delivered order would be a claim about food that
+      // already came. The timeline still draws.
+      expect(find.text('Arriving'), findsNothing);
+      expect(find.text('Completed'), findsWidgets);
+    });
+
+    testWidgets('lists every stage, reached and still to come',
+        (tester) async {
+      repo.trackingAnswer = trackingFixture(note: 'Kitchen has it');
+      await pump(tester);
+
+      for (final stage in repo.trackingAnswer.stages) {
+        expect(find.text(stage.label), findsWidgets);
+      }
+      // The store's note and its own formatted time, which the app does not
+      // re-zone onto the phone's clock.
+      expect(find.text('Kitchen has it'), findsOneWidget);
+      expect(find.text('November 10, 2026 at 8:59 am'), findsWidgets);
+    });
+
+    testWidgets('a failed tracking request costs the timeline, not the screen',
+        (tester) async {
+      repo.failNextTracking = const ApiException(
+        failure: ApiFailure.network,
+        message: 'Could not reach the server.',
+      );
+      await pump(tester);
+
+      // The order is still worth drawing, and the estimate comes from it.
+      expect(find.text('Order #${repo.answer.number}'), findsOneWidget);
+      expect(find.text('Arriving'), findsOneWidget);
+      expect(
+        find.text('Progress for this order could not be loaded.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('says so when the store keeps no history', (tester) async {
+      repo.trackingAnswer = trackingFixture(
+        hasTimeline: false,
+        stages: const [],
+      );
+      await pump(tester);
+
+      expect(find.text('This order has no progress history.'), findsOneWidget);
+      expect(find.byType(OrderProgressBar), findsNothing);
+    });
+
+    testWidgets('a cancelled order shows an empty strip', (tester) async {
+      repo.trackingAnswer = trackingFixture(
+        status: 'cancelled',
+        statusLabel: 'Cancelled',
+        isActive: false,
+        isFailed: true,
+        stages: const [
+          ('processing', 'Processing', true),
+          ('cancelled', 'Cancelled', true),
+        ],
+      );
+      await pump(tester);
+
+      final bar = tester.widget<OrderProgressBar>(
+        find.byType(OrderProgressBar),
+      );
+      expect(bar.dimmed, isTrue);
+    });
   });
 
   testWidgets('a failure offers a retry and a way back', (tester) async {

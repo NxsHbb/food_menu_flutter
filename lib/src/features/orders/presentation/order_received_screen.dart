@@ -8,6 +8,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../menu/presentation/menu_screen.dart';
 import '../data/orders_repository.dart';
 import '../domain/customer_order.dart';
+import 'order_detail_screen.dart';
 
 /// The design's order-received screen.
 ///
@@ -18,8 +19,10 @@ import '../domain/customer_order.dart';
 /// can renumber, reprice or re-status an order between the post and the
 /// screen. Reading it back also makes the route survive being opened cold.
 ///
-/// The design's "Track order" button lands with task 7.3, which has the
-/// screen to open — the token it needs is already in this payload.
+/// The design's "Track order" button opens the order screen, which task 7.3
+/// gave the estimate, the progress strip and the timeline. It navigates into
+/// the Orders tab rather than pushing, so backing out of the order lands on
+/// the history list instead of on a receipt for an order already placed.
 class OrderReceivedScreen extends ConsumerWidget {
   const OrderReceivedScreen({required this.orderId, super.key});
 
@@ -126,7 +129,13 @@ class _Placed extends StatelessWidget {
             ),
           ),
         ),
-        _Actions(onHome: () => OrderReceivedScreen._home(context)),
+        _Actions(
+          onTrack: () => context.goNamed(
+            OrderDetailScreen.routeName,
+            pathParameters: {'id': '${order.id}'},
+          ),
+          onHome: () => OrderReceivedScreen._home(context),
+        ),
       ],
     );
   }
@@ -234,8 +243,9 @@ class _Tick extends StatelessWidget {
 }
 
 class _Actions extends StatelessWidget {
-  const _Actions({required this.onHome});
+  const _Actions({required this.onTrack, required this.onHome});
 
+  final VoidCallback onTrack;
   final VoidCallback onHome;
 
   @override
@@ -247,7 +257,15 @@ class _Actions extends StatelessWidget {
         AppTokens.space16,
         AppTokens.space24,
       ),
-      child: FilledButton(onPressed: onHome, child: const Text('Back to home')),
+      child: Column(
+        children: [
+          // Primary, as the design has it: the next thing a customer who has
+          // just ordered wants is to watch it being made.
+          FilledButton(onPressed: onTrack, child: const Text('Track order')),
+          const SizedBox(height: AppTokens.space8),
+          TextButton(onPressed: onHome, child: const Text('Back to home')),
+        ],
+      ),
     );
   }
 }

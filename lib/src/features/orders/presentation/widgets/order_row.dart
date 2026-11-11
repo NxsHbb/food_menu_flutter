@@ -5,19 +5,21 @@ import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/util/relative_date.dart';
 import '../../../../core/widgets/dish_image_placeholder.dart';
 import '../../domain/order_summary.dart';
+import 'order_progress_bar.dart';
 import 'order_status_pill.dart';
 
 /// One order in the history list.
 ///
 /// The design's card: number and date over the order type, the status pill,
 /// a strip of dish thumbnails with the item count and the total, and — while
-/// the order is still happening — its status and estimate underneath.
+/// the order is still happening — the progress strip with its status and
+/// estimate underneath.
 ///
-/// **The design's progress bar is not here.** It is drawn from a step index
-/// out of four, which only the tracking route knows; this row has a status
-/// and nothing to measure it against. It arrives with task 7.3 rather than
-/// being faked from the status slug, which would be wrong for any store that
-/// adds one of its own.
+/// **The strip's fraction is the server's**, carried on the summary itself so
+/// a page of ten rows does not cost ten tracking requests. It is absent, not
+/// zero, when the store has the order timeline switched off or the order
+/// predates it: a bar stuck at the left would read as an order nobody has
+/// started.
 class OrderRow extends StatelessWidget {
   const OrderRow({
     required this.order,
@@ -93,10 +95,17 @@ class OrderRow extends StatelessWidget {
                   Text(order.total.format(), style: text.titleMedium),
                 ],
               ),
-              if (order.isActive && order.eta.isNotEmpty) ...[
+              if (order.isActive && _hasFooter) ...[
                 const SizedBox(height: AppTokens.space12),
                 Divider(color: palette.line, height: 1),
                 const SizedBox(height: AppTokens.space10),
+                if (order.progress != null) ...[
+                  OrderProgressBar(
+                    fraction: order.progress!.fraction,
+                    color: order.statusColor,
+                  ),
+                  const SizedBox(height: AppTokens.space10),
+                ],
                 Row(
                   children: [
                     Expanded(
@@ -106,12 +115,13 @@ class OrderRow extends StatelessWidget {
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
-                    Text(
-                      // The design's wording, which differs by order type:
-                      // a pickup order is ready, a delivery one arrives.
-                      '${order.type == 'pickup' ? 'Ready' : 'ETA'} ${order.eta}',
-                      style: text.bodySmall?.copyWith(color: palette.muted),
-                    ),
+                    if (order.eta.isNotEmpty)
+                      Text(
+                        // The design's wording, which differs by order type:
+                        // a pickup order is ready, a delivery one arrives.
+                        '${order.type == 'pickup' ? 'Ready' : 'ETA'} ${order.eta}',
+                        style: text.bodySmall?.copyWith(color: palette.muted),
+                      ),
                   ],
                 ),
               ],
@@ -132,6 +142,10 @@ class OrderRow extends StatelessWidget {
 
     return parts.join(' · ');
   }
+
+  /// Whether the footer has anything to say: a strip, an estimate, or both.
+  /// With neither there is no divider and no empty row.
+  bool get _hasFooter => order.progress != null || order.eta.isNotEmpty;
 
   String _itemCount() => order.itemCount == 1 ? '1 item' : '${order.itemCount} items';
 }

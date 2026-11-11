@@ -16,7 +16,7 @@ void main() {
     expect(order.eta, 'ASAP (20–35 min)');
     expect(order.paymentMethodTitle, 'Cash on delivery');
     expect(order.needsPayment, isFalse);
-    expect(order.canTrack, isTrue);
+    expect(order.trackingToken, isNotEmpty);
     expect(order.exists, isTrue);
   });
 
@@ -62,18 +62,23 @@ void main() {
     final order = CustomerOrder.fromJson(const {});
 
     expect(order.exists, isFalse);
-    expect(order.canTrack, isFalse);
+    expect(order.trackingToken, isEmpty);
     expect(order.firstName, '');
     expect(order.addressLine, '');
     expect(order.totals.totalPrice.minorUnits, 0);
   });
 
+  // The token keys the **website's** public tracking page and nothing the app
+  // reads: task 7.3 tracks through `/app/orders/{id}/tracking`, which needs no
+  // token. So an order with no token is still trackable, which is why the
+  // `canTrack` getter that used to gate on it was removed.
   test('a tracking token is absent until a status change writes one', () {
     final order = CustomerOrder.fromJson(const {
       'id': 70,
       'tracking_token': '',
     });
 
-    expect(order.canTrack, isFalse);
+    expect(order.trackingToken, isEmpty);
+    expect(order.exists, isTrue);
   });
 }

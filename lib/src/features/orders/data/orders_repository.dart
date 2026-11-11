@@ -4,6 +4,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/paged.dart';
 import '../domain/customer_order.dart';
 import '../domain/order_summary.dart';
+import '../domain/order_tracking.dart';
 
 /// The customer's own orders — `GET fmp/v1/app/orders/{id}`.
 ///
@@ -20,6 +21,18 @@ class OrdersRepository {
       _client.foodMenuApi('app/orders/$id'),
     );
     return CustomerOrder.fromJson(raw);
+  }
+
+  /// Where one order has got to.
+  ///
+  /// A plugin route and **not** the public `fmp/v1/track/{token}`, even though
+  /// the order payload carries the token: that one answers only what already
+  /// happened, and it expires. See [OrderTracking].
+  Future<OrderTracking> tracking(int id) async {
+    final raw = await _client.get<Map<String, dynamic>>(
+      _client.foodMenuApi('app/orders/$id/tracking'),
+    );
+    return OrderTracking.fromJson(raw);
   }
 
   /// One page of the history, newest first.
@@ -61,5 +74,17 @@ final orderProvider = FutureProvider.family<CustomerOrder, int>(
   (ref, id) => ref.watch(ordersRepositoryProvider).order(id),
   // The screen offers "Try again"; a background retry would keep firing while
   // the customer reads the error, as everywhere else in the app.
+  retry: (retryCount, error) => null,
+);
+
+/// Where one order has got to, by id.
+///
+/// **Separate from [orderProvider] on purpose.** The order itself is settled
+/// — its items, totals and address do not change — while its progress is the
+/// one part that does, so a refresh re-reads this and leaves the rest alone.
+/// It also means a tracking failure costs the timeline and not the whole
+/// screen: the design's order detail is worth drawing without it.
+final orderTrackingProvider = FutureProvider.family<OrderTracking, int>(
+  (ref, id) => ref.watch(ordersRepositoryProvider).tracking(id),
   retry: (retryCount, error) => null,
 );
