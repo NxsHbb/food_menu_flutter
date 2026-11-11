@@ -2,6 +2,55 @@
 
 Newest first. One entry per completed task.
 
+## Task 8.4 — Choosing a date
+Branch `feat/date-strip`. **App-only**, no plugin change. 12 new tests, 845 in
+total.
+
+### What landed
+A row of date chips above the slot list, one per date the store takes orders
+for, labelled "Today", "Tomorrow", then "Fri 13 Nov". Picking one reloads the
+slot list for that day. The fields were already arriving on `/app/slots` and
+had been unused since task 5.3.
+
+### Null `last_date` means today only
+It is sent **only** when `fmp_preorder_max_days` is above zero, so a store
+that has never switched pre-ordering on sends null and gets exactly one date
+— which is what its own website offers. Reading null as "no limit" would have
+drawn a strip of dates no store had agreed to take orders on.
+
+The route itself does not enforce the bound it publishes: with no `last_date`
+its date check passes anything. Left alone, for the same reason task 8.2 left
+required checkout fields unvalidated — tightening it changes the website too.
+Recorded in `FINDINGS.md` as an open dependency.
+
+### The chosen time cannot survive a date change
+Slot identity is minutes within a day, so 6:30 pm on Thursday and 6:30 pm on
+Friday are the same number. Moving dates clears it and the list falls back to
+the earliest open slot on the new day, rather than silently carrying a choice
+to a day where that time may be full or closed.
+
+### Found by placing the order
+The order-received screen said "Delivery / 12:00 am" and **not which day**.
+Until this task every order was for the earliest date, so a bare time was
+unambiguous; the first pre-order made it a lie. `scheduledDate` now appears on
+the tile and beside the estimate, and stays empty for an ASAP order, which has
+no day to be wrong about.
+
+A closed day inside the range is still offered, and answers with the store's
+own "we are closed" message. The app cannot know a store's weekly closures
+without asking for that date, and a chip that explains itself beats one
+silently missing.
+
+### Verified on the Android device, against the dev site
+`fmp_preorder_max_days` set to 4: the strip drew Today through Sat 14 Nov,
+picking Fri 13 Nov reloaded the slots to that day's own windows — no ASAP,
+since ASAP is a today-only idea — and order **#73** stored
+`fmp_delivery_date = "November 13, 2026"` with `fmp_delivery_time = "12:00 am"`.
+
+### Dev-site state
+`fmp_preorder_max_days` was **restored to unset**, diffed byte-identical
+against a backup. Order #73 is kept, as the other app-placed orders are.
+
 ## Task 8.3 — Timed dishes
 Branch `feat/timed-dishes`, PR #56, with the plugin half on `mobile-app`
 (food-menu-pro#30). 9 new tests,

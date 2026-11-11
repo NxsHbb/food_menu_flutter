@@ -2,6 +2,31 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## `last_date: null` means today only, and the route does not enforce it
+`/app/slots` sends `last_date` only when `fmp_preorder_max_days` is above
+zero. A store that has never switched pre-ordering on sends null, and the
+website's own picker then offers the earliest fulfillable date and nothing
+else — "zero means today only, which is the default and not an omission", as
+the order-types route puts it.
+
+The route's own date check reads it the other way:
+
+```php
+if ( null !== $last && $date > $last ) {
+    return 'after_last_date';
+}
+```
+
+With `$last` null there is no upper bound, so a crafted request can ask for a
+date six months out and get slots for it. The app does not rely on that: the
+date strip is built from the range, and a store with no `last_date` gets one
+date.
+
+Left as it is, deliberately and for the same reason task 8.2 left required
+checkout fields unvalidated: tightening it changes what the **website's** own
+block checkout accepts, which is not the app's call. Raised as an open
+dependency rather than fixed quietly.
+
 ## The website already writes the words for a timed dish
 `get_schedule_text_for_product()` composes "Unavailable", "Will be Available:
 8:00 am – 11:00 am" and "Will be Unavailable: …" for the badge the storefront

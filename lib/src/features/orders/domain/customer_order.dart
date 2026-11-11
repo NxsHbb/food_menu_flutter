@@ -111,6 +111,14 @@ class CustomerOrder {
   /// estimate. Composed server-side so it cannot disagree with the slot list.
   final String eta;
 
+  /// The date this order is for, but **only when it needed choosing**.
+  ///
+  /// Empty for an ASAP order, which has no time and so no day to be wrong
+  /// about. Since task 8.4 a customer can order days ahead, and a bare
+  /// "12:00 am" on the received screen then reads as tonight. In the store's
+  /// own display format, as it was stored.
+  String get scheduledDate => time.isEmpty ? '' : date;
+
   /// The branch, when the store runs them.
   final String locationName;
 

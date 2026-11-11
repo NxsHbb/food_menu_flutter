@@ -89,6 +89,49 @@ class SlotList {
 
   bool get isEmpty => slots.isEmpty;
 
+  /// Every date the customer may order for, earliest first.
+  ///
+  /// **A null [lastDate] means today only**, not "no limit". The store sends
+  /// one only when `fmp_preorder_max_days` is above zero, and a store that
+  /// has not switched pre-ordering on takes orders for the earliest date it
+  /// can fulfil and no other — which is how the website's own picker reads
+  /// it. The route is laxer and would answer slots for a date beyond the
+  /// range; see `FINDINGS.md`.
+  ///
+  /// Capped at [_maxDates]. A store can set a year of pre-ordering, and a
+  /// strip of 365 chips is not a date picker.
+  List<String> get choosableDates {
+    final first = DateTime.tryParse(firstDate);
+    if (first == null) return const [];
+
+    final last = DateTime.tryParse(lastDate ?? '');
+    if (last == null || !last.isAfter(first)) return [firstDate];
+
+    final dates = <String>[];
+    // Stepped in UTC on purpose: adding days to a local `DateTime` lands on
+    // 23:00 or 01:00 across a daylight-saving boundary, and `Y-m-d` then
+    // skips or repeats a day.
+    var cursor = DateTime.utc(first.year, first.month, first.day);
+    final end = DateTime.utc(last.year, last.month, last.day);
+
+    while (!cursor.isAfter(end) && dates.length < _maxDates) {
+      dates.add(_ymd(cursor));
+      cursor = cursor.add(const Duration(days: 1));
+    }
+
+    return dates;
+  }
+
+  /// How many dates a strip will ever show.
+  static const _maxDates = 30;
+
+  static String _ymd(DateTime when) {
+    final month = when.month.toString().padLeft(2, '0');
+    final day = when.day.toString().padLeft(2, '0');
+
+    return '${when.year}-$month-$day';
+  }
+
   /// The slot a screen should treat as chosen.
   ///
   /// Resolved rather than stored, so a selection cannot outlive the thing it

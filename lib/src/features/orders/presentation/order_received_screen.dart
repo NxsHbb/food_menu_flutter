@@ -165,6 +165,9 @@ class _Facts extends StatelessWidget {
               // over its own estimate, neither composed here.
               label: order.typeLabel.isEmpty ? 'Estimated' : order.typeLabel,
               value: order.eta.isEmpty ? '—' : order.eta,
+              // Only for an order placed for another day, which the date
+              // strip made possible: "12:00 am" alone reads as tonight.
+              note: order.scheduledDate,
             ),
           ),
           const SizedBox(width: AppTokens.space10),
@@ -181,10 +184,13 @@ class _Facts extends StatelessWidget {
 }
 
 class _Fact extends StatelessWidget {
-  const _Fact({required this.label, required this.value});
+  const _Fact({required this.label, required this.value, this.note = ''});
 
   final String label;
   final String value;
+
+  /// A quieter line under the value. Empty on most tiles.
+  final String note;
 
   @override
   Widget build(BuildContext context) {
@@ -213,6 +219,12 @@ class _Fact extends StatelessWidget {
             maxLines: 2,
             style: text.titleSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
+          if (note.isNotEmpty)
+            Text(
+              note,
+              maxLines: 2,
+              style: text.bodySmall?.copyWith(color: palette.muted),
+            ),
         ],
       ),
     );

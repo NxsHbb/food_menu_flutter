@@ -97,6 +97,23 @@ void main() {
 
     expect(find.text('Pickup'), findsOneWidget);
     expect(find.text('6:45 am'), findsOneWidget);
+    // And the day it was chosen for: since task 8.4 that can be days out,
+    // and a bare "6:45 am" then reads as this morning.
+    expect(find.text('November 10, 2026'), findsOneWidget);
+  });
+
+  testWidgets('an ASAP order is not dated', (tester) async {
+    repo.answer = CustomerOrder.fromJson({
+      ...jsonFixture('order_pickup'),
+      // The plugin stores no time for an ASAP order, and the date it does
+      // store is simply the day it was placed.
+      'time': '',
+      'eta': 'ASAP (15 min)',
+    });
+    await pump(tester, orderId: 60);
+
+    expect(find.text('ASAP (15 min)'), findsOneWidget);
+    expect(find.text('November 10, 2026'), findsNothing);
   });
 
   testWidgets('an order with no name is still greeted', (tester) async {

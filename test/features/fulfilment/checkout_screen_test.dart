@@ -85,6 +85,68 @@ void main() {
     expect(repo.calls.where((c) => c.startsWith('slots')), hasLength(1));
   });
 
+  group('the date strip', () {
+    testWidgets('offers every date the store takes orders for',
+        (tester) async {
+      // The captured delivery payload pre-orders a week ahead:
+      // 2026-11-10 to 2026-11-17, against a store today of 2026-11-10.
+      await pump(tester);
+
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('Tomorrow'), findsOneWidget);
+      expect(find.text('Thu 12 Nov'), findsOneWidget);
+      expect(find.text('Tue 17 Nov'), findsOneWidget);
+    });
+
+    testWidgets('picking a date asks the server for that day',
+        (tester) async {
+      await pump(tester);
+
+      await tester.tap(find.text('Thu 12 Nov'));
+      await tester.pumpAndSettle();
+
+      expect(repo.calls, contains('slots delivery 2026-11-12 26:2'));
+    });
+
+    testWidgets('moving to another date drops the slot chosen on this one',
+        (tester) async {
+      await pump(tester);
+
+      // A time on the first day...
+      await tester.tap(find.text('11:30 pm – 11:45 pm'));
+      await tester.pumpAndSettle();
+
+      // ...must not follow the customer to the next. Slot identity is
+      // minutes within a day, so it would silently mean a different time of
+      // a different day.
+      await tester.tap(find.text('Tomorrow'));
+      await tester.pumpAndSettle();
+
+      final selected = tester
+          .widgetList<Semantics>(find.byType(Semantics))
+          .where((s) => s.properties.selected == true)
+          .length;
+
+      // The date chip, and the slot the list falls back to — never two slots.
+      expect(selected, greaterThan(0));
+      expect(repo.calls.last, contains('2026-11-11'));
+    });
+
+    testWidgets('a store taking orders for one date draws no strip',
+        (tester) async {
+      // A store with `fmp_preorder_max_days` at its default sends no
+      // `last_date` at all.
+      repo.slotsByType = {
+        OrderTypeKind.delivery: slotsWithoutPreorder(),
+      };
+      await pump(tester);
+
+      // One chip would be a label pretending to be a choice.
+      expect(find.text('Today'), findsNothing);
+      expect(find.text('Tomorrow'), findsNothing);
+    });
+  });
+
   testWidgets('a closed day shows the store\'s own message and no chips',
       (tester) async {
     repo.slotsByType = {

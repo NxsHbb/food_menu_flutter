@@ -60,7 +60,20 @@ class OrderTrackingCard extends StatelessWidget {
                     style: text.bodySmall?.copyWith(color: palette.muted),
                   ),
                 ),
-                Text(order.eta, style: text.titleMedium),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(order.eta, style: text.titleMedium),
+                    // The day, for an order placed for another one. Only a
+                    // scheduled order has a date worth saying; an ASAP order
+                    // is always today by definition.
+                    if (order.scheduledDate.isNotEmpty)
+                      Text(
+                        order.scheduledDate,
+                        style: text.bodySmall?.copyWith(color: palette.muted),
+                      ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: AppTokens.space10),

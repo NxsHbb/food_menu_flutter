@@ -20,8 +20,7 @@ class FulfilmentChoice {
   final OrderTypeKind? kind;
 
   /// `Y-m-d`, or null for the earliest date the type can be fulfilled on.
-  /// The design has no date picker, so this stays null for now; `/app/slots`
-  /// takes a date for when one is designed.
+  /// Null until the customer picks another from the date strip (task 8.4).
   final String? date;
 
   /// The chosen slot's minutes-since-midnight, -1 being ASAP. Null means
@@ -72,7 +71,12 @@ class FulfilmentController extends Notifier<FulfilmentChoice> {
     state = state.copyWith(slotMinutes: startMinutes);
   }
 
-  /// Moves to another date, for when a date picker is designed.
+  /// Moves to another date, clearing the slot with it.
+  ///
+  /// The chosen time cannot survive the move: slot identity is minutes
+  /// within a day, so 6:30 pm on Thursday and 6:30 pm on Friday are the same
+  /// number, and keeping it would silently carry a choice across to a day
+  /// where that time may be full, closed or gone.
   void chooseDate(String? date) {
     state = state.copyWith(date: date, clearDate: date == null, clearSlot: true);
   }
