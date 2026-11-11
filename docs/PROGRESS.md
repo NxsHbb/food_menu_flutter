@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Task 7.3 — Live order tracking
-Branch `feat/order-tracking`, PR #TBD, with the plugin half on `mobile-app`
+Branch `feat/order-tracking`, PR #50, with the plugin half on `mobile-app`
 (food-menu-pro#26). 23 new tests, 770 in total.
 
 **Not yet run on a device** — the OnePlus is locked and in airplane mode, and
