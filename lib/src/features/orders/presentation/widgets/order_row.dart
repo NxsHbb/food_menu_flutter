@@ -7,6 +7,7 @@ import '../../../../core/widgets/dish_image_placeholder.dart';
 import '../../domain/order_summary.dart';
 import 'order_progress_bar.dart';
 import 'order_status_pill.dart';
+import 'reorder_button.dart';
 
 /// One order in the history list.
 ///
@@ -20,6 +21,11 @@ import 'order_status_pill.dart';
 /// zero, when the store has the order timeline switched off or the order
 /// predates it: a bar stuck at the left would read as an order nobody has
 /// started.
+///
+/// A **past** row gets the design's Reorder button instead of the strip. The
+/// server decides whether an order can actually be reproduced, so the button
+/// is offered on every past order and says what it could not do afterwards —
+/// the alternative is a reorder request per row just to draw the list.
 class OrderRow extends StatelessWidget {
   const OrderRow({
     required this.order,
@@ -95,6 +101,23 @@ class OrderRow extends StatelessWidget {
                   Text(order.total.format(), style: text.titleMedium),
                 ],
               ),
+              if (!order.isActive) ...[
+                const SizedBox(height: AppTokens.space12),
+                Divider(color: palette.line, height: 1),
+                const SizedBox(height: AppTokens.space10),
+                Row(
+                  children: [
+                    Expanded(child: ReorderButton(orderId: order.id)),
+                    const SizedBox(width: AppTokens.space8),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: onTap,
+                        child: const Text('Details'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               if (order.isActive && _hasFooter) ...[
                 const SizedBox(height: AppTokens.space12),
                 Divider(color: palette.line, height: 1),

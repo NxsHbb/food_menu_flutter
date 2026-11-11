@@ -2,6 +2,46 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The selection was always there — just never kept
+The reorder problem looked like it needed new data. It did not. By the time
+`AppCartAddons::add_to_cart_data` runs, the app has already sent exactly what a
+reorder needs: `{group_id, option_ids, quantities}` or `{group_id, text}`, the
+payload `cart/add-item` accepts. That array was used to build the website's own
+cart rows — names, values and prices, through `AddonFields` — and then thrown
+away, and only the rows reached the order line.
+
+So task 7.4 is three lines of real work: keep the submitted array on the cart
+item beside the display rows, copy it to the order line at checkout, hand it
+back. Nothing is reshaped anywhere, which is the point — **the stored payload
+and the request body are the same thing**, so the round trip cannot drift. The
+alternative, reconstructing a selection from `[Make it a meal] = No thanks`,
+had no way to be right.
+
+Verified by re-submitting the route's own answer, unmodified, to
+`cart/add-item`: a radio, two checkboxes and a textarea came back as
+`Medium 12"`, `Mushrooms`, `Basil` and "Extra napkins please".
+
+### Presence is the signal, not content
+`_fmp_addon_selection` is written **even when empty**, so its presence means
+"this line's choices were recorded" and its absence means the order predates
+the feature. Content alone could not tell the two apart: a line with no
+add-ons and a line whose add-ons were lost both have nothing to show.
+
+That absence is not an automatic refusal. If the dish takes **no choices
+today**, an old order is still reorderable — there was nothing to lose. Only
+an old line whose dish has add-on groups comes back
+`choices_not_recorded`. On the dev site every dish matches a global add-on
+group, so in practice every pre-7.4 order refuses; on a store without global
+add-ons most will not.
+
+### App-only fell out of the design rather than being bolted on
+`keep_selection` guards on the **cart item key**, not on the request: only
+`woocommerce_store_api_add_to_cart_data` writes `fmp_addon_selection`, so a
+website order has nothing to copy and the hook returns immediately. No request
+sniffing, no `is_rest` check, nothing to get wrong later. The meta is
+underscore-prefixed and added to `woocommerce_hidden_order_itemmeta`, so it
+reaches no order page, email or slip.
+
 ## What the vendor's own feature list does and does not settle
 `FEATURES-FROM-DEVELOPER.md`, from the plugin developer, lives **outside this
 repo** in the sibling folder `../food menu files/`. It is the master inventory

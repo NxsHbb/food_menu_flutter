@@ -1,6 +1,7 @@
 export 'package:food_menu/src/features/orders/domain/customer_order.dart';
 export 'package:food_menu/src/features/orders/domain/order_summary.dart';
 export 'package:food_menu/src/features/orders/domain/order_tracking.dart';
+export 'package:food_menu/src/features/orders/domain/reorder.dart';
 
 import 'dart:convert';
 import 'dart:io';
@@ -10,6 +11,7 @@ import 'package:food_menu/src/features/orders/data/orders_repository.dart';
 import 'package:food_menu/src/features/orders/domain/customer_order.dart';
 import 'package:food_menu/src/features/orders/domain/order_summary.dart';
 import 'package:food_menu/src/features/orders/domain/order_tracking.dart';
+import 'package:food_menu/src/features/orders/domain/reorder.dart';
 
 /// An [OrdersRepository] answering from the captured fixture.
 class FakeOrdersRepository implements OrdersRepository {
@@ -59,6 +61,28 @@ class FakeOrdersRepository implements OrdersRepository {
       throw failure;
     }
     return trackingAnswer;
+  }
+
+  /// What [reorder] answers. Defaults to one line that can go straight back.
+  Reorder reorderAnswer = reorderFixture();
+
+  /// Every id [reorder] was asked for, in order.
+  final List<int> reorderRequested = [];
+
+  /// Thrown by the next [reorder], then cleared.
+  Object? failNextReorder;
+
+  @override
+  Future<Reorder> reorder(int id) async {
+    reorderRequested.add(id);
+    if (delay > Duration.zero) await Future<void>.delayed(delay);
+
+    final failure = failNextReorder;
+    if (failure != null) {
+      failNextReorder = null;
+      throw failure;
+    }
+    return reorderAnswer;
   }
 
   /// What [orders] answers, per group. A group with no entry is empty.
@@ -149,6 +173,43 @@ OrderTracking trackingFixture({
           'at_utc': reached ? '2026-11-10T08:59:40Z' : '',
           // On the stage the order is on, as a store's own note would be.
           'note': index == step ? note : '',
+        },
+    ],
+  });
+}
+
+/// What an order would add to a cart.
+///
+/// [lines] is `(name, available, reason)` so a test can describe a mixed order
+/// in one line. `any` and `all` are derived exactly as the server derives
+/// them, so a fixture cannot disagree with itself.
+Reorder reorderFixture({
+  int orderId = 1048,
+  List<(String, bool, String)> lines = const [('Iced Latte', true, '')],
+}) {
+  final available = lines.where((line) => line.$2).length;
+
+  return Reorder.fromJson({
+    'order_id': orderId,
+    'number': '$orderId',
+    'any': available > 0,
+    'all': available == lines.length && lines.isNotEmpty,
+    'lines': [
+      for (final (index, (name, ok, reason)) in lines.indexed)
+        {
+          'product_id': 100 + index,
+          'name': name,
+          'quantity': 1,
+          'addons': ok
+              ? [
+                  {
+                    'group_id': '0',
+                    'option_ids': ['1'],
+                  },
+                ]
+              : <Map<String, Object>>[],
+          'available': ok,
+          'reason': reason,
         },
     ],
   });

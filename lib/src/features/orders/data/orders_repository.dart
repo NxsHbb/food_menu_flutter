@@ -5,6 +5,7 @@ import '../../../core/network/paged.dart';
 import '../domain/customer_order.dart';
 import '../domain/order_summary.dart';
 import '../domain/order_tracking.dart';
+import '../domain/reorder.dart';
 
 /// The customer's own orders — `GET fmp/v1/app/orders/{id}`.
 ///
@@ -33,6 +34,18 @@ class OrdersRepository {
       _client.foodMenuApi('app/orders/$id/tracking'),
     );
     return OrderTracking.fromJson(raw);
+  }
+
+  /// What an order would add to a cart.
+  ///
+  /// A read, not a write: the lines come back and go to the Store API's own
+  /// `cart/add-item`. See [Reorder] for why the server decides what is
+  /// reproducible.
+  Future<Reorder> reorder(int id) async {
+    final raw = await _client.get<Map<String, dynamic>>(
+      _client.foodMenuApi('app/orders/$id/reorder'),
+    );
+    return Reorder.fromJson(raw);
   }
 
   /// One page of the history, newest first.
@@ -86,5 +99,15 @@ final orderProvider = FutureProvider.family<CustomerOrder, int>(
 /// screen: the design's order detail is worth drawing without it.
 final orderTrackingProvider = FutureProvider.family<OrderTracking, int>(
   (ref, id) => ref.watch(ordersRepositoryProvider).tracking(id),
+  retry: (retryCount, error) => null,
+);
+
+/// What one order would add to a cart, by id.
+///
+/// **Not watched by a screen.** A row's Reorder button reads this when it is
+/// pressed, because asking for every row in a list would be a request per row
+/// for something most customers never tap.
+final reorderProvider = FutureProvider.family<Reorder, int>(
+  (ref, id) => ref.watch(ordersRepositoryProvider).reorder(id),
   retry: (retryCount, error) => null,
 );

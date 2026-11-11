@@ -86,6 +86,14 @@ Pro features.
   Margherita to both and Build Your Pizza to Uptown. The settings option was
   backed up to JSON and diffed clean afterwards, the terms deleted and all 18
   products are visible again. Nothing from it remains.
+- **Order 70, kept for task 7.4.** Placed through the app's own flow with a
+  radio, two checkboxes and a textarea on *Fresh Lemonade*, so it carries a
+  recorded `_fmp_addon_selection` and reorders cleanly. Its other line, an
+  *Iced Latte* added to the cart before 7.4 existed, has none — which makes
+  the order the **mixed case** the reorder screen has to draw: `any` true,
+  `all` false. Every other order on the store predates 7.4 and refuses
+  entirely, because the dev site has a global add-on group matching every
+  dish.
 - `woocommerce_enable_myaccount_registration = yes`. **Off by default**, and
   task 3.1's register endpoint follows this setting rather than overriding it,
   so registration returns 403 without it.
