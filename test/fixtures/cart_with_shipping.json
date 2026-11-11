@@ -1,0 +1,208 @@
+{
+    "items": [
+        {
+            "key": "b6d767d2f8ed5d21a44b0e5886680cb9",
+            "id": 22,
+            "type": "simple",
+            "quantity": 1,
+            "quantity_limits": {
+                "minimum": 1,
+                "maximum": 9999,
+                "multiple_of": 1,
+                "editable": true
+            },
+            "name": "Mushroom Risotto",
+            "short_description": "<p>Arborio rice, wild mushrooms, parmesan.</p>",
+            "description": "<p>Arborio rice, wild mushrooms, parmesan.</p>",
+            "sku": "",
+            "low_stock_remaining": null,
+            "backorders_allowed": false,
+            "show_backorder_badge": false,
+            "sold_individually": false,
+            "permalink": "http://192.168.0.171:8080/product/mushroom-risotto/",
+            "images": [],
+            "variation": [],
+            "item_data": [],
+            "prices": {
+                "price": "1300",
+                "regular_price": "1300",
+                "sale_price": "1300",
+                "price_range": null,
+                "currency_code": "USD",
+                "currency_symbol": "$",
+                "currency_minor_unit": 2,
+                "currency_decimal_separator": ".",
+                "currency_thousand_separator": ",",
+                "currency_prefix": "$",
+                "currency_suffix": "",
+                "raw_prices": {
+                    "precision": 6,
+                    "price": "13000000",
+                    "regular_price": "13000000",
+                    "sale_price": "13000000"
+                }
+            },
+            "totals": {
+                "line_subtotal": "1300",
+                "line_subtotal_tax": "0",
+                "line_total": "1300",
+                "line_total_tax": "0",
+                "currency_code": "USD",
+                "currency_symbol": "$",
+                "currency_minor_unit": 2,
+                "currency_decimal_separator": ".",
+                "currency_thousand_separator": ",",
+                "currency_prefix": "$",
+                "currency_suffix": ""
+            },
+            "catalog_visibility": "visible",
+            "extensions": {
+                "food-menu-pro": {
+                    "addons": [],
+                    "addons_total": "0",
+                    "addons_total_charged": "0",
+                    "base_price": "1300",
+                    "currency_code": "USD",
+                    "currency_symbol": "$",
+                    "currency_minor_unit": 2,
+                    "currency_decimal_separator": ".",
+                    "currency_thousand_separator": ",",
+                    "currency_prefix": "$",
+                    "currency_suffix": ""
+                }
+            }
+        }
+    ],
+    "coupons": [],
+    "fees": [],
+    "totals": {
+        "total_items": "1300",
+        "total_items_tax": "0",
+        "total_fees": "0",
+        "total_fees_tax": "0",
+        "total_discount": "0",
+        "total_discount_tax": "0",
+        "total_shipping": "495",
+        "total_shipping_tax": "0",
+        "total_price": "1795",
+        "total_tax": "0",
+        "tax_lines": [],
+        "currency_code": "USD",
+        "currency_symbol": "$",
+        "currency_minor_unit": 2,
+        "currency_decimal_separator": ".",
+        "currency_thousand_separator": ",",
+        "currency_prefix": "$",
+        "currency_suffix": ""
+    },
+    "shipping_address": {
+        "first_name": "",
+        "last_name": "",
+        "company": "",
+        "address_1": "",
+        "address_2": "",
+        "city": "",
+        "state": "DE",
+        "postcode": "10299",
+        "country": "US",
+        "phone": ""
+    },
+    "billing_address": {
+        "first_name": "",
+        "last_name": "",
+        "company": "",
+        "address_1": "",
+        "address_2": "",
+        "city": "",
+        "state": "BD-13",
+        "postcode": "",
+        "country": "BD",
+        "email": "",
+        "phone": ""
+    },
+    "needs_payment": true,
+    "needs_shipping": true,
+    "payment_requirements": [
+        "products"
+    ],
+    "has_calculated_shipping": true,
+    "shipping_rates": [
+        {
+            "package_id": 0,
+            "name": "Shipment",
+            "destination": {
+                "address_1": "",
+                "address_2": "",
+                "city": "",
+                "state": "DE",
+                "postcode": "10299",
+                "country": "US"
+            },
+            "items": [
+                {
+                    "key": "b6d767d2f8ed5d21a44b0e5886680cb9",
+                    "name": "Mushroom Risotto",
+                    "quantity": 1
+                }
+            ],
+            "shipping_rates": [
+                {
+                    "rate_id": "flat_rate:1",
+                    "name": "Standard delivery",
+                    "description": "",
+                    "delivery_time": "",
+                    "price": "495",
+                    "taxes": "0",
+                    "instance_id": 1,
+                    "method_id": "flat_rate",
+                    "meta_data": [
+                        {
+                            "key": "Items",
+                            "value": "Mushroom Risotto &times; 1"
+                        }
+                    ],
+                    "selected": true,
+                    "currency_code": "USD",
+                    "currency_symbol": "$",
+                    "currency_minor_unit": 2,
+                    "currency_decimal_separator": ".",
+                    "currency_thousand_separator": ",",
+                    "currency_prefix": "$",
+                    "currency_suffix": ""
+                },
+                {
+                    "rate_id": "flat_rate:3",
+                    "name": "Express delivery",
+                    "description": "",
+                    "delivery_time": "",
+                    "price": "995",
+                    "taxes": "0",
+                    "instance_id": 3,
+                    "method_id": "flat_rate",
+                    "meta_data": [
+                        {
+                            "key": "Items",
+                            "value": "Mushroom Risotto &times; 1"
+                        }
+                    ],
+                    "selected": false,
+                    "currency_code": "USD",
+                    "currency_symbol": "$",
+                    "currency_minor_unit": 2,
+                    "currency_decimal_separator": ".",
+                    "currency_thousand_separator": ",",
+                    "currency_prefix": "$",
+                    "currency_suffix": ""
+                }
+            ]
+        }
+    ],
+    "items_count": 1,
+    "items_weight": 0,
+    "cross_sells": [],
+    "errors": [],
+    "payment_methods": [
+        "cod"
+    ],
+    "extensions": {}
+}

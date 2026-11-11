@@ -2,6 +2,51 @@
 
 Newest first. One entry per completed task.
 
+## Task 8.5 — Choosing how it is delivered
+Branch `feat/shipping-rates`, PR #58. **App-only**, no plugin change. 7 new tests, 852
+in total.
+
+### What landed
+The cart's own `shipping_rates`, drawn as a radio list on the checkout and
+chosen with `POST cart/select-shipping-rate`. Until now the app rendered
+`total_shipping` once the server had decided for it, which is only right for a
+store running exactly one method; a store with zones or two methods was
+offering a choice the customer never saw.
+
+### The dev store had no shipping at all
+No zone, no method, so every cart answered `shipping_rates: []` and none of
+this could be exercised — which is why it stayed unbuilt this long. A
+"Delaware" zone now carries two flat rates, $4.95 standard and $9.95 express,
+and `cart_with_shipping.json` is captured from it. Kept, and recorded in
+`LOCAL_DEV.md`: **it changes delivery totals**, which is what a real store
+looks like.
+
+### What is drawn, and what is not
+- **One rate is reported, not offered** — price shown, no radio. A control
+  that cannot change reads as a broken one.
+- **Pickup draws nothing**, and neither does an address no zone covers. An
+  empty list is not a choice withheld; it is a store that cannot deliver
+  there, which belongs to the address block.
+- `method_id` is never branched on. A store can install a method this app has
+  never heard of, and its name and price are all the app needs.
+
+### The device found the radio
+The selected row was the only one drawn **without** a radio, because the row
+inferred "show one" from being tappable and the chosen row is not. It read as
+the odd one out rather than the chosen one. Rows in a list of alternatives now
+always carry one, and say so through `Semantics` as well, which is what the
+test asserts.
+
+### Verified on the Android device, against the dev site
+Standard preselected at $4.95 with the total at $17.95; tapping Express moved
+the Delivery row to $9.95 and the total to $22.95, from the server's own
+recalculated cart.
+
+### And it reproduced task 8.6
+With a rate selected, switching to **Pickup** leaves the $9.95 on the total —
+an order the customer collects, charged for delivery. The section disappears
+and the fee does not. Written up in `FINDINGS.md`; the fix is 8.6's.
+
 ## Task 8.4 — Choosing a date
 Branch `feat/date-strip`, PR #57. **App-only**, no plugin change. 12 new tests, 845 in
 total.
