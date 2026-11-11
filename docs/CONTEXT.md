@@ -848,15 +848,59 @@ is one order in full, pushed over it so the Orders tab keeps its place.
   hex only — see `FINDINGS.md`.
 - **Paging belongs to the controller**, and so do its tests: a pending page
   keeps a spinner in the tree, which `pumpAndSettle` can never settle.
-- **Three things are deliberately missing**: the tracking timeline, the
-  estimate card and the active row's progress strip, all of which need a step
-  index only `/fmp/v1/track/{token}` has (task 7.3). None is stubbed.
-- **Reorder is missing too**, and is task 7.4: an order records add-ons as
+- **The order screen reads twice, on purpose.** The order itself is settled
+  — items, totals, address — while its progress is the one part that moves,
+  so `orderTrackingProvider` is separate from `orderProvider`. A tracking
+  failure then costs the timeline and not the screen.
+- **The estimate is in one place at a time.** While an order is active the
+  tracking card at the top carries it, where the design puts it; once it is
+  over the details list keeps it as a record of the slot that was chosen.
+  Drawing both at once said the same thing twice.
+- **Reorder is still missing**, and is task 7.4: an order records add-ons as
   display text, not ids, so nothing can rebuild the selection faithfully.
 
 Dates go through `core/util/relative_date.dart` — "Today, 2:02 PM" — which is
 hand-rolled because `intl` is not a dependency. Always in the device's time
 zone, since the server sends an offset.
+
+**A stage time is the exception**: it arrives already formatted, and is drawn
+as it arrived. "Ready at 9:33 pm" only means anything on the kitchen's clock,
+so the server renders it in the site's own zone and format and the app does
+not re-zone it onto the phone's. The payload carries a UTC instant alongside,
+which nothing needs yet.
+
+### Order tracking
+`GET fmp/v1/app/orders/{id}/tracking` (task 7.3, food-menu-pro#26), and
+**not** the public `fmp/v1/track/{token}` the website's own tracking page
+reads, though an order payload carries the token for it.
+
+- That route answers only what **happened** — every entry `completed` —
+  because the website draws a history rather than a plan, and the design's
+  progress strip needs the stages still to come as well.
+- It also **expires**, by `fmp_tracking_link_expiry_days`, which is right for
+  a link emailed to whoever placed the order and wrong for the customer's own
+  order in their own signed-in app.
+
+So the app route is bearer-authed against the order's customer, like the rest
+of `/app`, and a stranger's order answers 404 exactly as a missing one does.
+
+**The app never decides how far along an order is.** `step` and `stages` come
+from the store's own declared pipeline — the Order Statuses screen drag-sorts
+its custom statuses and saves them in that order — for the same reason the
+status pill takes its colour from the server. `FINDINGS.md` records how the
+sequence is built and why a store with no custom statuses gets two stages
+rather than the design's four.
+
+The history row carries `progress: { step, stage_count }` on the summary
+instead, so a page of ten rows does not cost ten tracking requests. It is
+**absent rather than zero** when there is nothing to measure — a bar stuck at
+the left reads as an order nobody has started.
+
+`trackingToken` stays on the order payload as the key to the website's public
+page, which is the only way to hand someone else a link. No screen does yet.
+The `canTrack` getter that gated tracking on it was **removed**: tracking no
+longer needs the token, so a getter saying otherwise would have withheld the
+button from orders that track perfectly well.
 
 ### Order history
 `GET fmp/v1/app/orders` (task 7.1, food-menu-pro#24). Paged as a **bare array

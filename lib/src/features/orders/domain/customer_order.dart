@@ -1,5 +1,6 @@
 import '../../../core/store_api/models/currency.dart';
 import '../../../core/store_api/models/money.dart';
+import 'order_tracking.dart';
 
 /// One of the customer's own orders — `GET fmp/v1/app/orders/{id}`.
 ///
@@ -127,16 +128,24 @@ class CustomerOrder {
   /// the same shape a saved address uses.
   final Map<String, dynamic> address;
 
-  /// Opens the public tracking route. **Empty until the first status change
-  /// writes one**, so a screen must not assume there is one.
+  /// The key to the **website's** public tracking page, and nothing the app
+  /// reads. Task 7.3 tracks through `/app/orders/{id}/tracking` instead, which
+  /// is bearer-authed and does not expire — see [OrderTracking] for why.
+  ///
+  /// Kept because it is the only way to hand someone else a link to an order,
+  /// which no screen does yet. **Empty until the first status change writes
+  /// one**, so anything using it must not assume there is one.
+  ///
+  /// There was a `canTrack` getter here, gating tracking on this token. It
+  /// was removed with 7.3: tracking no longer needs the token, so a getter
+  /// saying otherwise would have withheld the button from exactly the orders
+  /// that can be tracked perfectly well.
   final String trackingToken;
 
   final OrderTotals totals;
   final List<OrderItem> items;
 
   bool get exists => id > 0;
-
-  bool get canTrack => trackingToken.isNotEmpty;
 
   /// The customer's first name, for the design's "Thanks, …" line.
   String get firstName {

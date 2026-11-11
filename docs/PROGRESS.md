@@ -2,6 +2,68 @@
 
 Newest first. One entry per completed task.
 
+## Task 7.3 — Live order tracking
+Branch `feat/order-tracking`, PR #50, with the plugin half on `mobile-app`
+(food-menu-pro#26). 23 new tests, 770 in total.
+
+**Not yet run on a device** — the OnePlus is locked and in airplane mode, and
+the simulator cannot be signed in from a terminal. The endpoint was exercised
+directly against the dev site; the screens are covered by the suite. This is
+the second task in a row without a device pass, 7.2 being the first.
+
+### What landed
+The design's order screen is now whole: an estimate card, the progress strip
+and the status timeline, plus the "Track order" button on order received that
+had nothing to open.
+
+The plugin grew `GET /app/orders/{id}/tracking` and a `progress` pair on the
+history row's summary.
+
+### The premise turned out to be wrong
+`PLAN.md` had 7.3 as app-only work against the public `/track/{token}`,
+drawing "a step out of four that only tracking knows". Neither half held:
+
+- **The public route knows no such thing.** It answers the entries that
+  happened, every one `completed`, because the website draws a history. There
+  is no stage model anywhere in either plugin — see `FINDINGS.md`.
+- **The estimate card never needed one.** It is the order's own `eta` and
+  type, already on `/app/orders/{id}`. 7.2 withheld it for a reason that did
+  not hold.
+
+So the strip became a plugin question, and was agreed before building: Pro
+publishes the stages, **for the app only**, leaving the website's route and
+page untouched. The sequence is the store's own — the Order Statuses screen
+drag-sorts its custom statuses and the presets ship as pipelines — so the app
+still never reads a stage out of a slug.
+
+### What the public route could not have done anyway
+It expires. `fmp_tracking_link_expiry_days` closes a link that was emailed to
+whoever placed the order and answers 410 after it, which is right for a shared
+link and wrong for the customer's own order in their own signed-in app. The
+app route is bearer-authed against the order's customer instead, and the
+expiry does not apply.
+
+### Found while building
+- **A completed order read "2 of 6".** The stage builder stopped appending the
+  future for a cancelled order and not for a finished one, so the declared
+  pipeline was tacked on after completion. Caught by the history row, which
+  draws a strip from the same numbers.
+- **The estimate was about to appear twice**, once in the new card and once in
+  the details list where 7.2 put it. It now sits in the card while the order
+  is active and in the list once it is over, where it reads as a record of the
+  slot chosen rather than a promise.
+- **The captured order fixtures had gone stale**, missing `status_color` and
+  `is_active` since 7.2 added them — and `is_active` defaulting to false
+  silently withheld the estimate card. Diffed against the live route and
+  fixed.
+- **`canTrack` was removed.** It gated tracking on the tracking token, which
+  the app no longer uses, so it would have withheld the button from orders
+  that track perfectly well. The token stays as data.
+
+### What 7.4 inherits
+Nothing from here. Reorder still needs the plugin to record a re-submittable
+add-on selection at checkout.
+
 ## Task 7.2 — The order history and order detail screens
 Branch `feat/order-screens`, PR #48, with a two-field plugin addition on
 `mobile-app` (food-menu-pro#25). 47 new tests, 747 in total.

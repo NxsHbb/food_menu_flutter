@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/orders/data/orders_repository.dart';
+import 'package:food_menu/src/features/orders/presentation/order_detail_screen.dart';
 import 'package:food_menu/src/features/orders/presentation/order_received_screen.dart';
 import 'package:go_router/go_router.dart';
 
@@ -38,6 +39,12 @@ void main() {
           path: '/',
           name: 'menu',
           builder: (_, _) => const Scaffold(body: Text('Menu')),
+        ),
+        GoRoute(
+          path: '/order/:id',
+          name: OrderDetailScreen.routeName,
+          builder: (_, state) =>
+              Scaffold(body: Text('tracking ${state.pathParameters['id']}')),
         ),
       ],
     );
@@ -177,5 +184,26 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('ASAP (20–35 min)'), findsOneWidget);
+  });
+
+  testWidgets('track order opens the order it just placed', (tester) async {
+    await pump(tester, orderId: 62);
+
+    await tester.tap(find.text('Track order'));
+    await tester.pumpAndSettle();
+
+    // Navigates into the Orders tab rather than pushing, so backing out of
+    // the order lands on the history and not on a receipt for an order
+    // already placed.
+    expect(find.text('tracking 62'), findsOneWidget);
+  });
+
+  testWidgets('back to home is still there, and secondary', (tester) async {
+    await pump(tester);
+
+    // The design makes tracking the primary action: what a customer who has
+    // just ordered wants next is to watch it being made.
+    expect(find.widgetWithText(FilledButton, 'Track order'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Back to home'), findsOneWidget);
   });
 }

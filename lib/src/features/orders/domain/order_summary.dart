@@ -19,6 +19,7 @@ class OrderSummary {
     required this.type,
     required this.typeLabel,
     required this.eta,
+    required this.progress,
     required this.itemCount,
     required this.items,
     required this.total,
@@ -43,6 +44,7 @@ class OrderSummary {
       type: json['type'] as String? ?? '',
       typeLabel: json['type_label'] as String? ?? '',
       eta: json['eta'] as String? ?? '',
+      progress: OrderProgress.tryFromJson(json['progress']),
       itemCount: (json['item_count'] as num?)?.toInt() ?? 0,
       items: items is List
           ? items
@@ -78,6 +80,13 @@ class OrderSummary {
   /// The chosen time, or the store's ASAP estimate. Only drawn while active.
   final String eta;
 
+  /// How far through its stages the order is, for the design's progress strip.
+  ///
+  /// On the **row** rather than behind a tracking request per row, which a
+  /// page of ten would have cost. Null when there is nothing to draw a strip
+  /// from: the store has the timeline off, or the order predates it.
+  final OrderProgress? progress;
+
   /// Units, not lines, so three of one dish reads as three.
   final int itemCount;
 
@@ -86,6 +95,45 @@ class OrderSummary {
   final List<OrderRowItem> items;
 
   final Money total;
+}
+
+/// How far through its stages an order is, as a history row sees it.
+///
+/// The row gets two numbers and no labels — it draws a bar, not a timeline.
+/// Opening the order reads `/app/orders/{id}/tracking` for the stages
+/// themselves.
+class OrderProgress {
+  const OrderProgress({required this.step, required this.stageCount});
+
+  /// Null for anything that is not a usable pair, so a store with the
+  /// timeline off simply has no strip rather than one stuck at zero.
+  static OrderProgress? tryFromJson(Object? raw) {
+    if (raw is! Map) return null;
+
+    final json = raw.cast<String, dynamic>();
+    final step = (json['step'] as num?)?.toInt();
+    final count = (json['stage_count'] as num?)?.toInt();
+
+    if (step == null || count == null || count <= 0 || step < 0) return null;
+
+    return OrderProgress(step: step, stageCount: count);
+  }
+
+  /// Index of the furthest stage reached.
+  final int step;
+
+  /// How many stages the order has in all.
+  final int stageCount;
+
+  /// How far along to fill the strip, 0–1.
+  ///
+  /// A one-stage order that has reached it is full, which also keeps the
+  /// divisor off zero.
+  double get fraction {
+    if (stageCount <= 1) return 1;
+
+    return (step / (stageCount - 1)).clamp(0, 1).toDouble();
+  }
 }
 
 /// One line of a history row: enough for a thumbnail, and no more.
