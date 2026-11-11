@@ -177,6 +177,8 @@ menu about to grow a state.
 | 8.6 | **A pickup order sends a delivery address.** 6.1 sends `shipping_address` on both types, reasoning that WooCommerce copies billing into shipping anyway. It also feeds shipping calculation, so a pickup order may collect a delivery fee. Verify against a store with a shipping zone, then send it only where it belongs — the **billing** address stays required on both types, per `FINDINGS.md` | app | todo |
 | 8.7 | **`fmp/v1/app/*` never checks `fm_food_menu_type`.** Every other ordering feature in both plugins gates on `online_ordering`; the app namespace does not, so it takes orders on a site running as a showcase menu with ordering switched off. Needs the gate on the ordering routes and a reason the app can show instead of a blank menu | pro + app | todo |
 
+| 8.8 | **What the first device pass found.** Tasks 7.2–8.2 all shipped without one, and running them on the OnePlus against the dev site turned up six defects in merged work: a variable-dish order can never be reordered, add-on choices on a variable dish are silently discarded, the order screen prints internal meta and undecoded entities, the dish header keeps the price range after a size is chosen, the size is named twice on an order line, and the tracking timeline uses the store's clock while every other date uses the phone's. **Taken before 8.3**, because 8.3 edits the same product payload and menu state these do | pro + app | done |
+
 ## Phase 9 — Discounts and promotions
 The plugin's own discount and promotion features, as distinct from
 WooCommerce's sale prices, which the app has had since 2.3.

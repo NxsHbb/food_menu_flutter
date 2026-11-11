@@ -337,6 +337,10 @@ render an API string directly.
   zero-priced options when it is true. Do not re-derive it.
 - Whether a dish uses its own add-ons or the store's global ones is settled
   server-side; the app just renders what comes back.
+- **A variable dish always answers `groups: []`**, whatever is stored against
+  it (task 8.8). The website never renders add-ons on one and the cart never
+  applies them, so publishing them put a question on the dish screen whose
+  answer was dropped. A variable dish's only choice is its attributes.
 - **Selections go back under the extension key** (task 4.2):
 
   ```json
@@ -761,6 +765,11 @@ customer lands on after paying, and the model Phase 7 builds on.
   list.
 - `tracking_token` is **empty until the first status change writes one**, so
   task 7.3's button has to check `canTrack` rather than assume.
+- A line's `meta` is **WooCommerce's own formatted meta on its defaults**
+  (task 8.8): no underscore-prefixed keys, and no attribute already spelled
+  out in a variation's name. Entities are decoded, because the app draws the
+  string as text. Do not widen it to "everything the line holds" — that is
+  how `_fmp_addon_selection` reached a customer's screen.
 
 ### Paying (task 6.3)
 `GET fmp/v1/app/payment-methods` (Pro), rendered as the design's radio list.
@@ -897,6 +906,12 @@ its custom statuses and saves them in that order — for the same reason the
 status pill takes its colour from the server. `FINDINGS.md` records how the
 sequence is built and why a store with no custom statuses gets two stages
 rather than the design's four.
+
+**A stage's time is drawn from `at_utc`, on the phone's clock** (task 8.8).
+Each stage carries both a preformatted `at` on the store's clock and the
+instant; the app re-zones the instant like every other date and falls back to
+`at` only when there is no instant. 7.3 drew `at` and a device showed two
+times for one order. See `FINDINGS.md`.
 
 The history row carries `progress: { step, stage_count }` on the summary
 instead, so a page of ten rows does not cost ten tracking requests. It is

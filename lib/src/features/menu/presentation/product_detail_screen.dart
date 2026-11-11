@@ -309,6 +309,7 @@ class _Detail extends StatelessWidget {
                     groups: groups,
                     selection: selection,
                     variation: variation,
+                    variationProduct: variationProduct,
                     onChoose: onChoose,
                     showErrors: showErrors,
                     onToggle: onToggle,
@@ -421,6 +422,7 @@ class _Body extends StatelessWidget {
     required this.groups,
     required this.selection,
     required this.variation,
+    required this.variationProduct,
     required this.onChoose,
     required this.showErrors,
     required this.onToggle,
@@ -433,6 +435,9 @@ class _Body extends StatelessWidget {
   final List<AddonGroup> groups;
   final AddonSelection selection;
   final VariationSelection variation;
+
+  /// The chosen variation as a product of its own, once it has loaded.
+  final Product? variationProduct;
   final void Function(ProductAttribute, AttributeTerm) onChoose;
   final bool showErrors;
   final void Function(AddonGroup group, AddonOption option) onToggle;
@@ -444,7 +449,10 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
-    final prices = product.prices;
+    // **The chosen variation's price, the moment there is one.** The add bar
+    // has always priced the line this way; the headline did not, so a device
+    // showed "from $8.50 to $15.00" above a button charging $11.50.
+    final prices = (variationProduct ?? product).prices;
     final description = plainText(product.description);
     final lowStock = product.lowStockWarning;
 
