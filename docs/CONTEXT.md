@@ -9,6 +9,10 @@ pricing, slot limits, discount maths and order-status transitions all stay
 server-side. The app renders and calls. Staff and kitchen operations are not in
 v1 — see `PLAN.md`.
 
+**Both plugins, not either.** The whole `fmp/v1/app/*` namespace lives in
+`food-menu-pro`, so the app needs Pro active — the free plugin alone has no
+accounts, add-ons, order types, slots or orders endpoint for it to call.
+
 ## Backends it talks to
 | Namespace | Used for | Auth |
 |---|---|---|
