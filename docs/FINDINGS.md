@@ -771,7 +771,7 @@ that matters.
 Flutter's template declares `INTERNET` only in the **debug and profile**
 manifests, which is enough for hot reload. The app is a client for a WordPress
 backend, so it now declares it in the main manifest too. This would not have
-shown up until the first release build in Phase 8.
+shown up until the first release build in Phase 13.
 
 ### `com.foodmenu` is owned by one specific Apple team
 Signing for a physical iPhone failed with *"The app identifier com.foodmenu
@@ -781,7 +781,7 @@ this generic is widely contested, so this is not a free choice: **device builds,
 TestFlight and the App Store all require team `M34L8S85ZF`**, now set as
 `DEVELOPMENT_TEAM` in the Xcode project. Anyone building on another account
 will have to change the bundle ID, which has App Store consequences — worth
-knowing before task 10.2 (release builds and signing).
+knowing before task 13.2 (release builds and signing).
 
 ### What each target can actually verify
 | | Simulator / emulator | Physical Android | Physical iOS |
