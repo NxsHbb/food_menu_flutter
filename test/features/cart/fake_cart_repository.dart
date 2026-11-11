@@ -61,14 +61,19 @@ class FakeCartRepository implements CartRepository {
     return _answer();
   }
 
+  /// The variation payloads passed to [addItem].
+  final List<List<Map<String, Object>>> variationPayloads = [];
+
   @override
   Future<Cart> addItem({
     required int productId,
     int quantity = 1,
     List<Map<String, Object>> addons = const [],
+    List<Map<String, Object>> variation = const [],
   }) {
     calls.add('add $productId x$quantity');
     addonPayloads.add(addons);
+    variationPayloads.add(variation);
     return _answer(write: true);
   }
 

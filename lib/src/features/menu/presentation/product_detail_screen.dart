@@ -13,11 +13,13 @@ import '../../cart/data/cart_controller.dart';
 import '../../wishlist/presentation/widgets/wishlist_heart.dart';
 import 'menu_list_screen.dart';
 import 'widgets/addon_group_card.dart';
+import 'widgets/variation_picker.dart';
 import 'widgets/food_data_section.dart';
 import 'widgets/food_tags.dart';
 import '../data/addons_repository.dart';
 import '../data/menu_repository.dart';
 import '../domain/addon_selection.dart';
+import '../domain/variation_selection.dart';
 import '../domain/product_addons.dart';
 
 /// The design's dish detail screen: hero image, details, add-ons, quantity
@@ -51,6 +53,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   int _quantity = 1;
   AddonSelection _selection = const AddonSelection();
 
+  /// Which term is chosen for each of a variable dish's attributes.
+  ///
+  /// Never seeded: a variable dish has no price until a combination is
+  /// picked, and the Store API sends no default attributes to seed from.
+  VariationSelection _variation = const VariationSelection();
+
   /// Whether the customer has pressed Add while a required group was still
   /// unanswered. Until they do, an untouched required group is not an error —
   /// it is simply a question not yet reached.
@@ -64,6 +72,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     if (_seededFor == addons.productId) return;
     _seededFor = addons.productId;
     _selection = AddonSelection.fromDefaults(addons.groups);
+    _variation = const VariationSelection();
     _tried = false;
   }
 
@@ -86,7 +95,42 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   /// and put the dish in the cart twice.
   bool _adding = false;
 
+  void _choose(ProductAttribute attribute, AttributeTerm term) {
+    setState(() {
+      _variation = _variation.choose(attribute.name, term.slug);
+      if (_tried && _variation.isComplete(_attributes)) _tried = false;
+    });
+  }
+
+  /// The dish's variable attributes, for callbacks outside a build.
+  List<ProductAttribute> _attributes = const [];
+
+  /// Kept current from `build`, so `_choose` can clear the error state
+  /// without reaching back into the provider.
+  void _rememberAttributes(Product product) =>
+      _attributes = product.variableAttributes;
+
   Future<void> _onAdd(BuildContext context, Product product) async {
+    // **Before the add-on groups**, because a variable dish has no price
+    // until a combination is chosen and the bar says so.
+    final unchosen = _variation.unanswered(product.variableAttributes);
+
+    if (unchosen.isNotEmpty) {
+      setState(() => _tried = true);
+      _say(context, 'Choose ${unchosen.first.name.toLowerCase()} first.');
+      return;
+    }
+
+    final variation = _variation.resolve(product);
+
+    // Every attribute answered and still no match: the store never made this
+    // combination. Saying so beats letting the server answer "no such
+    // variation", which reads as a fault rather than a gap in the menu.
+    if (product.variableAttributes.isNotEmpty && variation == null) {
+      _say(context, 'That combination is not available.');
+      return;
+    }
+
     final unanswered = _selection.unanswered(_groups);
 
     if (unanswered.isNotEmpty) {
@@ -102,9 +146,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
     try {
       await ref.read(cartControllerProvider.notifier).add(
+            // The **parent** id; the server resolves the variation from the
+            // attributes and answers with a line under the variation's own.
             productId: product.id,
             quantity: _quantity,
             addons: _selection.toPayload(_groups),
+            variation: _variation.toPayload(product.variableAttributes),
+            variationId: variation?.id,
           );
 
       if (!context.mounted) return;
@@ -143,6 +191,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
     final groups = addons?.groups ?? const <AddonGroup>[];
 
+    if (product.value case final loaded?) _rememberAttributes(loaded);
+
     return Scaffold(
       body: switch (product) {
         AsyncLoading() => const Center(child: CircularProgressIndicator()),
@@ -151,6 +201,16 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             product: value,
             groups: groups,
             selection: _selection,
+            variation: _variation,
+            // The resolved variation's own product, for its price and stock.
+            // The Store API sends neither on the parent's `variations` list,
+            // and this provider is cached per id, so flipping back to a size
+            // already seen costs nothing.
+            variationProduct: switch (_variation.resolve(value)) {
+              final found? => ref.watch(productProvider(found.id)).value,
+              _ => null,
+            },
+            onChoose: _choose,
             showErrors: _tried,
             quantity: _quantity,
             onQuantityChanged: (q) => setState(() => _quantity = q),
@@ -189,6 +249,9 @@ class _Detail extends StatelessWidget {
     required this.product,
     required this.groups,
     required this.selection,
+    required this.variation,
+    required this.variationProduct,
+    required this.onChoose,
     required this.showErrors,
     required this.quantity,
     required this.onQuantityChanged,
@@ -202,6 +265,14 @@ class _Detail extends StatelessWidget {
   final Product product;
   final List<AddonGroup> groups;
   final AddonSelection selection;
+  final VariationSelection variation;
+
+  /// The chosen variation read back as a product, or null until one is
+  /// resolved and loaded. Carries the price and stock state the parent's
+  /// `variations` list does not.
+  final Product? variationProduct;
+
+  final void Function(ProductAttribute, AttributeTerm) onChoose;
   final bool showErrors;
   final int quantity;
   final ValueChanged<int> onQuantityChanged;
@@ -237,6 +308,8 @@ class _Detail extends StatelessWidget {
                     product: product,
                     groups: groups,
                     selection: selection,
+                    variation: variation,
+                    onChoose: onChoose,
                     showErrors: showErrors,
                     onToggle: onToggle,
                     onQuantity: onQuantity,
@@ -252,6 +325,8 @@ class _Detail extends StatelessWidget {
           product: product,
           groups: groups,
           selection: selection,
+          variation: variation,
+          variationProduct: variationProduct,
           quantity: quantity,
           onQuantityChanged: onQuantityChanged,
           onAdd: onAdd,
@@ -345,6 +420,8 @@ class _Body extends StatelessWidget {
     required this.product,
     required this.groups,
     required this.selection,
+    required this.variation,
+    required this.onChoose,
     required this.showErrors,
     required this.onToggle,
     required this.onQuantity,
@@ -355,6 +432,8 @@ class _Body extends StatelessWidget {
   final Product product;
   final List<AddonGroup> groups;
   final AddonSelection selection;
+  final VariationSelection variation;
+  final void Function(ProductAttribute, AttributeTerm) onChoose;
   final bool showErrors;
   final void Function(AddonGroup group, AddonOption option) onToggle;
   final void Function(AddonGroup group, AddonOption option, int qty) onQuantity;
@@ -440,7 +519,18 @@ class _Body extends StatelessWidget {
           FoodTags(tags: product.tags),
         ],
         // The design puts the choices directly under the dish's own details
-        // and above everything that is only reference material.
+        // and above everything that is only reference material. A variable
+        // dish's attributes come **first**: they decide the price, and the
+        // add-on groups below are priced on top of it.
+        if (product.variableAttributes.isNotEmpty) ...[
+          const SizedBox(height: AppTokens.space16),
+          VariationPicker(
+            attributes: product.variableAttributes,
+            selection: variation,
+            onChoose: onChoose,
+            showError: showErrors,
+          ),
+        ],
         for (final group in groups) ...[
           const SizedBox(height: AppTokens.space16),
           AddonGroupCard(
@@ -515,6 +605,8 @@ class _AddBar extends StatelessWidget {
     required this.product,
     required this.groups,
     required this.selection,
+    required this.variation,
+    required this.variationProduct,
     required this.quantity,
     required this.onQuantityChanged,
     required this.onAdd,
@@ -523,6 +615,13 @@ class _AddBar extends StatelessWidget {
   final Product product;
   final List<AddonGroup> groups;
   final AddonSelection selection;
+  final VariationSelection variation;
+
+  /// The chosen variation read back as a product, or null until one is
+  /// resolved and loaded. Carries the price the parent's `variations` list
+  /// does not, and the stock state a single variation can have of its own.
+  final Product? variationProduct;
+
   final int quantity;
   final ValueChanged<int> onQuantityChanged;
 
@@ -533,12 +632,21 @@ class _AddBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
-    final orderable = product.isOrderable;
-    final prices = product.prices;
+    // **The chosen variation's price once there is one.** A variable dish's
+    // parent carries only a range, so until a combination resolves there is
+    // no single figure to show — and once it does, the variation is the dish
+    // being ordered, prices and stock alike.
+    final priced = variationProduct ?? product;
+    final prices = priced.prices;
+
     // A variable dish has no single price until a variation is chosen, so the
     // bar shows no total rather than a misleading one.
     final showTotal = !prices.hasRange;
     final unanswered = selection.unanswered(groups);
+
+    // A single size can be sold out while the dish is not, so orderability
+    // follows whichever product the price came from.
+    final orderable = priced.isOrderable;
 
     // The live preview the design shows on the button. A **preview**: the
     // plugin can discount a line server-side, so the cart's own total is the

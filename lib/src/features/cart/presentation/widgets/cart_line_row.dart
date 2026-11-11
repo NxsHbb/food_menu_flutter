@@ -141,12 +141,18 @@ class _Choices extends StatelessWidget {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
 
-    final summary = item.addons.isNotEmpty
-        ? item.addons.summary
-        : item.itemData
-            .map((d) => plainText(d.value))
-            .where((v) => v.isNotEmpty)
-            .join(' · ');
+    // The variation first, because it is what the dish *is* — a large pizza
+    // with no add-ons still has to say "Large". Add-ons and item data then
+    // describe what was done to it.
+    final parts = [
+      for (final chosen in item.variation) plainText(chosen.value),
+      if (item.addons.isNotEmpty)
+        item.addons.summary
+      else
+        ...item.itemData.map((d) => plainText(d.value)),
+    ];
+
+    final summary = parts.where((v) => v.isNotEmpty).join(' · ');
 
     if (summary.isEmpty) return const SizedBox.shrink();
 

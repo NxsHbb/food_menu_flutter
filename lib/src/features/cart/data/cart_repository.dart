@@ -32,12 +32,17 @@ class CartRepository {
     required int productId,
     int quantity = 1,
     List<Map<String, Object>> addons = const [],
+    List<Map<String, Object>> variation = const [],
   }) async {
     final raw = await _client.post<Map<String, dynamic>>(
       _client.storeApi('cart/add-item'),
       body: {
+        // **The parent's id, even for a variable dish.** The server resolves
+        // the variation from the attributes below and the cart line comes
+        // back under the variation's own id.
         'id': productId,
         'quantity': quantity,
+        if (variation.isNotEmpty) 'variation': variation,
         if (addons.isNotEmpty)
           'extensions': {
             'food-menu-pro': {'addons': addons},

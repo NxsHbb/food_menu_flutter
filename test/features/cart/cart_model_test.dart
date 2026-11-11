@@ -188,4 +188,46 @@ void main() {
     expect(cart.itemsCount, 0);
     expect(cart.totals.totalPrice, Money.zero(Currency.fallback));
   });
+
+  group('a variable line', () {
+    test('carries the chosen attributes, which item_data does not', () {
+      final item = CartItem.fromJson(const {
+        'key': 'abc',
+        'id': 28,
+        'name': 'Build Your Pizza',
+        'quantity': 1,
+        // Empty for a variable product — the Store API puts nothing here.
+        'item_data': <Object>[],
+        'variation': [
+          {
+            'raw_attribute': 'attribute_size',
+            'attribute': 'Size',
+            'value': 'Small',
+          },
+        ],
+      });
+
+      expect(item.variation, hasLength(1));
+      expect(item.variation.single.name, 'Size');
+      expect(item.variation.single.value, 'Small');
+    });
+
+    test('an attribute with no value is dropped rather than drawn blank', () {
+      final item = CartItem.fromJson(const {
+        'key': 'abc',
+        'id': 28,
+        'variation': [
+          {'attribute': 'Size', 'value': ''},
+        ],
+      });
+
+      expect(item.variation, isEmpty);
+    });
+
+    test('a simple line has no variation at all', () {
+      final item = CartItem.fromJson(const {'key': 'abc', 'id': 26});
+
+      expect(item.variation, isEmpty);
+    });
+  });
 }

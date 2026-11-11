@@ -43,6 +43,8 @@ class CartController extends AsyncNotifier<Cart> {
     required int productId,
     int quantity = 1,
     List<Map<String, Object>> addons = const [],
+    List<Map<String, Object>> variation = const [],
+    int? variationId,
   }) async {
     final before = state.value;
 
@@ -50,11 +52,15 @@ class CartController extends AsyncNotifier<Cart> {
           productId: productId,
           quantity: quantity,
           addons: addons,
+          variation: variation,
         );
 
     state = AsyncData(cart);
 
-    return _addedLine(before, cart, productId);
+    // **The line comes back under the variation's id, never the parent's**,
+    // so a variable dish is looked up by the variation the selection
+    // resolved to. See `FINDINGS.md`.
+    return _addedLine(before, cart, variationId ?? productId);
   }
 
   /// Sets a line's quantity, within the limits the server published for it.
@@ -152,6 +158,9 @@ class CartController extends AsyncNotifier<Cart> {
   /// whose quantity grew, and if even that is ambiguous, the last line for
   /// the product. Used only to say "added" with the right line, so a wrong
   /// guess costs nothing.
+  ///
+  /// [productId] is **the id the line will carry**, which for a variable dish
+  /// is the variation's rather than the parent's.
   CartItem? _addedLine(Cart? before, Cart after, int productId) {
     final known = {for (final item in before?.items ?? const []) item.key};
 

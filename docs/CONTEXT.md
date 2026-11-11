@@ -929,6 +929,29 @@ that fails to **add** is reported in the outcome instead, because by then part
 of the order is already in the cart and pretending otherwise would be a lie.
 The design shows a toast, so partial success says which part worked.
 
+### Variable dishes
+A parent product plus a variation per combination. The dish screen draws an
+attribute picker above the add-on groups — the attributes decide the price,
+the add-ons are priced on top of it — and nothing is pre-answered, because the
+Store API sends no default attributes to seed from.
+
+- **Matched on `name` and `slug`, never ids.** A custom attribute, the kind a
+  restaurant types in rather than registering as a taxonomy, comes back with
+  `id: 0` on the attribute and on every term.
+- **An empty value on a variation is a wildcard**, not a literal — WooCommerce's
+  "any size".
+- **The chosen variation is read back as a product**, through
+  `productProvider(variationId)`, for its price *and* its stock: a size can be
+  sold out while the dish is not. Cached per id, so flipping between sizes
+  costs one request each and no more.
+- **Add-to-cart sends the parent's id** and `variation: [{attribute, value}]`;
+  the line comes back under the variation's own id.
+- **The cart line shows the size**, from the item's `variation` key —
+  `item_data` is empty for a variable line, so without it two sizes read as
+  one dish twice.
+
+`FINDINGS.md` has the payload's shape and the demo-data trap behind it.
+
 ### Order history
 `GET fmp/v1/app/orders` (task 7.1, food-menu-pro#24). Paged as a **bare array
 with `X-WP-Total` / `X-WP-TotalPages`**, which is what `ApiClient.getPaged`
