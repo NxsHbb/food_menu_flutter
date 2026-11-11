@@ -375,6 +375,7 @@ class Cart {
     required this.totals,
     required this.needsPayment,
     required this.needsShipping,
+    required this.shippingPackages,
     required this.paymentMethods,
     required this.errors,
   });
@@ -391,6 +392,10 @@ class Cart {
       ),
       needsPayment: json['needs_payment'] as bool? ?? false,
       needsShipping: json['needs_shipping'] as bool? ?? false,
+      shippingPackages: ((json['shipping_rates'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => ShippingPackage.fromJson(e.cast<String, dynamic>()))
+          .toList(growable: false),
       paymentMethods: ((json['payment_methods'] as List?) ?? const [])
           .map((e) => e.toString())
           .where((e) => e.isNotEmpty)
@@ -409,6 +414,7 @@ class Cart {
         totals: CartTotals.fromJson(const {}),
         needsPayment: false,
         needsShipping: false,
+        shippingPackages: const [],
         paymentMethods: const [],
         errors: const [],
       );
@@ -420,6 +426,13 @@ class Cart {
   final CartTotals totals;
   final bool needsPayment;
   final bool needsShipping;
+
+  /// What the store will deliver this cart for, per package (task 8.5).
+  ///
+  /// Empty for a pickup order, for a store running no shipping zone, and for
+  /// an address no zone covers — the last of which is why an empty list is
+  /// not the same as "no choice to make".
+  final List<ShippingPackage> shippingPackages;
 
   /// Gateway ids that can pay for **this cart**, as WooCommerce works it out:
   /// a gateway can be enabled store-wide and still be unavailable here, over
@@ -442,4 +455,94 @@ class Cart {
   @override
   String toString() =>
       'Cart(${items.length} lines, $itemsCount units, ${totals.totalPrice.format()})';
+}
+
+/// One shipment the store would send, with the ways it could send it.
+///
+/// WooCommerce splits a cart into packages when different lines ship from
+/// different places or under different rules. A restaurant order is one
+/// package in practice, so [name] is drawn only when there is more than one.
+class ShippingPackage {
+  const ShippingPackage({
+    required this.packageId,
+    required this.name,
+    required this.rates,
+  });
+
+  factory ShippingPackage.fromJson(Map<String, dynamic> json) {
+    return ShippingPackage(
+      packageId: (json['package_id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      rates: ((json['shipping_rates'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => ShippingRate.fromJson(e.cast<String, dynamic>()))
+          .toList(growable: false),
+    );
+  }
+
+  /// What `cart/select-shipping-rate` is told, alongside a rate id.
+  final int packageId;
+
+  /// WooCommerce's own word, typically "Shipment".
+  final String name;
+
+  final List<ShippingRate> rates;
+
+  /// The rate in force, which the server always marks for itself.
+  ShippingRate? get selected {
+    for (final rate in rates) {
+      if (rate.selected) return rate;
+    }
+    return null;
+  }
+}
+
+/// One way the store would deliver a package, at its own price.
+class ShippingRate {
+  const ShippingRate({
+    required this.rateId,
+    required this.name,
+    required this.description,
+    required this.deliveryTime,
+    required this.price,
+    required this.selected,
+    required this.methodId,
+  });
+
+  factory ShippingRate.fromJson(Map<String, dynamic> json) {
+    final currency = Currency.fromJson(json);
+
+    return ShippingRate(
+      rateId: json['rate_id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      deliveryTime: json['delivery_time'] as String? ?? '',
+      price: Money.parseOrZero(json['price'], currency),
+      selected: json['selected'] == true,
+      methodId: json['method_id'] as String? ?? '',
+    );
+  }
+
+  /// `flat_rate:1`, and what identifies this rate to the server.
+  final String rateId;
+
+  /// **The store's own words**, e.g. "Standard delivery". Never composed
+  /// here: a store renames its methods and expects the app to follow.
+  final String name;
+
+  /// Extra words the method carries. Usually empty.
+  final String description;
+
+  /// The method's own estimate, when it has one. Usually empty — most
+  /// methods carry no promise about time.
+  final String deliveryTime;
+
+  final Money price;
+  final bool selected;
+
+  /// `flat_rate`, `local_pickup`, `free_shipping`. Not branched on: a store
+  /// can install a method this app has never heard of.
+  final String methodId;
+
+  bool get isFree => price.isZero;
 }

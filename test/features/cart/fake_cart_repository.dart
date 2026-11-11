@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:food_menu/src/core/store_api/models/cart.dart';
+import 'package:food_menu/src/core/store_api/models/money.dart';
 import 'package:food_menu/src/features/cart/data/cart_repository.dart';
 
 /// A [CartRepository] that answers from memory, so cart tests never touch the
@@ -97,6 +98,72 @@ class FakeCartRepository implements CartRepository {
   }
 
   @override
+  Future<Cart> selectShippingRate({
+    required int packageId,
+    required String rateId,
+  }) {
+    calls.add('select-rate $packageId $rateId');
+    _cart = _withSelectedRate(packageId, rateId);
+    return _answer(write: true);
+  }
+
+  /// The cart as the server answers it: the chosen rate marked, every other
+  /// one in that package cleared, and the shipping total moved to match.
+  Cart _withSelectedRate(int packageId, String rateId) {
+    Money? shipping = _cart.totals.totalShipping;
+
+    final packages = [
+      for (final package in _cart.shippingPackages)
+        if (package.packageId != packageId)
+          package
+        else
+          ShippingPackage(
+            packageId: package.packageId,
+            name: package.name,
+            rates: [
+              for (final rate in package.rates)
+                ShippingRate(
+                  rateId: rate.rateId,
+                  name: rate.name,
+                  description: rate.description,
+                  deliveryTime: rate.deliveryTime,
+                  price: rate.price,
+                  selected: rate.rateId == rateId,
+                  methodId: rate.methodId,
+                ),
+            ],
+          ),
+    ];
+
+    for (final package in packages) {
+      for (final rate in package.rates) {
+        if (rate.rateId == rateId) shipping = rate.price;
+      }
+    }
+
+    return Cart(
+      items: _cart.items,
+      itemsCount: _cart.itemsCount,
+      totals: CartTotals(
+        totalItems: _cart.totals.totalItems,
+        totalPrice: shipping == null
+            ? _cart.totals.totalItems
+            : _cart.totals.totalItems + shipping,
+        totalDiscount: _cart.totals.totalDiscount,
+        totalTax: _cart.totals.totalTax,
+        totalFees: _cart.totals.totalFees,
+        currency: _cart.totals.currency,
+        totalShipping: shipping,
+      ),
+      needsPayment: _cart.needsPayment,
+      needsShipping: _cart.needsShipping,
+      shippingPackages: packages,
+      paymentMethods: _cart.paymentMethods,
+      errors: _cart.errors,
+    );
+  }
+
+  @override
   Future<Cart> clear() {
     calls.add('clear');
     _cart = _withItems(const []);
@@ -134,6 +201,7 @@ class FakeCartRepository implements CartRepository {
       totals: _cart.totals,
       needsPayment: _cart.needsPayment,
       needsShipping: _cart.needsShipping,
+      shippingPackages: _cart.shippingPackages,
       paymentMethods: _cart.paymentMethods,
       errors: _cart.errors,
     );

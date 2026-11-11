@@ -250,6 +250,7 @@ Cart withDuplicateOf(Cart cart, int productId) {
     totals: cart.totals,
     needsPayment: cart.needsPayment,
     needsShipping: cart.needsShipping,
+    shippingPackages: cart.shippingPackages,
     paymentMethods: cart.paymentMethods,
     errors: cart.errors,
   );

@@ -73,6 +73,22 @@ class CartRepository {
     return Cart.fromJson(raw);
   }
 
+  /// Chooses how the order is delivered (task 8.5).
+  ///
+  /// Answers the whole cart, because picking a rate changes the shipping
+  /// total and therefore the amount due — the response is the new truth and
+  /// nothing here recomputes it.
+  Future<Cart> selectShippingRate({
+    required int packageId,
+    required String rateId,
+  }) async {
+    final raw = await _client.post<Map<String, dynamic>>(
+      _client.storeApi('cart/select-shipping-rate'),
+      body: {'package_id': packageId, 'rate_id': rateId},
+    );
+    return Cart.fromJson(raw);
+  }
+
   /// Empties the cart, for the design's "Clear all".
   ///
   /// The odd one out: `DELETE cart/items` answers with the **items list**,

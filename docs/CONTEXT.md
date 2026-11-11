@@ -819,6 +819,28 @@ customer lands on after paying, and the model Phase 7 builds on.
   string as text. Do not widen it to "everything the line holds" — that is
   how `_fmp_addon_selection` reached a customer's screen.
 
+### Delivery method (task 8.5)
+The cart's own `shipping_rates`, rendered as a radio list on the checkout and
+chosen with `POST cart/select-shipping-rate`. Before this the app drew
+`total_shipping` once the server had decided for it, which is only correct for
+a store running exactly one method.
+
+- **`Cart.shippingPackages`** is WooCommerce's packages, each with its rates.
+  A restaurant order is one package; the package name is drawn only when there
+  is more than one.
+- **The server marks the rate in force** (`selected`) and recomputes the cart
+  when one is chosen. The response is the new truth — nothing is recomputed
+  here, and the shipping total moves with it.
+- **A price in minor units with the usual `currency_*` keys**, so `Money`
+  reads a rate exactly as it reads a line total.
+- **One rate is reported, not offered**: drawn with its price and no radio,
+  because a control that cannot change reads as a broken one.
+- **Pickup draws nothing**, and an address no zone covers draws nothing
+  either — an empty list is not a choice withheld, it is a store that cannot
+  deliver there, which belongs to the address block.
+- `rate_id` and `package_id` go back as given. `method_id` is never branched
+  on: a store can install a method this app has never heard of.
+
 ### Paying (task 6.3)
 `GET fmp/v1/app/payment-methods` (Pro), rendered as the design's radio list.
 

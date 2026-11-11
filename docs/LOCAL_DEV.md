@@ -110,6 +110,13 @@ Pro features.
   `all` false. Every other order on the store predates 7.4 and refuses
   entirely, because the dev site has a global add-on group matching every
   dish.
+- **A shipping zone, kept, for tasks 8.5 and 8.6.** "Delaware" (US:DE, which
+  is where the demo addresses are) with **two flat rates**: *Standard
+  delivery* $4.95 and *Express delivery* $9.95. Before it the store had no
+  zone and no method at all, so every cart answered `shipping_rates: []` and
+  nothing about delivery pricing could be exercised. **It changes delivery
+  totals** — a delivery order now costs $4.95 more than the dishes — which is
+  what a real store looks like. `cart_with_shipping.json` is captured from it.
 - **One timed-product rule kept for task 8.3**, in `fmp_timed_products`:
   "Off the menu late", hiding *Mushroom Risotto* between 11:00 pm and
   11:59 pm site time. Chosen because it blocks nothing during working hours

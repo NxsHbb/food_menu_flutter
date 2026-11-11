@@ -26,6 +26,7 @@ import 'widgets/checkout_fields_section.dart';
 import 'widgets/contact_details_section.dart';
 import 'widgets/order_summary_section.dart';
 import 'widgets/payment_section.dart';
+import 'widgets/shipping_section.dart';
 
 /// The design's checkout: how and when the order arrives, where it goes, who
 /// it is for, and what it comes to.
@@ -272,6 +273,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             key: ValueKey('checkout-fields'),
                           ),
                         ],
+                        // After the address, because a rate is priced from
+                        // it, and before payment, because it moves the total
+                        // the payment is for.
+                        const ShippingSection(),
                         const PaymentSection(),
                         if (cart != null) ...[
                           const SizedBox(height: AppTokens.space12),

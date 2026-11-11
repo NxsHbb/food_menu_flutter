@@ -113,6 +113,24 @@ class CartController extends AsyncNotifier<Cart> {
     }
   }
 
+  /// Chooses how the order is delivered (task 8.5).
+  ///
+  /// Keyed on the rate so the row being chosen can show itself as busy, and
+  /// run through [_mutate] like any other change: picking a rate moves the
+  /// total, and a failure must leave the cart the customer is reading intact.
+  Future<void> selectShippingRate({
+    required int packageId,
+    required String rateId,
+  }) {
+    return _mutate(
+      'shipping:$rateId',
+      () => ref.read(cartRepositoryProvider).selectShippingRate(
+            packageId: packageId,
+            rateId: rateId,
+          ),
+    );
+  }
+
   /// Empties the cart.
   Future<void> clear() async {
     final cart = await ref.read(cartRepositoryProvider).clear();

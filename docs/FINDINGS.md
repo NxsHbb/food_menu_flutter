@@ -2,6 +2,23 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## A pickup order is still charged for delivery — confirmed, and it is 8.6's
+Seeding the dev store's first shipping zone for task 8.5 made task 8.6
+reproducible, and it reproduces immediately: choose Express delivery at
+$9.95, switch the order type to **Pickup**, and the total stays $22.95. The
+Delivery method section disappears, correctly, and the fee it chose does not.
+
+Nothing tells the cart the order is being collected. The Store API prices
+shipping from the customer's shipping address, which the app sets at checkout
+for both types — and the rate stays selected on the cart in the meantime. The
+store also has no `local_pickup` method, so WooCommerce has nothing to switch
+to that costs nothing.
+
+Not fixed here: it is task 8.6's, and the fix is a decision between telling
+the cart the destination has changed and not sending a shipping address on a
+pickup order at all. Written down with its reproduction so 8.6 starts from
+evidence rather than from the plan's guess.
+
 ## `last_date: null` means today only, and the route does not enforce it
 `/app/slots` sends `last_date` only when `fmp_preorder_max_days` is above
 zero. A store that has never switched pre-ordering on sends null, and the
