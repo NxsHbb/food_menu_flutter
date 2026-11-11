@@ -860,8 +860,11 @@ is one order in full, pushed over it so the Orders tab keeps its place.
   tracking card at the top carries it, where the design puts it; once it is
   over the details list keeps it as a record of the slot that was chosen.
   Drawing both at once said the same thing twice.
-- **Reorder is still missing**, and is task 7.4: an order records add-ons as
-  display text, not ids, so nothing can rebuild the selection faithfully.
+- **Reorder is on a finished order only.** Reordering something still being
+  cooked is how a customer ends up with two dinners. The button adds to the
+  cart rather than replacing it, does not ask first — the cart is the
+  confirmation step — and lands on the cart only when something actually went
+  in.
 
 Dates go through `core/util/relative_date.dart` — "Today, 2:02 PM" — which is
 hand-rolled because `intl` is not a dependency. Always in the device's time
@@ -905,6 +908,26 @@ page, which is the only way to hand someone else a link. No screen does yet.
 The `canTrack` getter that gated tracking on it was **removed**: tracking no
 longer needs the token, so a getter saying otherwise would have withheld the
 button from orders that track perfectly well.
+
+### Reorder
+`GET fmp/v1/app/orders/{id}/reorder` (task 7.4, food-menu-pro#27).
+
+**A read, not a write.** It answers what the lines would be; the app then adds
+each through the Store API's own `cart/add-item` — the path where add-on
+validation, branch scoping, timed products and stock already work. Rebuilding
+the cart inside the plugin route would have meant reproducing all four.
+
+**The server decides what is reproducible.** A line comes back `available`
+with the add-on payload to re-submit, or unavailable with a reason: `gone`,
+`unavailable`, `out_of_stock`, `choices_not_recorded`. The app never inspects
+the payload — it is the plugin's own shape, and reading inside it here would
+be a second place for the add-on contract to drift.
+
+`ReorderController` runs the two steps and returns a `ReorderOutcome`. A failed
+**read** throws, because nothing has changed and the screen can say so; a line
+that fails to **add** is reported in the outcome instead, because by then part
+of the order is already in the cart and pretending otherwise would be a lie.
+The design shows a toast, so partial success says which part worked.
 
 ### Order history
 `GET fmp/v1/app/orders` (task 7.1, food-menu-pro#24). Paged as a **bare array

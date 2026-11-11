@@ -2,6 +2,57 @@
 
 Newest first. One entry per completed task.
 
+## Task 7.4 — Reorder
+Branch `feat/reorder`, PR #52, with the plugin half on `mobile-app`
+(food-menu-pro#27). 15 new tests, 785 in total. **Phase 7 is done.**
+
+**Still not run on a device** — the OnePlus is locked and in airplane mode, as
+it was for 7.2 and 7.3. Three tasks now. The route was exercised end to end
+against the dev site; the screens are covered by the suite.
+
+### What landed
+Reorder on past history rows, beside "Details", and as the primary action in
+the order footer. The plugin grew `GET /app/orders/{id}/reorder` and the line
+meta behind it.
+
+### The data was already there
+The hard part turned out not to exist. By the time the add-to-cart filter
+runs, the app has already sent exactly what a reorder needs — the payload
+`cart/add-item` accepts. It was being used to build the website's cart rows
+and then discarded. So the selection is now kept beside those rows, copied to
+the order line, and handed back unchanged. The stored payload and the request
+body are the same thing, so the round trip cannot drift. See `FINDINGS.md`.
+
+### What the route deliberately does not do
+It adds nothing to a cart. The app re-submits each line through the Store
+API's own `cart/add-item`, where add-on validation, branch scoping, timed
+products and stock already work — a dish sold out since, or a group that has
+become required, fails exactly as it would on a first order. Rebuilding the
+cart inside the plugin would have meant reproducing all four.
+
+### Old orders, and the case that is not a refusal
+A line with no recorded selection is refused — **unless the dish takes no
+choices today**, in which case there was nothing to lose and it reorders fine.
+On the dev site every dish matches a global add-on group, so every pre-7.4
+order refuses there; on a store without global add-ons most would not.
+
+### What the customer is told
+The outcome is a toast, as the design has it. A failed *read* throws and the
+cart is untouched, so the screen just says so. A line that fails to *add* is
+named instead — "1 item added. 1 could not be." — because by then part of the
+order is in the cart and a success message would be a lie. Nothing added at
+all keeps the customer where they are rather than sending them to an unchanged
+cart to work it out.
+
+### Verified
+A fresh order with a radio, two checkboxes and a textarea returns the
+selection byte for byte, and posting that answer straight back to
+`cart/add-item` rebuilds the line with `Medium 12"`, `Mushrooms`, `Basil` and
+"Extra napkins please" intact. The same order's other line, added to the cart
+before this code existed, correctly comes back `choices_not_recorded` — the
+mixed case the app has to draw. Order 70 is kept on the dev site as the
+fixture for it.
+
 ## Task 7.3 — Live order tracking
 Branch `feat/order-tracking`, PR #50, with the plugin half on `mobile-app`
 (food-menu-pro#26). 23 new tests, 770 in total.

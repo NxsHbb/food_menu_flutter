@@ -13,6 +13,7 @@ import '../domain/order_tracking.dart';
 import 'orders_screen.dart';
 import 'widgets/order_status_pill.dart';
 import 'widgets/order_tracking_card.dart';
+import 'widgets/reorder_button.dart';
 
 /// One order in full — the design's "Order tracking" screen.
 ///
@@ -23,10 +24,13 @@ import 'widgets/order_tracking_card.dart';
 /// timeline rather than the screen — the rest of the order is still worth
 /// drawing, and task 7.2 proved the screen stands without it.
 ///
-/// **"Reorder" is still not here.** An order records its add-ons as display text, not as
-/// ids, so a faithful reorder needs the plugin to store a re-submittable
-/// selection first. Raised as its own task rather than shipped as a button
-/// that quietly drops every choice the customer made.
+/// **Reorder is on a finished order**, as the design's footer has it. The
+/// plugin decides what can actually be reproduced — see `Reorder` — so the
+/// button is offered on every past order and reports afterwards rather than
+/// being withheld from orders it might have managed.
+///
+/// The design's other footer action is "Get help", which has no backend in v1
+/// and is left out rather than stubbed.
 class OrderDetailScreen extends ConsumerWidget {
   const OrderDetailScreen({required this.orderId, super.key});
 
@@ -143,6 +147,27 @@ class _Detail extends StatelessWidget {
             ],
           ),
         ),
+        // Only once the order is over. Reordering something still being
+        // cooked is how a customer ends up with two dinners.
+        if (!order.isActive)
+          Container(
+            color: palette.card,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTokens.space16,
+                  AppTokens.space12,
+                  AppTokens.space16,
+                  AppTokens.space12,
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ReorderButton(orderId: order.id, filled: true),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

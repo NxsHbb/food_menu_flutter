@@ -7,6 +7,7 @@ import 'package:food_menu/src/features/orders/data/orders_repository.dart';
 import 'package:food_menu/src/features/orders/presentation/order_detail_screen.dart';
 import 'package:food_menu/src/features/orders/presentation/orders_screen.dart';
 import 'package:food_menu/src/features/orders/presentation/widgets/order_progress_bar.dart';
+import 'package:food_menu/src/features/orders/presentation/widgets/reorder_button.dart';
 import 'package:food_menu/src/features/orders/presentation/widgets/order_status_pill.dart';
 import 'package:go_router/go_router.dart';
 
@@ -129,14 +130,26 @@ void main() {
     );
   });
 
-  testWidgets('reorder is still not pretended at', (tester) async {
+  testWidgets('an active order offers no reorder', (tester) async {
     await pump(tester);
 
-    // Tracking arrived with task 7.3. Reorder has not: a faithful one needs
-    // the plugin to record a re-submittable add-on selection, and a button
-    // without it would be a stand-in — which is what task 4.7 existed to
-    // clean up.
-    expect(find.text('Reorder'), findsNothing);
+    // The fixture is still processing. Reordering something being cooked is
+    // how a customer ends up with two dinners.
+    expect(find.byType(ReorderButton), findsNothing);
+  });
+
+  testWidgets('a finished order offers reorder in the footer', (tester) async {
+    repo.answer = CustomerOrder.fromJson({
+      ...jsonFixture('order_delivery'),
+      'status': 'completed',
+      'status_label': 'Completed',
+      'is_active': false,
+    });
+    await pump(tester);
+
+    expect(find.byType(ReorderButton), findsOneWidget);
+    // The footer's primary action, as the design draws it.
+    expect(find.widgetWithText(FilledButton, 'Reorder'), findsOneWidget);
   });
 
   group('the tracking card', () {

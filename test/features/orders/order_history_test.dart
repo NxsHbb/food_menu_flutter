@@ -9,17 +9,25 @@ import 'package:food_menu/src/features/auth/data/token_store.dart';
 import 'package:food_menu/src/features/orders/data/orders_repository.dart';
 import 'package:food_menu/src/features/orders/presentation/order_detail_screen.dart';
 import 'package:food_menu/src/features/orders/presentation/orders_screen.dart';
+import 'package:food_menu/src/features/cart/data/cart_repository.dart';
+import 'package:food_menu/src/features/cart/presentation/cart_screen.dart';
 import 'package:food_menu/src/features/orders/presentation/widgets/order_progress_bar.dart';
+import 'package:food_menu/src/features/orders/presentation/widgets/reorder_button.dart';
 import 'package:food_menu/src/features/orders/presentation/widgets/order_row.dart';
 import 'package:go_router/go_router.dart';
 
 import '../auth/fake_auth_repository.dart';
+import '../cart/fake_cart_repository.dart';
 import 'fake_orders_repository.dart';
 
 void main() {
   late FakeOrdersRepository repo;
+  late FakeCartRepository cart;
 
-  setUp(() => repo = FakeOrdersRepository());
+  setUp(() {
+    repo = FakeOrdersRepository();
+    cart = FakeCartRepository();
+  });
 
   Future<ProviderContainer> pump(
     WidgetTester tester, {
@@ -41,6 +49,12 @@ void main() {
             ),
           ],
         ),
+        // Where a successful reorder lands.
+        GoRoute(
+          path: '/cart',
+          name: CartScreen.routeName,
+          builder: (_, _) => const Scaffold(body: Text('the cart')),
+        ),
       ],
     );
     addTearDown(router.dispose);
@@ -48,6 +62,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         ordersRepositoryProvider.overrideWithValue(repo),
+        cartRepositoryProvider.overrideWithValue(cart),
         authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
         tokenStoreProvider.overrideWithValue(FakeTokenStore()),
       ],
@@ -194,6 +209,91 @@ void main() {
         find.descendant(of: find.byType(OrderRow), matching: find.byType(Divider)),
         findsNothing,
       );
+    });
+
+    testWidgets('a past row offers reorder, an active one does not',
+        (tester) async {
+      repo.history[OrderGroup.active] = [summaryFixture()];
+      repo.history[OrderGroup.past] = [
+        summaryFixture(
+          id: 1041,
+          status: 'completed',
+          statusLabel: 'Completed',
+          isActive: false,
+        ),
+      ];
+      await pump(tester);
+
+      // Reordering something still being cooked is how a customer ends up
+      // with two dinners.
+      expect(find.byType(ReorderButton), findsNothing);
+
+      await tester.tap(find.text('Past'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ReorderButton), findsOneWidget);
+      expect(find.text('Details'), findsOneWidget);
+    });
+
+    testWidgets('reorder puts the order back in the cart', (tester) async {
+      repo.history[OrderGroup.past] = [
+        summaryFixture(id: 1041, isActive: false, statusLabel: 'Completed'),
+      ];
+      await pump(tester);
+      await tester.tap(find.text('Past'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Reorder'));
+      await tester.pumpAndSettle();
+
+      expect(repo.reorderRequested, [1041]);
+      // Through the Store API's own add-item, add-ons and all.
+      expect(cart.addonPayloads, hasLength(1));
+      expect(find.text('Item added to cart'), findsOneWidget);
+    });
+
+    testWidgets('a partial reorder says so rather than quietly shorting the cart',
+        (tester) async {
+      repo.history[OrderGroup.past] = [
+        summaryFixture(id: 1041, isActive: false, statusLabel: 'Completed'),
+      ];
+      repo.reorderAnswer = reorderFixture(
+        lines: const [
+          ('Iced Latte', true, ''),
+          ('Build Your Pizza', false, 'choices_not_recorded'),
+        ],
+      );
+      await pump(tester);
+      await tester.tap(find.text('Past'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Reorder'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 item added. 1 could not be.'), findsOneWidget);
+    });
+
+    testWidgets('a reorder that adds nothing stays put', (tester) async {
+      repo.history[OrderGroup.past] = [
+        summaryFixture(id: 1041, isActive: false, statusLabel: 'Completed'),
+      ];
+      repo.reorderAnswer = reorderFixture(
+        lines: const [('Build Your Pizza', false, 'choices_not_recorded')],
+      );
+      await pump(tester);
+      await tester.tap(find.text('Past'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Reorder'));
+      await tester.pumpAndSettle();
+
+      // Sending a customer to an unchanged cart to discover nothing worked is
+      // worse than the message.
+      expect(
+        find.text('Nothing from this order could be added.'),
+        findsOneWidget,
+      );
+      expect(cart.addonPayloads, isEmpty);
     });
 
     testWidgets('tapping a row opens that order', (tester) async {
