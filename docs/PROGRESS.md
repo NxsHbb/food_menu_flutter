@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Task 8.3 — Timed dishes
-Branch `feat/timed-dishes`, with the plugin half on `mobile-app`
+Branch `feat/timed-dishes`, PR #56, with the plugin half on `mobile-app`
 (food-menu-pro#30). 9 new tests,
 833 in total.
 
