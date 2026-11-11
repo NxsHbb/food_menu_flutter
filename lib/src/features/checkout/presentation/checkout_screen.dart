@@ -22,6 +22,7 @@ import 'widgets/checkout_address_section.dart';
 import 'widgets/checkout_card.dart';
 import 'widgets/checkout_error_banner.dart';
 import 'widgets/checkout_total_bar.dart';
+import 'widgets/checkout_fields_section.dart';
 import 'widgets/contact_details_section.dart';
 import 'widgets/order_summary_section.dart';
 import 'widgets/payment_section.dart';
@@ -262,8 +263,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           const ContactDetailsSection(
                             key: ValueKey('contact-details'),
                           ),
+                          // The store's own questions, directly after the
+                          // ones this app asks. Keyed for the same reason,
+                          // and it draws nothing when a store has defined
+                          // none. It carries its own bottom spacing, since
+                          // the gap belongs to a section that may not exist.
+                          const CheckoutFieldsSection(
+                            key: ValueKey('checkout-fields'),
+                          ),
                         ],
-                        const SizedBox(height: AppTokens.space12),
                         const PaymentSection(),
                         if (cart != null) ...[
                           const SizedBox(height: AppTokens.space12),

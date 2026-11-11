@@ -2,6 +2,49 @@
 
 Newest first. One entry per completed task.
 
+## Task 8.2 — Order Extra Fields
+Branch `feat/checkout-fields`, PR #TBD, with the plugin half on `mobile-app`
+(food-menu-pro#28). 17 new tests, 822 in total.
+
+**Still not run on a device.** Fifth task running.
+
+### What landed
+`GET /app/checkout-fields` publishes the store's own checkout questions, and
+the checkout draws them under "Additional information": a text input or a
+select, required ones marked and validated, multi-selects as checkboxes.
+`OrderDraft` posts them under `fmp_custom_fields` instead of the empty map it
+has sent since task 6.2.
+
+### The key is the position
+The website writes each answer under `custom_{index}` and reads it back by
+pairing that key with the definition at the same index — nothing stores the
+label with the answer. So the key is **published rather than derived**, and
+reordering the fields in settings re-keys every past answer. That is the
+website's behaviour and no route can fix it; it is now written down.
+
+Unusable definitions are dropped **after** their index is taken, so removing
+one does not shift the keys of the rest.
+
+### What was deliberately not done
+**No server-side validation.** The classic checkout enforces required fields;
+the **block** checkout does not — it renders the asterisk and never blocks the
+order, and the Store API saves whatever arrives. Adding the check would fix
+both and **change the website**, which the app-only rule forbids without a
+decision. Raised as an open dependency.
+
+So the app validates in its own `Form` pass and a crafted request can still
+skip a required answer — exactly as it can on the website today.
+
+### Verified
+Five definitions seeded on the dev site, two deliberately unusable: three come
+back keyed `custom_0`–`custom_2`, with the multi-select's comma-separated
+options split and its `multiple` flag resolved from the string `"true"` the
+React settings form stores. An order placed through the Store API with all
+three answered stored
+`{"custom_0":"Flat 3B, buzzer 12","custom_1":"Instagram","custom_2":["Nuts","Gluten"]}`,
+which pairs back to the right labels. The throwaway order was deleted; the
+definitions are kept and documented.
+
 ## Task 8.1 — Variable dishes
 Branch `feat/variations`, PR #53. 20 new tests, 805 in total. **App-only, no
 plugin change** — but it needed the dev site's demo data fixed first.

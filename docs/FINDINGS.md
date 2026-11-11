@@ -2,6 +2,42 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## A checkout field's key is its position, and that is load-bearing
+The website writes each Order Extra Field answer under `custom_{index}` — the
+field's index in the `fmp_order_custom_fields` option — and the admin order
+screen, the kitchen monitor and every slip read it back by pairing that key
+with the definition at the same index. Nothing stores the label alongside the
+answer.
+
+Two consequences:
+
+- **The app does not derive the key**, it is published. Deriving it would mean
+  a second implementation of a convention that is only a convention.
+- **Reordering the fields in settings re-keys every past answer.** An old
+  order then shows its answers against the wrong questions. That is the
+  website's behaviour and no route can fix it; it is written down so nobody
+  blames the app for it.
+
+A definition that cannot be drawn — no label, unknown type, or a select with
+no options — is **dropped after its index is taken**, so removing one does not
+shift the keys of the ones after it.
+
+## A required checkout field is not required on the block checkout
+The classic checkout validates them: `PickupDelivery::validate_custom_checkout_fields`
+adds a `wc_add_notice` error and the order stops. The **block** checkout does
+not — `checkout-pickup-delivery/index.js` renders the asterisk and never calls
+`setValidationErrors`, and the Store API saves whatever arrives without
+checking. So a store on the block checkout has required fields that are not.
+
+That is a pre-existing gap and not one the app created, but it decided the
+shape of task 8.2: the app validates in its own `Form` pass, and **no
+validation was added server-side**, because the Store API is shared with the
+website's block checkout and enforcing it there would start rejecting orders
+that store accepts today. Raised in `PLAN.md` as an open dependency instead.
+
+The honest limit: a crafted request can still place an order without a
+required answer. The same is true of the website.
+
 ## An empty variation attribute means "any", and looks like broken data
 `Build Your Pizza`'s three sizes were seeded with **empty** attribute values —
 `{"pa_size": ""}` on every variation. WooCommerce reads an empty value as

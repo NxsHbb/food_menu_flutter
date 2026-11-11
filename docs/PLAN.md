@@ -170,7 +170,7 @@ menu about to grow a state.
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 8.1 | **Variable dishes are orderable.** An attribute picker on the dish screen, the chosen variation read back for its own price and stock, and `variation` on add-to-cart. Stayed **app-only** as planned — but it needed the dev site's demo data fixed first: the three sizes had *empty* attribute values, which WooCommerce reads as "any", so no term could ever resolve to a variation. See `FINDINGS.md` | app | done |
-| 8.2 | **Order Extra Fields never reach an order.** `fmp_order_custom_fields` lets a store define its own checkout fields — label, type, required, options — saved as order meta and shown on the checkout, the order form, the admin order and the kitchen monitor. `OrderDraft` hardcodes `fmp_custom_fields: {}`, so every one of them is dropped, including required ones. Needs a route publishing the definitions and the checkout section that renders, validates and submits them | pro + app | todo |
+| 8.2 | **Order Extra Fields reach the order.** `GET /app/checkout-fields` publishes the store's own questions — label, type, required, multiple, options — keyed by **position**, which is the website's own convention. The checkout draws them, validates required ones in its own `Form` pass, and posts them under `fmp_custom_fields`. **No server-side validation added**: the Store API accepts a missing required field today, exactly as the website's block checkout does, and enforcing it would change the website too — raised as an open dependency instead | pro + app | done |
 | 8.3 | **A timed dish looks orderable when it is not.** `AppProductStoreApi` publishes `ingredients`, `nutrition` and `requires_choices`, and nothing about availability, so a breakfast-only dish is offered at nine at night — then refused by `woocommerce_is_purchasable` on add, or dropped from the cart by `remove_unavailable_from_cart` without a word. The website hides it or greys it out per `fmp_timed_products_behavior`. Needs the flag on the product payload and that treatment in the menu; `TimedProducts::unavailable_at()`, built for 5.2, already answers the question | pro + app | todo |
 | 8.4 | **No date can be chosen.** `preorder_max_days`, `first_date` and `last_date` all arrive on `/app/slots` and are used nowhere — the app shows the earliest date as a label and offers no other, while the website takes orders days ahead. Needs a date strip on the fulfilment section, bounded by those fields, with the slot list reloading per date | app | todo |
 | 8.5 | **Delivery has no shipping rate.** Nothing reads the cart's `shipping_rates` or calls `POST /cart/select-shipping-rate`; the app only renders `total_shipping` once something else has set it. A store with zones or more than one delivery method gives the customer no choice, and a cart with no rate selected can refuse checkout outright | app | todo |
@@ -310,6 +310,13 @@ the Store API returns whether or not the app asks for them. What the app still
 has to do is say so before the cart, which is Phase 9.
 
 ## Open dependencies
+- **A required checkout field is not enforced anywhere but the app.** Task 8.2
+  validates them in the checkout's own `Form`, and the Store API accepts an
+  order without them — exactly as it does for the website's own **block**
+  checkout, which marks a required field with an asterisk and then lets the
+  order through. Only the classic checkout enforces it. Adding the check to
+  the Store API would fix both and **change the website**, so it needs a
+  decision rather than a commit. To be confirmed.
 - **The app requires Food Menu Pro, and the free plugin alone cannot run it.**
   Every `fmp/v1/app/*` route lives in `food-menu-pro`, so a free site has no
   accounts, no add-ons, no order types, no slots and no orders endpoint. Worth

@@ -1,6 +1,7 @@
 import '../../address/domain/saved_address.dart';
 import '../../fulfilment/domain/order_types.dart';
 import 'checkout_contact.dart';
+import 'checkout_field.dart';
 
 /// Everything the order is made of, as one value.
 ///
@@ -19,6 +20,8 @@ class OrderDraft {
     required this.timeValue,
     required this.paymentMethod,
     required this.expectedTotal,
+    this.fields = const [],
+    this.answers = const CheckoutFieldAnswers(),
   });
 
   /// The customer's address. **Required even for pickup**: WooCommerce
@@ -55,6 +58,13 @@ class OrderDraft {
   /// the customer is charged a total they never saw.
   final String expectedTotal;
 
+  /// The store's own checkout questions, and what the customer answered.
+  ///
+  /// Carried as a pair because the payload needs both: the answers hold the
+  /// values, the definitions decide which key takes a list and which a string.
+  final List<CheckoutField> fields;
+  final CheckoutFieldAnswers answers;
+
   /// The checkout body.
   Map<String, dynamic> toJson() => {
         'billing_address': _address(withEmail: true),
@@ -86,7 +96,10 @@ class OrderDraft {
       'fmp_dinein_date': '',
       'fmp_dinein_time': '',
       'fmp_dinein_table': '',
-      'fmp_custom_fields': <String, dynamic>{},
+      // **The store's own questions**, keyed by position as the website keys
+      // them. Empty until task 8.2; it was sent empty before that, which
+      // silently dropped every answer a store asked for.
+      'fmp_custom_fields': answers.toPayload(fields),
     };
   }
 
