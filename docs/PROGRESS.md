@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Task 8.2 — Order Extra Fields
-Branch `feat/checkout-fields`, PR #TBD, with the plugin half on `mobile-app`
+Branch `feat/checkout-fields`, PR #54, with the plugin half on `mobile-app`
 (food-menu-pro#28). 17 new tests, 822 in total.
 
 **Still not run on a device.** Fifth task running.
