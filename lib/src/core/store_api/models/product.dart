@@ -183,6 +183,7 @@ class Product {
     required this.isPurchasable,
     required this.hasOptions,
     required this.requiresChoices,
+    required this.timed,
     required this.attributes,
     required this.variations,
     required this.onSale,
@@ -224,6 +225,7 @@ class Product {
       // else. It knows nothing about add-ons — see [requiresChoices].
       hasOptions: json['has_options'] as bool? ?? false,
       requiresChoices: _flag(json, 'requires_choices'),
+      timed: TimedAvailability.fromExtension(json),
       attributes: _list(json['attributes'], ProductAttribute.fromJson),
       variations: _list(json['variations'], ProductVariation.fromJson),
       onSale: json['on_sale'] as bool? ?? false,
@@ -280,6 +282,13 @@ class Product {
   /// behaviour rather than hiding every quick add.
   final bool requiresChoices;
 
+  /// Whether the store serves this dish at the moment, and what it asked for
+  /// when it does not.
+  ///
+  /// Always served on a site whose plugin predates the field, which leaves
+  /// the old behaviour rather than emptying a menu.
+  final TimedAvailability timed;
+
   /// The dish's attributes. Only those with [ProductAttribute.hasVariations]
   /// pick a variation; the rest are descriptive and are not drawn.
   final List<ProductAttribute> attributes;
@@ -316,7 +325,32 @@ class Product {
   ///
   /// Note that `is_purchasable` stays **true** on a sold-out product, so it
   /// alone is not enough.
-  bool get isOrderable => isPurchasable && isInStock;
+  ///
+  /// **A dish outside its hours is not orderable either** (task 8.3). Folded
+  /// in here rather than checked at each call site, because the server
+  /// refuses it at add-to-cart exactly as it refuses a sold-out one, and
+  /// every screen that already respects stock then respects the clock.
+  bool get isOrderable => isPurchasable && isInStock && timed.available;
+
+  /// Why the dish cannot be ordered, in the store's own words where it has
+  /// them. Empty while it can be.
+  ///
+  /// Stock comes first: a dish that is both sold out and outside its hours
+  /// is sold out, and saying so is the more final answer.
+  String get unavailableReason {
+    if (isOrderable) return '';
+    if (!isInStock && stockText.isNotEmpty) return stockText;
+    if (!timed.available && timed.note.isNotEmpty) return timed.note;
+
+    return 'Unavailable';
+  }
+
+  /// True when the store wants this dish off the menu entirely right now.
+  ///
+  /// The list screens drop it; nothing else needs to know. A dish opened
+  /// from a link or a favourite still draws, unorderable and saying why,
+  /// which beats a dead end.
+  bool get hiddenByStore => !timed.available && timed.behavior == TimedBehavior.disappear;
 
   ProductImage? get primaryImage => images.isEmpty ? null : images.first;
 
@@ -482,4 +516,75 @@ List<T> _list<T>(Object? raw, T Function(Map<String, dynamic>) read) {
       .whereType<Map>()
       .map((e) => read(e.cast<String, dynamic>()))
       .toList(growable: false);
+}
+
+/// What a store asks for when it is not serving a dish.
+enum TimedBehavior {
+  /// Draw it, unorderable, with the store's own words for why.
+  disable,
+
+  /// Take it off the menu until it is served again.
+  disappear;
+
+  static TimedBehavior fromName(String? raw) =>
+      raw == 'disappear' ? TimedBehavior.disappear : TimedBehavior.disable;
+}
+
+/// Whether the store serves a dish at this moment (task 8.3).
+///
+/// Timed rules are the plugin's own — "breakfast until eleven", "off the menu
+/// on Mondays" — and the website hides or greys the dish per
+/// `fmp_timed_products_behavior`. Before this, the app offered a breakfast
+/// dish at nine at night and let the server refuse it at add-to-cart.
+///
+/// **Composed server-side.** [note] is the same text the website's badge
+/// shows, already translated and in the store's own date and time formats, so
+/// the app cannot word it differently from the web page.
+class TimedAvailability {
+  const TimedAvailability({
+    required this.available,
+    required this.behavior,
+    required this.note,
+  });
+
+  /// The state of a dish on a site that says nothing: served, and no words
+  /// about it. Keeps a menu working against a plugin predating the field.
+  static const always = TimedAvailability(
+    available: true,
+    behavior: TimedBehavior.disable,
+    note: '',
+  );
+
+  /// Reads the block out of the plugin's Store API extension.
+  factory TimedAvailability.fromExtension(Map<String, dynamic> json) {
+    final extensions = json['extensions'];
+    if (extensions is! Map) return always;
+
+    final foodMenu = extensions['food-menu-pro'];
+    if (foodMenu is! Map) return always;
+
+    final timed = foodMenu['timed'];
+    if (timed is! Map) return always;
+
+    return TimedAvailability(
+      // Absent means served: a half-written payload must not empty a menu.
+      available: timed['available'] != false,
+      behavior: TimedBehavior.fromName(timed['behavior'] as String?),
+      note: timed['note'] as String? ?? '',
+    );
+  }
+
+  /// False when the kitchen will not make this right now.
+  final bool available;
+
+  /// Hide it, or show it greyed. The store's choice, not the app's.
+  final TimedBehavior behavior;
+
+  /// The store's own words: "Unavailable", "Will be Available: 8:00 am –
+  /// 11:00 am", or empty when there is nothing worth saying — which includes
+  /// every dish no rule covers.
+  final String note;
+
+  @override
+  String toString() => 'TimedAvailability($available, ${behavior.name}, $note)';
 }

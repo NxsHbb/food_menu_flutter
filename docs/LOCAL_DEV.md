@@ -110,6 +110,15 @@ Pro features.
   `all` false. Every other order on the store predates 7.4 and refuses
   entirely, because the dev site has a global add-on group matching every
   dish.
+- **One timed-product rule kept for task 8.3**, in `fmp_timed_products`:
+  "Off the menu late", hiding *Mushroom Risotto* between 11:00 pm and
+  11:59 pm site time. Chosen because it blocks nothing during working hours
+  and still gives the app a dish whose payload carries a schedule note. The
+  second rule the task used — Margherita servable only 2–4 am — was deleted
+  after the device pass, along with the `disappear` behaviour it was tested
+  under; `fmp_timed_products_behavior` is unset again, which reads as
+  `disable`. **The site's timezone is UTC**, so a rule's hours are UTC and
+  not the phone's.
 - `woocommerce_enable_myaccount_registration = yes`. **Off by default**, and
   task 3.1's register endpoint follows this setting rather than overriding it,
   so registration returns 403 without it.

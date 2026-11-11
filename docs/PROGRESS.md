@@ -2,6 +2,61 @@
 
 Newest first. One entry per completed task.
 
+## Task 8.3 — Timed dishes
+Branch `feat/timed-dishes`, PR #56, with the plugin half on `mobile-app`
+(food-menu-pro#30). 9 new tests,
+833 in total.
+
+### What landed
+A `timed` block on the Store API product payload — `available`, `behavior`,
+`note` — and the treatment the store asked for in the menu. A breakfast dish
+at nine at night now reads "Will be Available: 8:00 am – 11:00 am" in the
+store's own words, with the photo dimmed and the add button dead, or it is
+gone from the menu entirely, per `fmp_timed_products_behavior`.
+
+### Asked, not reimplemented
+`available` comes from the same resolver `woocommerce_is_purchasable` uses,
+and `note` from `get_schedule_text_for_product()`, which is what paints the
+website's own badge. The app cannot word it differently from the web page,
+and no schedule arithmetic was written in Dart. The new
+`TimedProducts::app_availability()` is a reader over both.
+
+### One line in the model did most of the work
+`Product.isOrderable` folds the clock in beside stock, so the add bar, the
+stepper, the quick-add `+` and `canAddDirectly` all came right without being
+touched — every screen that already respected a sold-out dish now respects
+the clock. `unavailableReason` picks the words, **stock first**: a dish that
+is both sold out and out of hours is sold out.
+
+### What the app decides, and what it does not
+`behavior` is reported, not applied. Hiding happens in `MenuRepository`,
+because the plugin's rules are not a taxonomy the Store API can filter on —
+**so a page of twenty can arrive as nineteen**. The alternative was a dish
+the store asked not to show.
+
+A hidden dish still *draws* if something reaches it directly, a favourite or
+a link, saying why rather than being a dead end.
+
+### A warning that was being printed into the JSON
+`find_matched_rule_for_product()` passed a `$moment` it has no parameter for.
+PHP 8 warns and passes null, which is the "now" the method wants, so the
+behaviour was accidentally right — but with `display_errors` on, the warning
+landed in the middle of the Store API's response and the app could not parse
+a single product. **This touches a website path**, minimally: the call now
+uses the default, which is what PHP was already doing.
+
+### Verified on the Android device, against the dev site
+Both treatments, with two rules seeded: Margherita greyed out and refusing
+with "Will be Available: 2:00 am – 4:00 am" on the row, the detail badge and
+a dead add bar; then the same dish gone from search entirely once the store
+was switched to `disappear`.
+
+### Dev-site state
+The behaviour setting was switched to `disappear` and **restored**, diffed
+byte-identical against a backup. Of the two seeded rules, one is **kept**:
+"Off the menu late", hiding Mushroom Risotto between 11:00 pm and 11:59 pm.
+It blocks nothing during working hours and leaves the feature exercisable.
+
 ## Task 8.8 — What the first device pass found
 Branch `fix/device-sweep`, PR #55, with the plugin half on `mobile-app`
 (food-menu-pro#29). 3 new tests,

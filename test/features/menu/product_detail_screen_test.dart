@@ -148,6 +148,53 @@ void main() {
     });
   });
 
+  group('outside its hours', () {
+    testWidgets('says why in the store own words and refuses the add',
+        (tester) async {
+      await pump(
+        tester,
+        product: buildProduct(
+          id: 14,
+          name: 'Margherita',
+          timedAvailable: false,
+          timedNote: 'Will be Available: 8:00 am – 11:00 am',
+        ),
+      );
+
+      expect(
+        find.text('Will be Available: 8:00 am – 11:00 am'),
+        findsOneWidget,
+      );
+      expect(find.text('Unavailable'), findsOneWidget);
+
+      final button = tester.widget<FilledButton>(find.byType(FilledButton));
+      expect(button.onPressed, isNull);
+    });
+
+    testWidgets('warns a dish that is about to go off the menu',
+        (tester) async {
+      await pump(
+        tester,
+        product: buildProduct(
+          id: 22,
+          name: 'Mushroom Risotto',
+          timedAvailable: true,
+          timedNote: 'Will be Unavailable: 11:00 pm – 11:59 pm',
+        ),
+      );
+
+      // Still orderable: the note is a heads-up, not a refusal.
+      expect(
+        find.text('Will be Unavailable: 11:00 pm – 11:59 pm'),
+        findsOneWidget,
+      );
+      expect(find.text('Add to cart'), findsOneWidget);
+
+      final button = tester.widget<FilledButton>(find.byType(FilledButton));
+      expect(button.onPressed, isNotNull);
+    });
+  });
+
   group('low stock', () {
     testWidgets('warns with the remaining count', (tester) async {
       final product = Product.fromJson({

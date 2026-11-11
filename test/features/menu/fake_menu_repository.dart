@@ -126,7 +126,19 @@ Product buildProduct({
   bool requiresChoices = false,
   bool inStock = true,
   List<Map<String, dynamic>> categories = const [],
+  bool? timedAvailable,
+  String timedBehavior = 'disable',
+  String timedNote = '',
 }) {
+  final extensions = <String, dynamic>{
+    if (requiresChoices) 'requires_choices': true,
+    if (timedAvailable != null)
+      'timed': {
+        'available': timedAvailable,
+        'behavior': timedBehavior,
+        'note': timedNote,
+      },
+  };
   return Product.fromJson({
     'id': id,
     'name': name,
@@ -148,10 +160,8 @@ Product buildProduct({
     'has_options': hasOptions,
     'review_count': reviewCount,
     'average_rating': rating,
-    if (requiresChoices)
-      'extensions': const {
-        'food-menu-pro': {'requires_choices': true},
-      },
+    if (extensions.isNotEmpty)
+      'extensions': {'food-menu-pro': extensions},
   });
 }
 

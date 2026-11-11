@@ -511,7 +511,12 @@ class _Body extends StatelessWidget {
               ),
           ],
         ),
-        if (!product.isOrderable || lowStock != null) ...[
+        // **Or a heads-up while it is still orderable**: "Will be
+        // Unavailable: 11:00 pm – 11:59 pm" is worth a line on the dish the
+        // customer is reading about, where there is room for it.
+        if (!product.isOrderable ||
+            lowStock != null ||
+            product.timed.note.isNotEmpty) ...[
           const SizedBox(height: AppTokens.space12),
           _StockBadge(product: product, lowStock: lowStock),
         ],
@@ -571,7 +576,8 @@ class _Body extends StatelessWidget {
 
 }
 
-/// Out-of-stock or low-stock notice, preferring the site's own wording.
+/// Out-of-stock, off-the-clock or low-stock notice, preferring the site's own
+/// wording in all three cases.
 class _StockBadge extends StatelessWidget {
   const _StockBadge({required this.product, required this.lowStock});
 
@@ -584,9 +590,15 @@ class _StockBadge extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final isOut = !product.isOrderable;
 
-    final label = isOut
-        ? (product.stockText.isNotEmpty ? product.stockText : 'Out of stock')
-        : 'Only $lowStock left';
+    // An orderable dish reaches this badge for one of two reasons: it is
+    // running low, or its hours are about to end. The timed note wins,
+    // because a dish going off the menu at eleven is the more useful warning
+    // and the store wrote the words itself.
+    final label = switch ((isOut, product.timed.note.isNotEmpty)) {
+      (true, _) => product.unavailableReason,
+      (false, true) => product.timed.note,
+      (false, false) => 'Only $lowStock left',
+    };
 
     return Container(
       padding: const EdgeInsets.symmetric(

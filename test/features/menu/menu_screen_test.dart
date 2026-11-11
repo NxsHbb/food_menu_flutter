@@ -62,6 +62,32 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('a dish outside its hours reads as unavailable on its card',
+      (tester) async {
+    await pumpMenu(
+      tester,
+      repository: FakeMenuRepository(
+        productList: [
+          buildProduct(
+            id: 1,
+            name: 'Margherita',
+            timedAvailable: false,
+            timedNote: 'Will be Available: 8:00 am – 11:00 am',
+          ),
+        ],
+      ),
+    );
+
+    // The store's own words take the line a rating would have used, and the
+    // photo dims rather than the card disappearing.
+    expect(find.text('Will be Available: 8:00 am – 11:00 am'), findsOneWidget);
+    expect(find.text('No reviews yet'), findsNothing);
+    expect(find.byType(DishCard), findsOneWidget);
+
+    final dimmed = tester.widgetList<Opacity>(find.byType(Opacity));
+    expect(dimmed.any((o) => o.opacity < 1), isTrue);
+  });
+
   testWidgets('renders a card per dish', (tester) async {
     await pumpMenu(
       tester,

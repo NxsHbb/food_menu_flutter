@@ -315,6 +315,37 @@ are entity-escaped on top — an ampersand reaches the app as `&#038;`. Pass
 anything displayed through `plainText()` in `core/util/html_text.dart`; never
 render an API string directly.
 
+### Timed dishes
+The plugin's own rules — "breakfast until eleven", "off the menu on Mondays"
+— reach the app as a `timed` block on the Store API product payload's
+`food-menu-pro` extension (task 8.3):
+
+```json
+"timed": {
+  "available": false,
+  "behavior": "disable",
+  "note": "Will be Available: 8:00 am – 11:00 am"
+}
+```
+
+- **`available` is the same answer the storefront enforces.** It comes from
+  the resolver `woocommerce_is_purchasable` uses, so a dish the app offers is
+  a dish the server will accept.
+- **`behavior` is the store's choice, reported not applied.** `disable` means
+  draw it unorderable; `disappear` means take it off the menu. The app does
+  the hiding, in `MenuRepository`, because the rules are not a taxonomy the
+  Store API can filter on — so **a page of twenty can arrive as nineteen**.
+- **`note` is the store's own words**, already translated and in its own date
+  and time formats, and **empty when there is nothing to say** — which covers
+  every dish no rule touches. Never compose this text in Dart.
+- A variation carries its parent's block: rules are written against products
+  and categories, never variations.
+- `Product.isOrderable` folds it in beside stock, so every screen that already
+  respected a sold-out dish respects the clock for free.
+  `Product.unavailableReason` picks the words, stock first.
+- Absent on an older plugin, which reads as always available rather than as an
+  empty menu.
+
 ### Product add-ons
 `GET fmp/v1/app/products/{id}/addons` (task 4.1). The Flutter side is task 4.4.
 
