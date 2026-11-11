@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Task 8.1 — Variable dishes
-Branch `feat/variations`, PR #TBD. 20 new tests, 805 in total. **App-only, no
+Branch `feat/variations`, PR #53. 20 new tests, 805 in total. **App-only, no
 plugin change** — but it needed the dev site's demo data fixed first.
 
 **Still not run on a device.** The OnePlus is locked and in airplane mode, as
