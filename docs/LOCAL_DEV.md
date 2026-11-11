@@ -86,6 +86,14 @@ Pro features.
   Margherita to both and Build Your Pizza to Uptown. The settings option was
   backed up to JSON and diffed clean afterwards, the terms deleted and all 18
   products are visible again. Nothing from it remains.
+- **Five Order Extra Fields seeded for task 8.2**, in
+  `fmp_order_custom_fields`: a required text ("Apartment / buzzer"), a single
+  select ("How did you hear about us?"), a multi-select ("Allergies"), and
+  **two deliberately unusable** — one with no label and one select with no
+  options — so the route's dropping of them is exercised against real data.
+  Kept: without them the app's Additional information section has nothing to
+  draw. They render on the site's own checkout too, which is what a store
+  with extra fields looks like.
 - **Build Your Pizza's variations were repaired for task 8.1.** All three
   sizes had **empty** attribute values, which WooCommerce reads as "any" —
   three variations matching every size at three different prices — and the

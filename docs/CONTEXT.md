@@ -952,6 +952,29 @@ Store API sends no default attributes to seed from.
 
 `FINDINGS.md` has the payload's shape and the demo-data trap behind it.
 
+### The store's own checkout fields
+`GET fmp/v1/app/checkout-fields` (task 8.2, food-menu-pro#28). A store defines
+its own checkout questions — "Apartment / buzzer", "Allergies" — each a text
+input or a select, optionally required, optionally multi-select.
+
+- **The key is the field's position**, published rather than derived, because
+  that is what the website writes and what the admin order screen and the
+  slips read back. `FINDINGS.md` has what that costs when fields are
+  reordered.
+- **The section is absent, not empty**, when a store has defined none, has the
+  section switched off, or the route fails. `checkoutFieldsProvider` resolves
+  a failure to no fields, as the add-ons provider does — a checkout that will
+  not draw because an optional section could not load is worse than one
+  without it.
+- **Required answers go through the screen's own `Form`**, so they error in
+  the same pass as the name and the phone. A select joins it as a
+  `FormField`, since it is not a text input.
+- **The answers live in `CheckoutDetails`**, with everything else a refused
+  order hands back untouched.
+- **An unanswered field is left out of the payload**, not sent empty: the
+  plugin stores only non-empty answers, and a blank would write meta the slips
+  would then print.
+
 ### Order history
 `GET fmp/v1/app/orders` (task 7.1, food-menu-pro#24). Paged as a **bare array
 with `X-WP-Total` / `X-WP-TotalPages`**, which is what `ApiClient.getPaged`

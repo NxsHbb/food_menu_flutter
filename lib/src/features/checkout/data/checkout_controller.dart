@@ -8,8 +8,10 @@ import '../../cart/data/cart_controller.dart';
 import '../../fulfilment/data/fulfilment_controller.dart';
 import '../../fulfilment/domain/order_types.dart';
 import '../domain/checkout_contact.dart';
+import '../domain/checkout_field.dart';
 import '../domain/order_draft.dart';
 import '../domain/payment_method.dart';
+import 'checkout_repository.dart';
 import 'payment_repository.dart';
 
 /// What the customer has typed or chosen on the checkout screen.
@@ -27,6 +29,7 @@ class CheckoutDetails {
     this.name,
     this.phone,
     this.note = '',
+    this.answers = const CheckoutFieldAnswers(),
     this.addressId,
     this.paymentMethodId,
   });
@@ -36,6 +39,10 @@ class CheckoutDetails {
 
   /// "Gate code, cutlery…" — always the customer's, never prefilled.
   final String note;
+
+  /// What the customer answered to the store's own checkout questions. Kept
+  /// here with everything else a refused order has to hand back untouched.
+  final CheckoutFieldAnswers answers;
 
   /// Which saved address this order goes to, or null to follow the book's
   /// default. **An id, not the address**, so an edit to that address is
@@ -50,6 +57,7 @@ class CheckoutDetails {
     String? name,
     String? phone,
     String? note,
+    CheckoutFieldAnswers? answers,
     String? addressId,
     String? paymentMethodId,
   }) {
@@ -57,6 +65,7 @@ class CheckoutDetails {
       name: name ?? this.name,
       phone: phone ?? this.phone,
       note: note ?? this.note,
+      answers: answers ?? this.answers,
       addressId: addressId ?? this.addressId,
       paymentMethodId: paymentMethodId ?? this.paymentMethodId,
     );
@@ -68,12 +77,13 @@ class CheckoutDetails {
       other.name == name &&
       other.phone == phone &&
       other.note == note &&
+      other.answers == answers &&
       other.addressId == addressId &&
       other.paymentMethodId == paymentMethodId;
 
   @override
   int get hashCode =>
-      Object.hash(name, phone, note, addressId, paymentMethodId);
+      Object.hash(name, phone, note, answers, addressId, paymentMethodId);
 }
 
 class CheckoutController extends Notifier<CheckoutDetails> {
@@ -85,6 +95,9 @@ class CheckoutController extends Notifier<CheckoutDetails> {
   void setPhone(String phone) => state = state.copyWith(phone: phone);
 
   void setNote(String note) => state = state.copyWith(note: note);
+
+  void answer(CheckoutFieldAnswers answers) =>
+      state = state.copyWith(answers: answers);
 
   void chooseAddress(String addressId) =>
       state = state.copyWith(addressId: addressId);
@@ -270,6 +283,10 @@ final checkoutReadinessProvider = Provider<CheckoutReadiness>((ref) {
       contact: contact,
       email: session.user.email,
       note: ref.watch(checkoutControllerProvider).note,
+      // Both halves: the answers hold the values, the definitions decide
+      // which key takes a list and which a string.
+      fields: ref.watch(checkoutFieldsProvider).value ?? const [],
+      answers: ref.watch(checkoutControllerProvider).answers,
       type: type,
       // The server's own strings for both, never composed here.
       dateValue: slots.dateValue,

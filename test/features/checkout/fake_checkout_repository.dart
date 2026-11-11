@@ -2,6 +2,7 @@ export 'package:food_menu/src/features/checkout/domain/order_draft.dart';
 export 'package:food_menu/src/features/checkout/domain/placed_order.dart';
 
 import 'package:food_menu/src/features/checkout/data/checkout_repository.dart';
+import 'package:food_menu/src/features/checkout/domain/checkout_field.dart';
 import 'package:food_menu/src/features/checkout/domain/order_draft.dart';
 import 'package:food_menu/src/features/checkout/domain/placed_order.dart';
 
@@ -44,6 +45,23 @@ class FakeCheckoutRepository implements CheckoutRepository {
     }
 
     return order ?? placedOrder();
+  }
+
+  /// What [fields] answers. Most tests want none — a store that has defined
+  /// no checkout questions, which is the common case.
+  List<CheckoutField> fieldsAnswer = const [];
+
+  /// Thrown by the next [fields], then cleared.
+  Object? failNextFields;
+
+  @override
+  Future<List<CheckoutField>> fields() async {
+    final failure = failNextFields;
+    if (failure != null) {
+      failNextFields = null;
+      throw failure;
+    }
+    return fieldsAnswer;
   }
 }
 
