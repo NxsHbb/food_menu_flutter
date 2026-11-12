@@ -194,7 +194,7 @@ the order does not record that it was.
 | 9.2 | **No discount badge.** `fmp_discount_badge_display` drives the website's "x% off" badge, injected into price HTML; the app has no equivalent. Follows 9.1's payload, and finally gives the design's coupon banner something true to say | pro + app | done |
 | 9.3 | **An app order was charged more than the customer agreed to.** The plan had this as a missing *note*: the total drops and nothing says why. The truth was the reverse and far worse — the fixed discount is applied to the cart and **lost when the order is created**, because the Store API calls `$order->calculate_totals()` while the classic checkout copies `WC()->cart->get_total( 'edit' )`. Measured: cart quoted $122.00, order created at $125.00, **not refused** — `expected_total` compares against the cart, which was correctly discounted. Cash on delivery then collects the larger figure. Pro now carries the quoted total onto the order and writes `fmp_discount_off` where the website reads it. **Gated on a new `X-FMP-App` header**, because the website's own block checkout has the identical bug and fixing it for everyone would change what live stores charge — so this is `pro + app`, not `pro`. See `FINDINGS.md` | pro + app | done |
 | 9.4 | **Tips.** `enable_tip`, `allow_tip_for` and `fmp_checkout_show_tips` are a customer **input** on the website's checkout, not server-side arithmetic as this plan assumed. Needs the configured amounts and scope published, and a tip row on the checkout that writes to the cart | pro + app | todo |
-| 9.5 | **Special Menu.** `fmp_special_menus` and `fmp_menu_offer` are the plugin's own promo data — chosen dishes, offer text, a duration — and the app's banner carousel reads WordPress posts instead. Needs the special menu published and drawn, which also gives a banner a tap target and closes the open question 2.5 left | pro + app | todo |
+| 9.5 | **Special Menu.** `fmp_special_menus` and `fmp_menu_offer` are the plugin's own promo data — chosen dishes, offer text, a duration — and the app's banner carousel read WordPress posts instead. `GET /app/special-menu` publishes it, **scoped to the branch**, which the website's own popup is not. The carousel draws one banner per chosen dish: the offer is the badge, the dish is the title, and tapping opens it — which **closes the tap-target question 2.5 left**. Posts stay as the fallback, so a store with no promotion keeps the carousel it had and an older plugin's 404 costs nothing. Drawn as the carousel rather than the website's modal, because the design already has the band and a promotion that does not block the customer is the better of the two | pro + app | done |
 
 ## Phase 10 — Settings, reviews and notifications
 Features the website has and the app does not, **none of which stops an order
@@ -277,7 +277,8 @@ the shape of each one is worth not repeating.
 - **Banners were planned around plugin code rather than with it.** 2.5 chose
   `wp/v2/posts` to avoid touching the plugin, then needed plugin code anyway
   for a tap target, and bypassed the Special Menu feature the plugin already
-  had. *Owned by 9.5.*
+  had. *Corrected by 9.5*, which made the Special Menu the source and left
+  posts as the fallback — 2.5's work is the lesser path now, not wasted.
 - **Dine-in's exclusion was never costed.** Dropping it because the design has
   no screen for it is a fair call; what was never recorded is what the app does
   on a store that enables **only** dine-in — it offers no order type at all.
@@ -331,9 +332,9 @@ has to do is say so before the cart, which is Phase 9.
   made the app say so rather than fail silently, but a production store still
   needs one the app can complete. Phase 12 widens that to bank transfer,
   cheque and the redirect gateways. To be confirmed.
-- ~~**Banner tap targets**~~ **Scheduled** as task 9.5, which draws the
-  plugin's own Special Menu instead of inventing a meta field for a WordPress
-  post.
+- ~~**Banner tap targets**~~ **Resolved** in task 9.5. A Special Menu banner
+  carries its dish and opens it; a banner built from a WordPress post still
+  opens the full menu, which is the most a post can honestly promise.
 - ~~**The design's coupon banner** ("10% off / SAVE10") cannot be reproduced as
   drawn, because coupons are v2.~~ Still true of the *code*, but task 9.2 gives
   the badge a real discount to name.

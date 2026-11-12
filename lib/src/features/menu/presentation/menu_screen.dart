@@ -100,7 +100,23 @@ class MenuScreen extends ConsumerWidget {
                     padding: const EdgeInsets.only(top: AppTokens.space16),
                     child: BannerCarousel(
                       banners: value,
-                      onTap: (_) => context.goNamed(MenuListScreen.routeName),
+                      // A Special Menu banner knows its dish and opens it
+                      // (task 9.5). One built from a WordPress post does
+                      // not, and opening the full menu is the most a post
+                      // can honestly promise.
+                      onTap: (banner) {
+                        final productId = banner.productId;
+
+                        if (productId == null) {
+                          context.goNamed(MenuListScreen.routeName);
+                          return;
+                        }
+
+                        context.pushNamed(
+                          ProductDetailScreen.routeName,
+                          pathParameters: {'id': '$productId'},
+                        );
+                      },
                     ),
                   ),
                   _ => const SizedBox.shrink(),

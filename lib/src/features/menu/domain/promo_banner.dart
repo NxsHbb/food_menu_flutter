@@ -10,10 +10,13 @@ import '../../../core/util/html_text.dart';
 /// - **featured image** → [imageUrl]
 /// - first post **tag** → [badge], e.g. "New" or "Offer"
 ///
-/// What a banner cannot yet carry is a tap target of its own. `wp/v2/posts`
-/// only exposes registered meta, and registering a field needs plugin code,
-/// so every banner currently opens the full menu. Adding a per-banner target
-/// is a small follow-up: one `register_post_meta` call plus a field here.
+/// **Or from the plugin's own Special Menu** (task 9.5), which is the better
+/// source and the one that wins when a store has configured it: it carries
+/// chosen dishes, offer text and a schedule that expires itself, and each
+/// banner gets a real tap target in [productId]. A WordPress post cannot —
+/// `wp/v2/posts` exposes only registered meta, and registering a field needs
+/// plugin code, which is the whole reason the Special Menu was the right
+/// place to start.
 class PromoBanner {
   const PromoBanner({
     required this.id,
@@ -21,6 +24,7 @@ class PromoBanner {
     required this.subtitle,
     this.imageUrl,
     this.badge,
+    this.productId,
   });
 
   /// Reads one `wp/v2/posts` entry fetched with
@@ -72,8 +76,16 @@ class PromoBanner {
   final String subtitle;
   final String? imageUrl;
 
-  /// Short label, from the post's first tag. Often null.
+  /// Short label — the post's first tag, or the Special Menu's offer text.
+  /// Often null.
   final String? badge;
+
+  /// The dish this banner leads to, when it has one.
+  ///
+  /// Null for a banner built from a WordPress post, which has no way to name
+  /// a dish. Those still open the full menu, which is the most a post can
+  /// honestly promise.
+  final int? productId;
 
   /// A banner with neither artwork nor a title has nothing to show.
   bool get isRenderable => title.isNotEmpty || imageUrl != null;
