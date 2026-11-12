@@ -117,6 +117,18 @@ Pro features.
   nothing about delivery pricing could be exercised. **It changes delivery
   totals** — a delivery order now costs $4.95 more than the dishes — which is
   what a real store looks like. `cart_with_shipping.json` is captured from it.
+- **A Special Menu, kept, for task 9.5.** "Weekend Specials", offer
+  `20% off`, duration "Friday to Sunday only", running until
+  `fmp_menu_popup_duration: 2027-06-30`, over four dishes: *Double Smash*,
+  *Tiramisu*, *Lamb Biryani* and *Build Your Pizza*. Before it the store had
+  none, so the app fell back to the two WordPress banner posts and 9.5 was
+  unexercisable.
+
+  **It replaces the banner carousel's contents**: the landing screen now shows
+  four promotion banners instead of the two posts. The posts are still there
+  and still used — set `fmp_menu_popup_duration` to a past date to see the
+  fallback.
+
 - **A fixed cart discount, kept, for task 9.3.** `fmp_fixed_discount: 3` off
   orders of `fmp_fixed_order_amount: 25` or more. Before it the store had none
   and the whole of 9.3 was unexercisable. **It only bites over $25**, which is

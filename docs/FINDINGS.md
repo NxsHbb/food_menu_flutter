@@ -23,6 +23,46 @@ class of bug on the order screen; this is the menu's copy of it.
 **Fixed in task 9.2**, which was editing this widget anyway to add the
 discount badge. One `plainText()` call and three widget tests.
 
+## The promotion's schedule is its only switch
+`fmp_menu_popup_duration` is an **end date**, and there is no enable flag
+beside it: `SpecialMenu::render_special_menu_popup()` returns early when it is
+empty or in the past. So a promotion runs itself and expires itself, and
+"is it on" is a question about today's date.
+
+The route reads it exactly that way rather than inventing an `enabled` setting
+the admin screen does not have. It answers one `active` boolean instead of the
+ingredients, because the question is really three — an end date, today, and
+whether anything survived the branch filter — and a client asking them again
+is how the two come to disagree.
+
+### Scoped to the branch, which the website's popup is not
+The chosen dishes are a settings **array**, not a query, so nothing filters
+them. On the website that is only a cosmetic oddity. In the app it would be a
+banner leading to a dish the customer's branch cannot make, so
+`AppBranchScope::unserved()` — the free plugin's own rule, already shared with
+the menu and the cart guard — is applied here too.
+
+That is also why `active` can be false while `dishes` is non-empty on the
+website's reading: the promotion is running, and nothing on it is available
+*here*.
+
+### Drawn as the carousel, not as the modal
+The website interrupts with a popup. The design already has a banner band on
+the landing screen, and a promotion that reaches the customer without blocking
+them is the better of the two — so `fmp_menu_preset`,
+`fmp_menu_close_behavior` and the modal's colour settings are read by nothing
+in the app. They describe a modal this app does not have, and saying so is
+better than pretending they were overlooked.
+
+### Posts stay, as the lesser path
+Task 2.5 built the carousel from WordPress posts to avoid touching the plugin,
+then needed plugin code anyway for a tap target. The Special Menu now wins
+where a store runs one, and posts remain the fallback for three reasons: a
+store may already have published into that category, a post is still the only
+way to run a banner that is not about one dish, and a store on an **older
+plugin** gets a 404 from the new route — which must not cost it the carousel
+it already had.
+
 ## The fixed discount is lost when a Store API order is created
 Task 9.3 was planned as a missing explanation: the total drops and nothing
 says why. The reverse is true, and it is a good deal worse.

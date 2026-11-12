@@ -2,6 +2,40 @@
 
 Newest first. One entry per completed task.
 
+## Task 9.5 — The banners are the store's own promotion
+Branch `feat/special-menu`, PR #67. **App + Pro**. 12 new tests, 897 in total.
+
+### What landed
+`GET /app/special-menu` publishes the plugin's Special Menu — title, offer,
+duration, end date, button and chosen dishes — and the carousel draws one
+banner per dish: the offer is the badge, the dish is the title, the store's
+own words about when it runs are the line underneath, and **tapping opens the
+dish**. That closes the tap-target question task 2.5 left open.
+
+On the OnePlus: **20% OFF / Double Smash / Friday to Sunday only** over the
+dish's photo, four dots for four dishes, and a tap lands on Double Smash.
+
+### Three things worth not re-learning
+In `FINDINGS.md`:
+
+- **The schedule is the only switch.** `fmp_menu_popup_duration` is an end
+  date and there is no enable flag beside it. The route answers one `active`
+  boolean rather than the ingredients, because the question is three — an end
+  date, today, and whether anything survived the branch filter.
+- **Scoped to the branch, which the website's popup is not.** The chosen
+  dishes are a settings array, not a query, so nothing filters them; on a
+  multi-branch store that would be a banner leading to a dish the branch
+  cannot make.
+- **Drawn as the carousel, not the modal.** `fmp_menu_preset`,
+  `fmp_menu_close_behavior` and the modal's colours are read by nothing here.
+  They describe a modal this app does not have.
+
+### Posts stay, as the lesser path
+2.5's WordPress-post banners remain the fallback: a store may already have
+published into that category, a post is still the only way to run a banner
+that is not about one dish, and a store on an **older plugin** gets a 404 from
+the new route — which must not cost it the carousel it already had.
+
 ## Task 9.3 — An app order charges what the customer agreed to
 Branch `fix/order-discount`, PR #66. **App + Pro**, not `pro` as planned.
 3 new tests, 885 in total.
