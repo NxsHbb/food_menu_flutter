@@ -2,6 +2,139 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## A slot is guarded three times, and never for the app
+
+The store's slot rules are enforced in `PickupDelivery::init()`, gated by
+`fmp_enable_order_slot_limits`:
+
+| Guard | Hook | Fires for an app order? |
+|---|---|---|
+| The slot itself — open day, not past, within schedule | `woocommerce_checkout_process` | No |
+| Per-product cap, at order creation | `woocommerce_checkout_create_order` | No |
+| Per-product cap, on the cart | `woocommerce_check_cart_items` | Yes, but reads nothing |
+
+The first two are fired by `WC_Checkout` and by nothing else — confirmed in
+WooCommerce's own source, `includes/class-wc-checkout.php:487` and `:1392`.
+The Store API has no equivalent and never calls them, so for an app order
+those two functions are dead code.
+
+The third one *does* fire. `StoreApi\Utilities\CartController::validate_cart()`
+calls it and then runs `NoticeHandler::convert_notices_to_wp_errors()`, so a
+`wc_add_notice` raised inside it comes back as a 409. The wiring the fix needs
+is already there.
+
+What kills it is one function. `PickupDelivery::get_selected_slot()` reads:
+
+```php
+$_POST['fmp_order_time_type']
+$_POST["fmp_{$order_type}_date"]
+$_POST["fmp_{$order_type}_time"]
+$_COOKIE['fmp_location_id']
+```
+
+An app request carries the order type and the slot in the checkout body, under
+`extensions['food-menu-pro']`, and the branch in `X-FMP-Branch`. None of it
+lands in `$_POST` or in a cookie. So `$slot['date']` is empty,
+`check_product_limits()` returns `[]` on its first line, and all three callers
+report success.
+
+**The app's own protection is read-time only.** `SlotsApi::product_caps()`
+reads `_fmp_order_limit_per_slot` and `shape_slot()` marks a slot full while
+the list is being built. That is correct at the moment of the request and
+never again — it is the slot list telling the truth, not the order being
+refused. Between the list and the tap, the slot can fill, the cap can be
+taken, the time can pass.
+
+This is the third time the same shape has cost us something: 5.5 (the menu
+query), 8.6 (shipping), now this. The tell each time is a *rule* that lives in
+a hook rather than in a setting, which is why neither the vendor-feature pass
+nor the settings pass found it.
+
+### Where to enforce it
+
+`woocommerce_store_api_checkout_update_order_from_request`. Pro already handles
+it — that is where the slot meta is saved from the extensions — so the request
+is in hand. It fires from `CheckoutTrait::update_order_from_request()`, which
+runs **before payment**: the comment on the next hook along,
+`woocommerce_store_api_checkout_order_processed`, says so outright ("The action
+runs before payment is processed"). So a refusal there costs the customer
+nothing.
+
+Gated on `X-FMP-App`, for 9.3's reason: the website's block checkout goes
+through the same route and has the same hole, and closing it for everyone would
+change what live stores accept.
+
+## The app writes its own terms, where the store wrote theirs
+
+`fmp_checkout_terms_text` is a store setting, read by
+`CheckoutFns::get_terms_text()` and rendered on the website's checkout. The app
+does not read it — but it is not blank there either.
+`checkout_screen.dart`'s `_Terms` widget prints:
+
+> By placing your order you agree to our Terms & Conditions and Privacy Policy.
+
+Hard-coded, in the exact spot the setting is for. A missing field shows up as
+an empty space and gets noticed; this shows up as a sentence the store never
+wrote and never agreed to, about an agreement the customer is being asked to
+make. `fmp_checkout_heading_text` and `fmp_checkout_place_order_text` are the
+same group and the same omission, with nothing legal riding on them.
+
+Worth separating from the "the app owns its own look" question. A colour is
+appearance. Terms are content.
+
+## The `show_*` toggles are gated, and the app has no such gate
+
+Every `fmp_checkout_show_*` setting is read through
+`CheckoutFns::get_checkout_settings()`, and each consumer — `show_coupon()`,
+`show_your_location()`, `show_order_type()` — is reached only when
+`is_custom_checkout_active()` is true, which needs `fmp_enable_custom_checkout`
+on *and* a checkout page. They configure the plugin's own checkout template,
+not WooCommerce's.
+
+The app has one checkout and no template modes, so "respect the toggles" does
+not have an obvious meaning. Raised as an open dependency rather than decided
+in passing, because either answer is defensible and the wrong one is only
+visible on a customer's store.
+
+## `allow_order_type_for` is a dead setting
+
+It is rendered (`OptionsPro::generalSettingsPro()`), described to the store
+("Delivery", "Pickup", "Both" or "None"), saved — and read by nothing. Grepping
+both plugins for it, PHP and JS, returns four hits and all four are in
+`OptionsPro.php` itself.
+
+What actually decides availability is the per-type pair, `enable_pickup` and
+`enable_delivery`, which is what `/app/order-types` already reads through
+`AppSchedules::is_enabled()`. So the app is right and the website's own setting
+screen is the misleading one.
+
+It matters for one open question. "A store that enables only dine-in has no
+order type in the app" was written partly around this field; the field cannot
+put a store in that state, because it does nothing. `enable_dinein` alone can.
+
+## What the second plugin audit cleared
+
+Recorded so nobody pays for these twice:
+
+- **Add-on min/max selection.** `AddonsApi` publishes `min_selection` and
+  `max_selection`, `AppCartAddons` validates both server-side, and
+  `product_addons.dart` uses them for the picker's floor and ceiling. The
+  website's `validate_addon_selection_limits()` has no app-side gap.
+- **The checkout extension contract.** Pro's schema declares nine fields;
+  `OrderDraft._extension()` sends all nine, dine-in's three included as empty
+  strings. Complete.
+- **Whether a store asks for a time at all.** `enable_pickup_time` and
+  `enable_delivery_time` are already published as `time_required` on
+  `/app/order-types`.
+- **`fmp_order_exclude_product_types`.** Reads customer-facing, is not:
+  `FnsPro::get_excluded_product_types()` is called only by the inventory
+  dashboard, the kitchen monitor, the reports API and the admin orders list.
+  It scopes *staff views*, not ordering.
+- **`_fmp_is_new` and `_fmp_slot_limit_exempt`.** Both order meta for staff
+  screens, not dish meta. `SlotsApi` already honours the exemption.
+- **Customer order cancellation.** Neither plugin offers it, so its absence
+  from the app is not a parity gap. It would be a new feature, and a decision.
+
 ## `DishCard` is the one surface that does not decode entities
 Found by seeding the dev store with a dish called *Chef’s Slow-Braised Short
 Rib*. The menu grid draws it as **`Chef&#8217;s S…`**.

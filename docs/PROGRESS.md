@@ -2,6 +2,51 @@
 
 Newest first. One entry per completed task.
 
+## Audit — a second pass over both plugins, by hooks rather than features
+Branch `docs/slot-validation-gap`. **Docs only.** No code, no new tests.
+
+Run before starting task 10.1, to check what the app still misses. The first
+two audits (Phase 8, Phase 9) walked the vendor's feature list and the settings
+screens. This one diffed every `add_filter`/`add_action` on a WooCommerce hook
+in either plugin against what the Store API actually fires.
+
+### What it found
+**One ordering defect, now task 8.9.** An app order's time slot is never
+validated when it is placed. The website guards a slot three times; two of
+those hooks are fired by `WC_Checkout` and by nothing else, and the third reads
+`$_POST` and a cookie, which a JSON request from a token client does not carry.
+The app's only protection is `SlotsApi` marking a slot full while it builds the
+list — true at that moment and never again. **Phase 8 is reopened** for it.
+
+**Three checkout texts, folded into task 10.2.** `fmp_checkout_terms_text`,
+`fmp_checkout_heading_text` and `fmp_checkout_place_order_text`. The terms one
+is the sharp case: the app already prints its own sentence in that exact spot,
+so this is not a blank waiting to be filled.
+
+**One question to settle before 10.2**, now an open dependency: on the website
+every `fmp_checkout_show_*` toggle does nothing unless
+`fmp_enable_custom_checkout` is on. The app has no such mode, so "respect the
+toggles" needs a decision either way.
+
+**One dead setting.** `allow_order_type_for` is rendered, described and saved,
+and read by nothing in either plugin. The per-type `enable_pickup` /
+`enable_delivery` pair is what works, and `/app/order-types` already reads it.
+
+### What it cleared
+Add-on min/max selection, the nine-field checkout extension contract,
+`time_required`, `fmp_order_exclude_product_types`, `_fmp_is_new`,
+`_fmp_slot_limit_exempt` and customer order cancellation — all either already
+handled or not customer-facing. Listed in `FINDINGS.md` so they are not paid
+for twice.
+
+### The lesson, in `CONTEXT.md` and `PLAN.md`
+A feature audit finds anything a store can *configure* and the app ignores.
+It does not find a rule that has no setting of its own: slot validation is
+three `add_action` calls and no field, which is how it survived two passes.
+`CONTEXT.md` now carries the table of which WooCommerce hooks run for this app
+and which are classic-only, because that is the fact both 8.6 and 8.9 turned
+on.
+
 ## Task 9.4 — The customer can leave a tip
 Branch `feat/tips`, PR #68. **App + Pro**. 16 new tests, 913 in total.
 **Phase 9 is complete.**
