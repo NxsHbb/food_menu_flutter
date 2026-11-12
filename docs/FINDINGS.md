@@ -268,6 +268,104 @@ sniffing, no `is_rest` check, nothing to get wrong later. The meta is
 underscore-prefixed and added to `woocommerce_hidden_order_itemmeta`, so it
 reaches no order page, email or slip.
 
+## Every line of the vendor list, against the plan
+The section below settles whether `FEATURES-FROM-DEVELOPER.md` is *accurate*.
+This one settles whether the plan **covers** it: all 39 sections walked against
+`PLAN.md` and `PROGRESS.md` on 2026-11-12, so "checked line by line" is
+auditable rather than asserted.
+
+**Nothing new is missing from the ordering path.** Phase 8 found those, and a
+second walk found no more. The three gaps this one did turn up are all
+presentation, which is the result worth keeping — see the end.
+
+Verdicts used below:
+
+- **Done** — shipped; the owning task is in brackets
+- **Scheduled** — a `todo` task owns it
+- **Server-side** — works for an app order with no app code; the app neither
+  helps nor hinders
+- **v1 exclusion** / **v2** — deliberate, per `PLAN.md`
+- **Website-only** — can have no app counterpart: shortcodes, layouts, page
+  builders, wp-admin
+- **App-owned** — the app decides this for itself and does not read the
+  store's setting
+- **Gap** — real, and no task owns it
+
+### Free — 15 sections
+| § | Section | Verdict |
+|---|---|---|
+| 1 | Two Data Sources, One Menu | **Done, with one gate missing.** WooCommerce mode is the app's whole premise [2.1–2.3] and categories are WooCommerce's `product_cat` [2.1]. A site in `food_menu_post` mode has no Store API and no `fmp/v1/app` routes, and the app does not yet say so — 8.7, scheduled. Menu slug and the admin screens are website-only |
+| 2 | Layout Library That Sells Food | **Website-only.** Layout families, isotope, masonry, responsive columns and numbered paging are shortcode rendering. The app's counterparts are its own: category filter and paging [2.2], design system [1.3] |
+| 3 | Shortcode Generator | **Website-only.** An app has no shortcodes — the same reason §5.4 is not a gap |
+| 4 | Works With Your Page Builder | **Website-only.** Gutenberg, Elementor, WPBakery |
+| 5 | Detail Page Control | **Scheduled.** The eight `hide_*` toggles are 10.1. The two colour controls are **app-owned** [1.3]. "Per-item overrides" are per *shortcode*, not per dish |
+| 6 | Food Location & Multi-Branch | **Done.** Branch list [5.3], menu scoped by `X-FMP-Branch` [5.5], branch on the order [6.2], cart revalidated at the switch [6.6]. The floating location button is website UI; the app has its own selector [5.5]. `fmp_checkout_show_location` is 10.2 |
+| 7 | Online Ordering with WooCommerce | **Done.** AJAX add-to-cart [4.5, 4.6], stock and availability [2.3, 8.1, 8.3]. "Blocks support" is **load-bearing rather than irrelevant**: the Store API *is* the Blocks API, so every app read and write rides the route the block cart uses — including its looser required-field behaviour [8.2]. Gateways: cash on delivery [6.3], the rest Phase 12 |
+| 8 | Floating Mini Cart | **Done / app-owned.** The app has its own mini cart [4.6], with add-on and fee lines [4.3] and its own empty state [4.5]. Drawer side, opening behaviour, overlay, CSS-class binding, page exclusions and theming are website settings with no app meaning. The coupon form is **v2** |
+| 9 | Table Reservation (now Free) | **v1 exclusion** — and the one worth re-making deliberately, per the section below |
+| 10 | Tips & Gratuity (now Free) | **Scheduled** — 9.4 |
+| 11 | Automatic Discounts (now Free) | **Partly done.** The cart already charges the discounted price [4.3]. Saying so on the menu is 9.1, the badge 9.2, recording it on the order 9.3 |
+| 12 | Special Menu Popup (now Free) | **Scheduled** — 9.5, which also gives the banner carousel a real tap target |
+| 13 | Currency, Pricing & Formatting | **Done.** `Money` holds minor units and formats from the Store API's own currency block — separators, decimal places, prefix and suffix [1.4]. The plugin's own currency settings are dead in the mode the app needs: `Fns::getCurrency()` only labels admin fields and prices the post type, and `trailing_zeroes` is guarded by `! has_pro()` while the app requires Pro. WooCommerce mode formats through `wc_price`, which is what the Store API reports |
+| 14 | Branding & Experience | **App-owned.** `primary_color` and `company_logo` are never read; the app's theme is 1.3. The preloader and the React settings panel are website and wp-admin. See the end |
+| 15 | Built for Real Sites | **Server-side, bar one.** HPOS is safe: the `fmp/v1/app` routes use WC CRUD, and their only `get_post_meta` calls are on **products**, which are still posts. Performance, upgrades and docs are the server's. **Translation is a gap** — see the end |
+
+### Pro — 24 sections
+| § | Section | Verdict |
+|---|---|---|
+| 1 | Premium Layout Library | **Website-only.** 20+ layouts, detail popups, AJAX pagination and Elementor widgets are all shortcode rendering |
+| 2 | Rich Menu Item Data | **Done, bar one.** Variable pricing [8.1], regular and sale price [2.3], ingredients and nutrition [2.7], food tags [2.4]. Reviews are star and count only; the list and leaving one is 10.3 |
+| 3 | Product Add-ons | **Done, all seven.** Groups and field types [4.1], server-side validation [4.2], price impact [4.3], and the quick-add gate via `requires_choices` [4.7]. §3.7 "carried through" holds for an **app** order too: `AppCartAddons` writes the website's own `fmp_addons` cart shape, so `FrontendCartAction::display_checkout_order_line_item` fires on a Store API order and the selection reaches the admin order, the emails and every slip. The separate `_fmp_addon_selection` [7.4] is the one that stays hidden, on purpose |
+| 4 | QR Code Table Ordering | **v1 exclusion** — moot without dine-in |
+| 5 | Pickup, Delivery & Dine In | **Done, minus dine-in.** Pickup and delivery with their own schedules [5.1, 5.4], date and time [8.4], closed days and holidays [5.2], pre-order window [8.4], per-branch overrides [5.3], order type on every surface [6.2]. Dine-in and its table list are the exclusion — and a store running **only** dine-in still has no order type in the app, which is an open dependency rather than a task. §5.6's "5 minutes" does not hold |
+| 6 | Time Slot Order Limits | **Done.** Pickup and delivery caps and the statuses that count [5.2], per-branch overrides [5.3]. Of the three enforcement gates the app uses the API one, and checkout refuses a full slot regardless [6.2]. Dine-in caps follow dine-in |
+| 7 | Timed Products | **Done** — 8.3 publishes availability and the menu honours `fmp_timed_products_behavior`. `TimedProducts::unavailable_at()` answers both it and 5.2 |
+| 8 | Custom Order Statuses | **Done, bar the icon.** Unlimited statuses land in Active unasked [7.1], the colour draws the pill [7.2], and the drag-sorted pipeline builds the tracking stages [7.3]. Per-status email, SMS and WhatsApp are **server-side**. The per-status **icon** is a gap — see the end |
+| 9 | Order Timeline & Customer Tracking | **Done, by a different route.** `/app/orders/{id}/tracking` rather than the public page [7.3]. §9.3 and §9.4 are two of the four claims that do not hold. The tracking page's own title and notes are website surface; new-order flagging is wp-admin |
+| 10 | Order Bumps | **v2** — upsells, the cart's cross-sell carousel |
+| 11 | Custom Checkout | **App-owned / scheduled.** The app's checkout is native and single-screen by design [6.1]; layout options, the custom heading and the Place Order text are website settings it does not read. Section-level visibility is 10.2 |
+| 12 | Checkout Extra Fields | **Done** — 8.2, keyed by position because that is the website's own convention. Required is validated in the app's own `Form` only: the Store API accepts a missing one exactly as the block checkout does, raised as an open dependency instead of committed |
+| 13 | Visual Table Reservation & Layout Designer | **v1 exclusion** — follows reservations |
+| 14 | Advanced Discounts | **Scheduled.** 9.1–9.3 cover the fixed, scoped and threshold discounts the same way as the free percentage engine — the payload and the order meta are shared |
+| 15 | POS Printing | **v1 exclusion** as a feature — no app prints — but **server-side** in effect: every slip is fed by app order data, and §3.7 above is why the kitchen slip has its add-ons |
+| 16 | SMS & WhatsApp Notifications | **Server-side.** Fires for an app order as for a website one, custom statuses included. The app's own channel is push, 10.4 |
+| 17 | Kitchen Monitor | **v1 exclusion** — staff |
+| 18 | Front-End Staff Dashboard | **v1 exclusion** — staff |
+| 19 | Order Management (Front-End) | **v1 exclusion** — staff |
+| 20 | Inventory Management | **v1 exclusion** as a screen, **server-side** in effect: deduction on sale, restore on cancel or refund, and overselling protection all apply to an app order |
+| 21 | Inventory Reports & Analytics | **v1 exclusion** — staff |
+| 22 | Role Manager | **v1 exclusion** — staff. The app authenticates customers only [3.1] |
+| 23 | Developer & Integration | **Why Phase 3 exists.** §23.1's `fmp/v1` is nonce-gated and unusable from a mobile client, which is the whole reason for the `fmp/v1/app` namespace |
+| 24 | License, Updates & Support | **Website-only** — wp-admin |
+
+### The walk found three gaps, and all three are presentation
+Recorded as open dependencies in `PLAN.md` rather than as tasks, because each
+is a decision before it is work.
+
+- **The app reads none of the store's presentation settings.** `primary_color`,
+  `company_logo`, the detail page's two colour controls, the custom checkout
+  heading and the Place Order button text are all configurable on the website
+  and all ignored. The scheduled exceptions prove the rule: 10.1 and 10.2 are
+  in the plan because their toggles **hide information**, not because they
+  restyle it. So the line is that the app honours the store's *rules* and
+  *data* and owns its own *appearance*. Worth writing down because nobody
+  decided it — it fell out of designing every screen from `All Screens.dc.html`.
+- **The app has no localization layer at all.** No `lib/l10n`, no
+  `flutter_localizations`, no `intl`, no `AppLocalizations` — every string the
+  app owns is hard-coded English. What the *server* sends arrives in the site's
+  language: status labels, checkout field labels, add-on names, error messages.
+  So a translated store already gets a **half-translated app**, which is worse
+  than an obviously English one. Free §15.1 ships POT files and WPML and Loco
+  support; no task owns the app half.
+- **A custom status has an icon, and the app draws only its colour.**
+  `AppOrdersApi::status_color()` and `AppTrackingApi` publish `status_color`
+  and nothing publishes the icon, while Pro §8.2 sells both. The smallest of
+  the three: one payload field and one widget.
+
+None of the three blocks an order, which is why Phase 8's audit did not catch
+them — it looked for orders **the website can take and the app cannot**. These
+are orders the app takes and then draws in its own clothes.
+
 ## What the vendor's own feature list does and does not settle
 `FEATURES-FROM-DEVELOPER.md`, from the plugin developer, lives **outside this
 repo** in the sibling folder `../food menu files/`. It is the master inventory

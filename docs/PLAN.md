@@ -359,3 +359,22 @@ has to do is say so before the cart, which is Phase 9.
   production.
 - ~~**Account security endpoints are missing as a group.**~~ **Agreed and
   scheduled** as tasks 3.10 and 3.11, after coming up in 3.1, 3.2, 3.7 and 3.9.
+- **The app owns its appearance, and that was never decided.** Found by walking
+  the vendor feature list section by section (`FINDINGS.md`). The store's
+  `primary_color`, `company_logo`, the detail page's two colour controls, the
+  custom checkout heading and the Place Order button text are all configurable
+  on the website and none is read by the app. Tasks 10.1 and 10.2 are in the
+  plan because their toggles hide *information*; nothing covers the ones that
+  restyle. Ratify as deliberate — the app honours the store's rules and data
+  and owns its own look — or schedule the ones worth honouring. To be confirmed.
+- **The app has no localization layer, and the server half is already
+  translated.** No `lib/l10n`, no `flutter_localizations`, no `intl`: every
+  string the app owns is hard-coded English, while status labels, checkout
+  field labels, add-on names and error messages arrive in the site's own
+  language. A translated store therefore gets a half-translated app. Free
+  §15.1 ships POT files with WPML and Loco support. Decide whether v1 is
+  English-only by choice. To be confirmed.
+- **A custom order status has an icon the app never draws.** Pro §8.2 sells a
+  colour *and* an icon per status; `AppOrdersApi::status_color()` and
+  `AppTrackingApi` publish only the colour. One payload field and one widget,
+  if it is wanted. To be confirmed.
