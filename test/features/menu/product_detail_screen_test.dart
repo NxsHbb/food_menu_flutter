@@ -527,6 +527,22 @@ void main() {
       expect(find.textContaining('reviews)'), findsNothing);
     });
 
+    testWidgets('the card fills the screen when little is left on it',
+        (tester) async {
+      // Found on the device: with the image and the reviews hidden, the card
+      // carrying the screen's surface colour ended mid-screen and the page
+      // colour showed through to the add bar. A structural assertion rather
+      // than a pixel one — `SliverToBoxAdapter` is what the bug was, and
+      // swapping it back is what the regression would be.
+      await pump(
+        tester,
+        product: withHidden('product_simple', ['image', 'reviews']),
+      );
+
+      expect(find.byType(SliverFillRemaining), findsOneWidget);
+      expect(find.byType(SliverToBoxAdapter), findsOneWidget);
+    });
+
     testWidgets('everything off still renders', (tester) async {
       await pump(
         tester,

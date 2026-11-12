@@ -60,25 +60,29 @@ class _ReviewSheetState extends ConsumerState<ReviewSheet> {
 
   /// The store's own two rules, checked here so the customer is not made to
   /// wait for a round trip to be told what the payload already said.
-  String? get _localProblem {
-    if (_controller.text.trim().isEmpty) return 'Please write your review.';
+  ///
+  /// **Kept apart on purpose.** They are two different fields, and a device
+  /// pass showed what merging them costs: a missing rating was reported under
+  /// the text box, which is not where it is fixed.
+  String? get _wordsProblem =>
+      _controller.text.trim().isEmpty ? 'Please write your review.' : null;
 
-    if (widget.policy.ratingEnabled &&
-        widget.policy.ratingRequired &&
-        _rating < 1) {
-      return 'Please rate the dish from 1 to 5.';
+  String? get _ratingProblem {
+    if (!widget.policy.ratingEnabled || !widget.policy.ratingRequired) {
+      return null;
     }
 
-    return null;
+    return _rating < 1 ? 'Please rate the dish from 1 to 5.' : null;
   }
 
   Future<void> _send() async {
-    final problem = _localProblem;
-
-    if (problem != null) {
+    // **The banner is the server's.** Repeating a field's own message in it
+    // printed the same sentence twice, which a device pass caught and the
+    // tests did not — they asserted `findsWidgets`, which two satisfies.
+    if (_wordsProblem != null || _ratingProblem != null) {
       setState(() {
         _showErrors = true;
-        _error = problem;
+        _error = null;
       });
       return;
     }
@@ -210,6 +214,18 @@ class _ReviewSheetState extends ConsumerState<ReviewSheet> {
                           rating: _rating,
                           onChanged: (value) => setState(() => _rating = value),
                         ),
+                        if (_showErrors && _ratingProblem != null)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: AppTokens.space4,
+                            ),
+                            child: Text(
+                              _ratingProblem!,
+                              style: text.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
                       ],
                       const SizedBox(height: AppTokens.space16),
                       TextField(
@@ -223,7 +239,7 @@ class _ReviewSheetState extends ConsumerState<ReviewSheet> {
                         },
                         decoration: InputDecoration(
                           hintText: 'What did you think of it?',
-                          errorText: _showErrors ? _localProblem : null,
+                          errorText: _showErrors ? _wordsProblem : null,
                         ),
                       ),
                       if (_error case final message?) ...[

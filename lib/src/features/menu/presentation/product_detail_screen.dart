@@ -296,7 +296,15 @@ class _Detail extends StatelessWidget {
           child: CustomScrollView(
             slivers: [
               SliverToBoxAdapter(child: _Hero(product: product)),
-              SliverToBoxAdapter(
+              // **Fills the rest of the viewport, not just its content.**
+              // The card carries the screen's surface colour, so a dish with
+              // little on it — a store that hid the image and the reviews,
+              // or simply a dish with no description — left the card ending
+              // mid-screen and the page colour showing through underneath.
+              // Found on the device; `hasScrollBody: false` still lets it
+              // grow past the viewport and scroll when there is more.
+              SliverFillRemaining(
+                hasScrollBody: false,
                 child: Container(
                   decoration: BoxDecoration(
                     color: palette.card,

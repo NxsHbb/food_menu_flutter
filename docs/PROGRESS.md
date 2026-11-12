@@ -2,6 +2,46 @@
 
 Newest first. One entry per completed task.
 
+## Device pass — 8.9, 10.1 and 10.3 on the OnePlus
+Branch `fix/device-pass-10`, PR #74. **App only.** 2 new tests, 958 in total.
+
+Three tasks had shipped without one, for the same reason each time: the iPhone
+points at the live demo site, which runs the released plugin. With the OnePlus
+attached, all three were run against the dev site.
+
+### What held up
+- **8.9** — picked a 10:00 delivery slot, moved the store's delivery window to
+  12:00 underneath it, tapped Place order. The banner: *"That time is no
+  longer available. Please choose another."* with the refreshed times below
+  and ASAP reselected. **No order placed.**
+- **10.1** — hid `image`, `taxonomy` and `reviews`. The photo went and the
+  close button and heart survived in their own row; the rating line, the
+  review list and *Write a review* all disappeared; price, description and the
+  add bar stayed.
+- **10.3** — the three seeded reviews with their own stars and the store's
+  dates; a five-star review written and submitted; the snackbar read *"Thanks
+  for your review. It will appear once the store has approved it."* and the
+  list correctly did **not** reload. Server side: held for moderation, with
+  `rating=5` on the comment.
+
+Also seen in passing: switching Delivery → Pickup dropped the total from
+$29.77 to $24.82, which is task 8.6 still correct.
+
+### Two defects found, both fixed here
+- **The review form printed the same sentence twice** — once as the field's
+  error, once in the banner — and reported a missing *rating* under the text
+  box. The test had asserted `findsWidgets`, which two satisfies.
+- **The dish card stopped halfway down the screen** once enough was hidden,
+  leaving a black void above the add bar. `SliverToBoxAdapter` takes its
+  child's height; it is now `SliverFillRemaining(hasScrollBody: false)`. Not
+  strictly a 10.1 bug — a dish with no description would always have done it —
+  but 10.1 is what made it easy to reach.
+
+### The lesson, in `FINDINGS.md`
+Both defects were inside code the tests covered. `findsWidgets` is the wrong
+matcher for anything that should appear once, and a layout that depends on
+having enough content needs a case with too little.
+
 ## Task 10.3 — reviews can be read, and left
 Branch `feat/reviews`, PR #73. Plugin half in food-menu-pro#34.
 **App + Pro**, not `app` as the plan had it. 25 new tests, 956 in total.
