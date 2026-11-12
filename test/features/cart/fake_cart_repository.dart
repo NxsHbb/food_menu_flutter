@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:food_menu/src/core/store_api/models/cart.dart';
 import 'package:food_menu/src/core/store_api/models/money.dart';
 import 'package:food_menu/src/features/cart/data/cart_repository.dart';
+import 'package:food_menu/src/features/fulfilment/domain/order_types.dart';
 
 /// A [CartRepository] that answers from memory, so cart tests never touch the
 /// network.
@@ -19,6 +20,11 @@ class FakeCartRepository implements CartRepository {
 
   Cart _cart;
   final Duration delay;
+
+  /// Recorded rather than used: the fake never makes a request, so this is
+  /// only here so a test can assert the cart was built for the right type.
+  @override
+  OrderTypeKind? orderType;
 
   /// Thrown by the next call of any kind, then cleared. Use this for a
   /// failed first read.

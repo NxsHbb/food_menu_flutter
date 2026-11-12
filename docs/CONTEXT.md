@@ -644,6 +644,18 @@ answers the week; this answers one day of it, already judged.
 - **Zero is a real branch id**, meaning store-wide, and is not the same as
   null. The header is only sent above zero, since the server already assumes
   store-wide.
+
+- **The order type travels as a header too, `X-FMP-Order-Type`, but not by an
+  interceptor.** `OrderTypeKind.header`, set by `CartRepository` on all five
+  cart routes and by `CheckoutRepository` from the draft. Pro answers
+  `needs_shipping: false` for a pickup cart, so a collected order is not
+  charged a delivery fee. **The difference from the branch matters**: the
+  branch comes from storage, so an interceptor can await it; the order type
+  comes from the server, and an interceptor that fetched it would call itself.
+  More importantly the fee is *in the response*, so the cart must **depend**
+  on the type — `cartRepositoryProvider` watches `resolvedOrderTypeProvider`
+  and `CartController.build()` watches the repository, which is what makes the
+  total move when the customer switches. See `FINDINGS.md`.
 - **Everything scoped by the branch watches `activeBranchIdProvider`** purely
   as a cache key — the branch rides on a header, so two branches produce
   identical-looking requests with different answers, and without the watch the

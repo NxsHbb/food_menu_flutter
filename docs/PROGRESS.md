@@ -2,6 +2,54 @@
 
 Newest first. One entry per completed task.
 
+## Task 8.6 — A pickup order is no longer charged for delivery
+Branch `fix/pickup-shipping`, PR #60. **App + Pro**, not app-only as planned. 7 new
+tests, 859 in total.
+
+### What landed
+`X-FMP-Order-Type`. Pro's new `AppOrderTypeScope` reads it on Store API routes
+and answers `woocommerce_cart_needs_shipping` false for a pickup cart, which
+zeroes the shipping total and keeps the rate off the order. The app sends it on
+all five cart routes and on checkout, and **re-reads the cart when the type
+changes**, so the total moves on the tap rather than at the next thing that
+happens to touch the cart.
+
+Verified on the OnePlus against the dev store: $13.00 of food, Delivery
+**$17.95**, Pickup **$13.00**, switching live in both directions, with the
+plugin logging `order-type=pickup` / `order-type=delivery` on the cart request
+each tap caused.
+
+### The plan's fix would not have worked
+8.6 said to stop sending `shipping_address` on a pickup order. That changes
+nothing: the fee is on the **cart**, not in the checkout body, and WooCommerce
+prices shipping from the customer's profile anyway — an order sent a
+deliberately empty shipping address came back carrying the profile's. The cart
+had to be told instead, which is a plugin change, which is why this is `app +
+pro`.
+
+### Three things worth not re-learning
+Each is in `FINDINGS.md` with the evidence:
+
+- **The website has the same bug** — no order-type-aware shipping logic exists
+  anywhere in either plugin. Deliberately not fixed, because a filter that
+  applied to web requests would change every existing store's pickup totals on
+  an update. The header is app-only; the website is untouched.
+- **An interceptor was the wrong shape.** The first attempt read the order type
+  from a provider that is itself an HTTP call through that same interceptor:
+  compile-time `top_level_cycle`, then a runtime deadlock with zero requests
+  leaving the app. And even working it would have been invisible, because an
+  interceptor changes the next request without causing one. The fee is in the
+  *response*, so the **cart** needs the dependency, not the transport.
+- **It degrades safely.** On a store running the released Pro — the live demo
+  site — the header is ignored, `needs_shipping` stays true and the pickup fee
+  remains. Today's behaviour, not a failure.
+
+### What was deliberately not done
+The task's own heading, "a pickup order sends a delivery address", is left as
+it is. The address comes from the customer's WooCommerce profile rather than
+the checkout body, so the app cannot withhold it, and the website records one
+on a pickup order too. The charge was the bug.
+
 ## Vendor feature list — coverage walk
 Branch `docs/vendor-feature-coverage`, PR #59. **Docs only**, no code and no plugin
 change. Not a numbered task, like the review in PR #51 it extends.

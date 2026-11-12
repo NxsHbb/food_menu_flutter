@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/store_api/models/cart.dart';
+import '../../fulfilment/data/fulfilment_controller.dart';
+import '../../fulfilment/domain/order_types.dart';
 
 /// The WooCommerce Store API cart.
 ///
@@ -12,13 +14,28 @@ import '../../../core/store_api/models/cart.dart';
 /// All four routes return **the whole cart**, so a mutation never needs a
 /// follow-up read: the response is the new state.
 class CartRepository {
-  const CartRepository(this._client);
+  const CartRepository(this._client, {this.orderType});
 
   final ApiClient _client;
+
+  /// Which way this order is going, or null before the store has said which
+  /// types it offers.
+  ///
+  /// **On every cart request, because every one of them answers with the
+  /// totals.** A pickup cart must not be quoted a delivery fee, and the
+  /// quote is in the response to whatever call was made last — so leaving it
+  /// off `update-item` would put the fee back the moment a quantity changed.
+  final OrderTypeKind? orderType;
+
+  /// Null rather than an empty map when the type is not known yet, so the
+  /// request carries no header at all and the server keeps its own default.
+  Map<String, String>? get _headers =>
+      orderType == null ? null : {OrderTypeKind.header: orderType!.name};
 
   Future<Cart> cart() async {
     final raw = await _client.get<Map<String, dynamic>>(
       _client.storeApi('cart'),
+      headers: _headers,
     );
     return Cart.fromJson(raw);
   }
@@ -48,6 +65,7 @@ class CartRepository {
             'food-menu-pro': {'addons': addons},
           },
       },
+      headers: _headers,
     );
     return Cart.fromJson(raw);
   }
@@ -61,6 +79,7 @@ class CartRepository {
     final raw = await _client.post<Map<String, dynamic>>(
       _client.storeApi('cart/update-item'),
       body: {'key': key, 'quantity': quantity},
+      headers: _headers,
     );
     return Cart.fromJson(raw);
   }
@@ -69,6 +88,7 @@ class CartRepository {
     final raw = await _client.post<Map<String, dynamic>>(
       _client.storeApi('cart/remove-item'),
       body: {'key': key},
+      headers: _headers,
     );
     return Cart.fromJson(raw);
   }
@@ -85,6 +105,7 @@ class CartRepository {
     final raw = await _client.post<Map<String, dynamic>>(
       _client.storeApi('cart/select-shipping-rate'),
       body: {'package_id': packageId, 'rate_id': rateId},
+      headers: _headers,
     );
     return Cart.fromJson(raw);
   }
@@ -100,6 +121,11 @@ class CartRepository {
   }
 }
 
+/// Rebuilt when the order type changes, which is the point: the cart it
+/// hands back is quoted for the way the customer is now having the order.
 final cartRepositoryProvider = Provider<CartRepository>((ref) {
-  return CartRepository(ref.watch(apiClientProvider));
+  return CartRepository(
+    ref.watch(apiClientProvider),
+    orderType: ref.watch(resolvedOrderTypeProvider),
+  );
 });
