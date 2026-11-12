@@ -645,6 +645,16 @@ answers the week; this answers one day of it, already judged.
   null. The header is only sent above zero, since the server already assumes
   store-wide.
 
+- **`X-FMP-App` says the request came from the app, and goes on every one.**
+  `AppIdentityInterceptor`, first in the chain, carrying the app's version.
+  It exists because **the Store API is not the app's private road**: the
+  website's own block cart and checkout speak it too, so "a Store API
+  request" and "an app request" are different things. Any plugin change that
+  must apply to the app and *not* to the website gates on this — task 9.3's
+  order-total correction is the first, and will not be the last. Unlike the
+  branch and order-type headers it carries a fact rather than a choice, so
+  there is nothing to wait for and no cold start where it is absent.
+
 - **The order type travels as a header too, `X-FMP-Order-Type`, but not by an
   interceptor.** `OrderTypeKind.header`, set by `CartRepository` on all five
   cart routes and by `CheckoutRepository` from the draft. Pro answers
