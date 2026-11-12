@@ -2,6 +2,47 @@
 
 Newest first. One entry per completed task.
 
+## Task 11.1 — the error paths, and the one defect under all of them
+Branch `fix/error-paths`, PR #76. **App only.** 5 new tests, 974 in total.
+
+### What the audit found
+The error paths were in better shape than the plan's one-liner assumed: every
+list screen already had an error state, empty states existed everywhere, and
+timeouts were set. `FINDINGS.md` lists what is already done so a future pass
+starts from there.
+
+Underneath all of it was one defect. **A `SocketException` arrived as
+`ApiFailure.unknown`** — dio reserves `connectionError` for a narrow set of
+cases, and a dropped Wi-Fi, a DNS failure, a server that is not running and a
+failed TLS handshake all land in `unknown`. Measured: `retryable=false`,
+message `"Something went wrong."`
+
+So the commonest failure on a phone read as a generic fault **and was offered
+no retry anywhere**, because every surface gates its retry on `isRetryable`.
+One arm in one switch fixed the wording and the retry on every screen at
+once.
+
+### Two dead ends closed
+The paginated **menu list** screen — reached by opening a category or
+searching — showed a cloud icon, a sentence and nothing to tap. So did the
+**dish** screen, which lost the dish the customer had picked. Both now offer
+a retry; the dish screen does not on a 404, where asking again fetches the
+same answer.
+
+### Verified on the OnePlus
+Run against an unreachable host: the menu screen showed *"Could not reach the
+server. Check your connection."* with *"Pull down to try again."*, and the
+menu list screen showed the same sentence with a **Try again** button where
+it previously had nothing. Before this task both would have said "Something
+went wrong."
+
+### No connectivity package, deliberately
+`connectivity_plus` and a persistent offline banner would add a dependency, an
+Android permission for 13.1 to audit, and a new way to be wrong — the plugins
+report a captive portal as connected, so the banner would be missing exactly
+when it is needed. Per-screen truth beats a global claim. In `FINDINGS.md`,
+and worth revisiting only if asked.
+
 ## Task 10.2 — the checkout draws what the store asked for
 Branch `feat/checkout-sections`, PR #75. Plugin half in food-menu-pro#35.
 **App + Pro**. 11 new tests, 969 in total. **Phase 10 is down to push.**

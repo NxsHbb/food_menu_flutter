@@ -251,13 +251,13 @@ class _LoadMoreFooter extends ConsumerWidget {
   }
 }
 
-class _Failure extends StatelessWidget {
+class _Failure extends ConsumerWidget {
   const _Failure({required this.error});
 
   final Object error;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
     final message =
@@ -275,6 +275,16 @@ class _Failure extends StatelessWidget {
               message,
               textAlign: TextAlign.center,
               style: text.bodyLarge?.copyWith(color: palette.muted),
+            ),
+            // **The screen had no way off it.** A dropped connection left a
+            // cloud icon, a sentence and nothing to tap — on the screen a
+            // customer reaches by opening a category or searching, which is
+            // most of the menu. The list rebuilds from its own query, so
+            // invalidating the controller is the whole retry.
+            const SizedBox(height: AppTokens.space16),
+            OutlinedButton(
+              onPressed: () => ref.invalidate(menuListControllerProvider),
+              child: const Text('Try again'),
             ),
           ],
         ),
