@@ -173,7 +173,9 @@ Pro features.
 - **An automatic discount, kept, for Phase 9.** 15% off the **Burgers**
   category (`fmp_include_cat: [18]`, `fmp_discount_percentage: 15`,
   `fmp_applicable_discount: product_total`, `fmp_discount_badge_display:
-  all`). Before it the store had no discount configured at all, so the whole
+  everywhere`). **Corrected during task 9.2** from `all`, which is not one
+  of the two values the plugin tests for and so showed no badge at all —
+  see `FINDINGS.md`. Before it the store had no discount configured at all, so the whole
   of Phase 9 was unexercisable — the same hole task 8.5 found with shipping.
   **It changes menu prices**: the three burgers now read $8.29/$9.75,
   $11.82/$13.90 and $8.93/$10.50, charged over struck. *Crispy Chicken

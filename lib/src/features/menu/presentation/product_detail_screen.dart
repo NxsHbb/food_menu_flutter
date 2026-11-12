@@ -8,6 +8,7 @@ import '../../../core/store_api/models/product.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/util/html_text.dart';
+import 'widgets/discount_badge.dart';
 import '../../../core/widgets/dish_image_placeholder.dart';
 import '../../cart/data/cart_controller.dart';
 import '../../wishlist/presentation/widgets/wishlist_heart.dart';
@@ -509,6 +510,12 @@ class _Body extends StatelessWidget {
                   decoration: TextDecoration.lineThrough,
                 ),
               ),
+            // The store's full phrasing here, where there is room for a
+            // sentence. This is the one place the website shows it by
+            // default, so a store that asked for `product_page` only still
+            // gets its badge.
+            if (product.discount.showOnDetail)
+              DiscountBadge(text: product.discount.label),
           ],
         ),
         // **Or a heads-up while it is still orderable**: "Will be

@@ -163,6 +163,81 @@ class ProductPrices {
   bool get hasRange => priceRangeMin != null && priceRangeMax != null;
 }
 
+/// Where the store wants its discount badge shown.
+///
+/// Two settings values and no others: `fmp_discount_badge_display` is
+/// `product_page` or `everywhere`. The plugin reports anything else as
+/// [none], because anything else shows no badge on the website either.
+enum DiscountBadgeScope {
+  everywhere,
+  detail,
+  none;
+
+  static DiscountBadgeScope parse(Object? raw) => switch (raw) {
+        'everywhere' => DiscountBadgeScope.everywhere,
+        'detail' => DiscountBadgeScope.detail,
+        _ => DiscountBadgeScope.none,
+      };
+}
+
+/// The store's automatic discount, as it applies to one dish.
+///
+/// The prices themselves are folded into [ProductPrices] — see
+/// `Product._applyMenuDiscount` — because every surface already knows how to
+/// draw a struck pair. This is what is left over: whether to *say* so, and in
+/// whose words.
+class MenuDiscount {
+  const MenuDiscount({
+    required this.active,
+    required this.percentage,
+    required this.scope,
+    required this.label,
+    required this.short,
+  });
+
+  static const none = MenuDiscount(
+    active: false,
+    percentage: 0,
+    scope: DiscountBadgeScope.none,
+    label: '',
+    short: '',
+  );
+
+  factory MenuDiscount.fromJson(Map<String, dynamic> json) {
+    final badge = json['badge'];
+    final map = badge is Map ? badge.cast<String, dynamic>() : const {};
+
+    return MenuDiscount(
+      active: json['active'] == true,
+      percentage: (json['percentage'] as num?)?.toDouble() ?? 0,
+      scope: DiscountBadgeScope.parse(map['scope']),
+      label: map['label'] as String? ?? '',
+      short: map['short'] as String? ?? '',
+    );
+  }
+
+  final bool active;
+  final double percentage;
+  final DiscountBadgeScope scope;
+
+  /// The store's own badge text, e.g. "Discount 15%". Already translated.
+  final String label;
+
+  /// The plugin's own compact form, e.g. "15% off", for somewhere a sentence
+  /// will not fit. **Both come from the plugin**: nothing here composes a
+  /// percentage into a sentence, because that sentence could not be
+  /// translated.
+  final String short;
+
+  /// On a card or a row — only where the store asked for it everywhere.
+  bool get showInList =>
+      active && scope == DiscountBadgeScope.everywhere && short.isNotEmpty;
+
+  /// On the dish screen, which is the website's own default.
+  bool get showOnDetail =>
+      active && scope != DiscountBadgeScope.none && label.isNotEmpty;
+}
+
 /// A menu item. The Store API calls it a product; the design calls it a dish.
 class Product {
   const Product({
@@ -191,6 +266,7 @@ class Product {
     required this.reviewCount,
     required this.lowStockRemaining,
     required this.stockText,
+    this.discount = MenuDiscount.none,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -206,6 +282,7 @@ class Product {
         ),
         json,
       ),
+      discount: _menuDiscount(json),
       images: ((json['images'] as List?) ?? const [])
           .whereType<Map>()
           .map((e) => ProductImage.fromJson(e.cast<String, dynamic>()))
@@ -314,6 +391,10 @@ class Product {
   /// The site's own stock wording, e.g. `Out of stock`. May be empty.
   final String stockText;
 
+  /// The store's automatic discount, for the badge. The *prices* it changes
+  /// are already folded into [prices].
+  final MenuDiscount discount;
+
   /// How many are left, but only when that is worth saying.
   ///
   /// Guards the trap above: the API sends `low_stock_remaining: 0` alongside
@@ -359,6 +440,20 @@ class Product {
 
   /// True when there is any food data worth giving a section to.
   bool get hasFoodData => ingredients.isNotEmpty || nutrition.isNotEmpty;
+
+  /// The plugin's discount block, or [MenuDiscount.none] without one.
+  static MenuDiscount _menuDiscount(Map<String, dynamic> json) {
+    final extensions = json['extensions'];
+    if (extensions is! Map) return MenuDiscount.none;
+
+    final foodMenu = extensions['food-menu-pro'];
+    if (foodMenu is! Map) return MenuDiscount.none;
+
+    final discount = foodMenu['discount'];
+    if (discount is! Map) return MenuDiscount.none;
+
+    return MenuDiscount.fromJson(discount.cast<String, dynamic>());
+  }
 
   /// Folds the plugin's automatic discount into the Store API's own prices.
   ///
