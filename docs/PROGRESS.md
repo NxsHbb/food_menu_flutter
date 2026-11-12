@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Task 8.7 — The app refuses a store that is not a shop
-Branch `fix/ordering-mode-gate`. **App + Pro**. 7 new tests, 866 in total.
+Branch `fix/ordering-mode-gate`, PR #61. **App + Pro**. 7 new tests, 866 in total.
 **Phase 8 is complete.**
 
 ### What landed
