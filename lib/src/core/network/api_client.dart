@@ -127,10 +127,16 @@ class ApiClient {
   Future<T> get<T>(
     String url, {
     Map<String, dynamic>? query,
+    Map<String, String>? headers,
     CancelToken? cancelToken,
   }) {
     return _send<T>(
-      () => _dio.get<T>(url, queryParameters: query, cancelToken: cancelToken),
+      () => _dio.get<T>(
+        url,
+        queryParameters: query,
+        options: headers == null ? null : Options(headers: headers),
+        cancelToken: cancelToken,
+      ),
     );
   }
 
@@ -179,6 +185,7 @@ class ApiClient {
     String url, {
     Object? body,
     Map<String, dynamic>? query,
+    Map<String, String>? headers,
     CancelToken? cancelToken,
   }) {
     return _send<T>(
@@ -186,6 +193,7 @@ class ApiClient {
         url,
         data: body,
         queryParameters: query,
+        options: headers == null ? null : Options(headers: headers),
         cancelToken: cancelToken,
       ),
     );

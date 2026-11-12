@@ -18,7 +18,12 @@ import 'cart_repository.dart';
 class CartController extends AsyncNotifier<Cart> {
   @override
   Future<Cart> build() {
-    return ref.read(cartRepositoryProvider).cart();
+    // **Watched, not read.** The repository is rebuilt when the order type
+    // changes, and re-reading the cart is the whole point: switching to
+    // pickup takes the delivery fee off the totals, and a customer who was
+    // shown $22.95 has to see it become $13.00 on the same tap rather than
+    // at the next thing that happens to touch the cart.
+    return ref.watch(cartRepositoryProvider).cart();
   }
 
   /// Takes a cart the server handed back somewhere other than a cart route.

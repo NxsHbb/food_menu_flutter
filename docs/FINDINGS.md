@@ -2,6 +2,94 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The website charges a pickup order for delivery too, and we left it alone
+Task 8.6 was planned as an app bug. It is not: **neither plugin has any
+order-type-aware shipping logic at all.** No `woocommerce_cart_needs_shipping`
+filter, no `woocommerce_package_rates`, no `local_pickup` handling, and the
+order type is read from `$_POST['fmp_order_time_type']` in
+`PickupDelivery::pickup_delivery_form_validation()` — at checkout, long after
+WooCommerce has priced the cart. A pickup order on a store with a shipping zone
+is charged on the website exactly as it was in the app.
+
+**Fixing it for everyone would change the website**, silently, on a plugin
+update: every store that has lived with the fee would see its pickup totals
+drop. That is the one thing plugin work here does not do. So the filter is
+gated on a header **only the app sends**, and the website keeps its behaviour.
+Worth reporting upstream as a website bug; not worth fixing from here.
+
+### Why `needs_shipping` and not the rates
+Filtering `woocommerce_package_rates` to nothing leaves `needs_shipping` true,
+and the Store API then **refuses the order** for having no shipping method
+selected — `OrderController::validate_selected_shipping_methods()`. Answering
+`needs_shipping` false instead makes `WC_Cart::calculate_shipping()` reset the
+total to zero and return early, and switches off shipping address validation
+with it. That is also what WooCommerce already does for a cart of
+downloadables, so it is a path the Store API is used to.
+
+Measured on the dev store, same cart, same selected $9.95 express rate:
+
+| Request | `needs_shipping` | `total_shipping` | total |
+|---|---|---|---|
+| no header (the website's path) | true | 995 | 1785 |
+| `X-FMP-Order-Type: pickup` | false | null | 790 |
+| `X-FMP-Order-Type: delivery` | true | 995 | 1785 |
+
+The placed order carried it through: `get_shipping_total()` 0 and **no shipping
+line items at all**, rather than a zero-cost line.
+
+## A header the cart does not depend on is a header that arrives too late
+The first attempt put this in a dio `Interceptor`, next to `X-FMP-Branch`. It
+was wrong twice over, and the second one is the lesson.
+
+**It deadlocked the app.** The interceptor read `resolvedOrderTypeProvider`,
+which builds `orderTypesProvider`, which is itself an HTTP call *through that
+interceptor*. Dart caught half of it at compile time — `top_level_cycle` across
+five providers, because the inference runs dio → fulfilment → repository → dio
+— and a type annotation silenced that. At runtime the app simply stopped: zero
+requests reached the server, the menu spun forever, and nothing was logged. An
+interceptor is the wrong place for anything the app has to *fetch*.
+
+**And even working, it would have been invisible.** An interceptor changes what
+the next request carries; it does not cause one. Switching to pickup would have
+left the customer looking at a total still holding the delivery fee until some
+unrelated thing touched the cart. The fee is *in the response*, so the thing
+that needs the header is the **cart**, not the transport:
+
+- `CartRepository` takes the order type and sets the header on all five routes.
+  Every one of them answers with the totals, so leaving it off `update-item`
+  would put the fee back the moment a quantity changed.
+- `cartRepositoryProvider` watches `resolvedOrderTypeProvider`, and
+  `CartController.build()` **watches** the repository rather than reading it.
+  The type changing therefore re-reads the cart, which is the whole point.
+- `CheckoutRepository` sets it from **`draft.type`**, not from a provider: the
+  order is created from the cart during that request, and the draft is what the
+  customer actually agreed to.
+
+The branch header can be an interceptor because the branch comes from storage.
+This one cannot, because it comes from the server.
+
+## A pickup order still records a shipping address, and the client cannot stop it
+The plan's heading for 8.6 — "a pickup order sends a delivery address" — turned
+out to be unfixable from the app, and not worth fixing anyway.
+
+The app never calls `cart/update-customer`; the customer's WooCommerce shipping
+address is the one the address book mirrors there (an agreed decision from
+Phase 3). `OrderController::update_addresses_from_cart()` reads **that**, not
+the checkout body. Proven by sending a deliberately empty `shipping_address` on
+a pickup order: the order came back with `12 Market St` anyway, from the
+profile.
+
+So the three options were to send the address (status quo), send it empty
+(changes nothing, and would fail validation on a store whose Pro half is older
+than this change), or omit it (same, plus it can go stale). It still sends it.
+**The charge was the bug; the address is cosmetic and matches the website.**
+
+### The fix degrades safely on a store without it
+Worth stating because the live demo site runs the **released** Pro: the app
+sends the header, nothing reads it, `needs_shipping` stays true and the pickup
+total keeps the fee — exactly today's behaviour, not a failure. Nothing in the
+app depends on the header being honoured.
+
 ## A pickup order is still charged for delivery — confirmed, and it is 8.6's
 Seeding the dev store's first shipping zone for task 8.5 made task 8.6
 reproducible, and it reproduces immediately: choose Express delivery at

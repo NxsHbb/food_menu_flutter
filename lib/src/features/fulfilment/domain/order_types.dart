@@ -13,6 +13,20 @@ enum OrderTypeKind {
   pickup,
   delivery;
 
+  /// The header that tells the Store API which of these an order is.
+  ///
+  /// **A pickup order is not a shipped one, and WooCommerce has no way to
+  /// know that.** It prices shipping whenever the cart holds a shippable
+  /// product, and the Food Menu order type is read from the checkout POST,
+  /// long after the totals were worked out — so a customer who chose a
+  /// delivery rate and then switched to pickup kept the fee, and the app hid
+  /// the Delivery method section while still charging it. Pro reads this
+  /// header and answers `needs_shipping: false` for a pickup cart.
+  ///
+  /// Sent by the cart and the checkout, which are the requests whose answers
+  /// carry money. Not by the menu, which does not depend on it.
+  static const header = 'X-FMP-Order-Type';
+
   static OrderTypeKind? tryParse(String? raw) {
     for (final value in values) {
       if (value.name == raw) return value;

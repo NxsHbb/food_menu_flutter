@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../fulfilment/domain/order_types.dart';
 import '../domain/checkout_field.dart';
 import '../domain/order_draft.dart';
 import '../domain/placed_order.dart';
@@ -14,7 +15,8 @@ import '../domain/placed_order.dart';
 /// Like every Store API write it needs the `Nonce` and `Cart-Token` headers,
 /// which `StoreSessionInterceptor` carries, and the branch header, which
 /// `BranchInterceptor` carries — the plugin reads that one to file the order
-/// under the branch the customer is ordering from.
+/// under the branch the customer is ordering from. The order **type** header
+/// is set here instead, from the draft: see [placeOrder].
 class CheckoutRepository {
   const CheckoutRepository(this._client);
 
@@ -28,6 +30,12 @@ class CheckoutRepository {
     final raw = await _client.post<Map<String, dynamic>>(
       _client.storeApi('checkout'),
       body: draft.toJson(),
+      // **From the draft, not from a provider.** The order is created from
+      // the cart during this request, so this is the last chance to say that
+      // a pickup order ships nothing — and the draft is the thing the
+      // customer actually agreed to, which no amount of state settling in
+      // the background can contradict.
+      headers: {OrderTypeKind.header: draft.type.name},
     );
     return PlacedOrder.fromJson(raw);
   }
