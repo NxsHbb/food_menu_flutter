@@ -2,6 +2,52 @@
 
 Newest first. One entry per completed task.
 
+## Vendor feature list — coverage walk
+Branch `docs/vendor-feature-coverage`. **Docs only**, no code and no plugin
+change. Not a numbered task, like the review in PR #51 it extends.
+
+### What landed
+All **39 sections** of `FEATURES-FROM-DEVELOPER.md` — 15 free, 24 Pro — walked
+against `PLAN.md` and `PROGRESS.md` and written up as two tables in
+`FINDINGS.md`, one row per section with a verdict and the owning task. PR #51
+established that the list is *accurate*; this establishes that the plan
+*covers* it, so "checked line by line" can be audited instead of taken on
+trust.
+
+### Nothing new is missing from the ordering path
+Which is the main result. Phase 8 found the orders the website can take and the
+app cannot, and a second pass over the vendor's own inventory found no more.
+Four sections needed the plugin code read rather than the docs, and all four
+came back clean:
+
+- **Add-ons do reach an app order's emails and slips** (Pro §3.7).
+  `AppCartAddons` writes the website's own `fmp_addons` cart shape, so
+  `FrontendCartAction::display_checkout_order_line_item` fires on a Store API
+  order too. Only `_fmp_addon_selection` from 7.4 stays hidden, by design.
+- **Currency formatting is honoured** (Free §13). The plugin's own currency
+  settings are dead in the mode the app needs — `trailing_zeroes` is guarded
+  by `! has_pro()` and `getCurrency()` only labels admin fields — so
+  WooCommerce's settings are the real ones, and the Store API publishes them.
+- **HPOS is safe** (Free §15.4). The `fmp/v1/app` routes use WC CRUD; their
+  only `get_post_meta` calls are on products, which are still posts.
+- **"Blocks support" is load-bearing, not irrelevant** (Free §7.3). The Store
+  API *is* the Blocks API, which is also why 8.2's required-field behaviour
+  matches the block checkout rather than the classic one.
+
+### Three gaps, all presentation
+Recorded as open dependencies in `PLAN.md`, not as tasks, because each is a
+decision first: the app reads **none** of the store's presentation settings
+(`primary_color`, `company_logo`, two detail-page colours, the checkout heading
+and button text); it has **no localization layer** while the server half
+already answers in the site's language, so a translated store gets a
+half-translated app; and a custom status's **icon** is never published or drawn
+while its colour is.
+
+None blocks an order, which is why Phase 8 missed all three — it was looking
+for orders the app cannot take, and these are orders it takes and then draws
+in its own clothes.
+
+
 ## Task 8.5 — Choosing how it is delivered
 Branch `feat/shipping-rates`, PR #58. **App-only**, no plugin change. 7 new tests, 852
 in total.
