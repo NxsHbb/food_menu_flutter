@@ -2,6 +2,37 @@
 
 Newest first. One entry per completed task.
 
+## Task 9.1 — The menu charges what the cart charges
+Branch `feat/menu-discount`. **App + Pro**. 6 new tests, 872 in total.
+
+### What landed
+The product payload's `food-menu-pro` extension gains a `discount` block —
+`active`, `percentage`, `price` and `was`, the two amounts in minor units like
+every other Store API price. The app folds that pair into
+`ProductPrices.price` and `.regularPrice`, which makes the dish card, the menu
+row and the detail screen draw the struck pair **without one widget being
+touched**: all three already do that for a WooCommerce sale.
+
+On the OnePlus: *Double Smash* reads **$11.82** over a struck **$13.90** on the
+card, and adding it to the cart charges $11.82. Before this the card read
+$13.90 and the cart charged $11.82, with nothing to explain the gap.
+
+### The dev store had no discount configured
+Exactly the hole task 8.5 found with shipping: the whole of Phase 9 was
+unexercisable. 15% off the Burgers category is seeded and **kept**, recorded in
+`LOCAL_DEV.md`. *Crispy Chicken Burger* is the useful case because it is also
+on a WooCommerce sale, so the two mechanisms stack.
+
+### Two things worth not re-learning
+In `FINDINGS.md`:
+
+- **Matched on the parent, priced from the item** — the rule can never match a
+  variation, because a variation carries no `product_cat` terms. The cart
+  already works this way; the payload copies it rather than inventing its own.
+- **`was` is the sale price, not the regular price.** 11.25 → 9.75 → 8.29
+  strikes 9.75. Striking 11.25 would claim a saving of 2.96 when the customer
+  saves 1.46 against what they would otherwise have paid.
+
 ## Task 8.7 — The app refuses a store that is not a shop
 Branch `fix/ordering-mode-gate`, PR #61. **App + Pro**. 7 new tests, 866 in total.
 **Phase 8 is complete.**
