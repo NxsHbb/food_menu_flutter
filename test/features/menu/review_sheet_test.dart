@@ -80,7 +80,12 @@ void main() {
     await tester.tap(find.text('Submit review'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Please rate the dish from 1 to 5.'), findsWidgets);
+    // **Exactly one.** `findsWidgets` let the same sentence be printed twice
+    // — once as the field's error and once in the banner — which a device
+    // pass caught and this test did not.
+    expect(find.text('Please rate the dish from 1 to 5.'), findsOneWidget);
+    // And under the stars, not under the text box: that is where it is fixed.
+    expect(find.text('Please write your review.'), findsNothing);
     // Not sent: the payload already said the rating is required, so making
     // the customer wait for a round trip to hear it is wasted.
     expect(reviews.calls, isEmpty);
@@ -94,7 +99,22 @@ void main() {
     await tester.tap(find.text('Submit review'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Please write your review.'), findsWidgets);
+    expect(find.text('Please write your review.'), findsOneWidget);
+    expect(reviews.calls, isEmpty);
+  });
+
+  testWidgets('both problems are reported once each, in their own places',
+      (tester) async {
+    // Submitting a blank form: one message under the stars, one under the
+    // text box, and nothing in the banner — the banner is the server's.
+    final reviews = FakeReviewsRepository();
+    await pumpSheet(tester, reviews: reviews);
+
+    await tester.tap(find.text('Submit review'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Please write your review.'), findsOneWidget);
+    expect(find.text('Please rate the dish from 1 to 5.'), findsOneWidget);
     expect(reviews.calls, isEmpty);
   });
 

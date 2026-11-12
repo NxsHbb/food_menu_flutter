@@ -2,6 +2,53 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## What the second device pass found: two defects the tests had agreed to
+
+8.9, 10.1 and 10.3 all shipped without a device pass, and running them on the
+OnePlus against the dev site turned up two defects in merged work. Both were
+**in code the tests covered** — the tests just agreed with the bug.
+
+### The same sentence, printed twice
+
+Submitting an empty review form showed *"Please write your review."* as the
+text field's `errorText` **and** again in the warning banner underneath. The
+sheet was setting both `_showErrors` (the field) and `_error` (the banner)
+from one `_localProblem`.
+
+Worse, `_localProblem` returned the **first** of two problems, so a missing
+*rating* was reported under the text box — which is not where it is fixed.
+
+The test that should have caught it asserted `findsWidgets`, which two
+satisfies. It now asserts `findsOneWidget`, and there is a new test that
+submits a blank form and expects one message under the stars, one under the
+text box and nothing in the banner. The rule this leaves: **the banner is the
+server's**, a field's own complaint belongs on the field, and `findsWidgets`
+is the wrong matcher for anything that should appear once.
+
+### A card that stopped halfway down the screen
+
+With the image and the reviews hidden, the dish screen showed the card's
+surface colour down to the end of its content and then the page colour
+through to the add bar — a black void over a third of the screen.
+
+The cause is that `_Body` sat in a `SliverToBoxAdapter`, which takes its
+child's height and no more. It was invisible before 10.1 only because a dish
+screen always had enough on it; a dish with no description and no add-ons
+would have shown the same thing all along.
+
+`SliverFillRemaining(hasScrollBody: false)` is the fix: at least the remaining
+viewport, and still free to grow past it and scroll. Guarded by a structural
+test, because the regression is someone swapping the sliver back.
+
+### What the pass confirmed
+
+Worth recording that the other three held up: the slot refusal came back as
+the banner with the refreshed times and no order placed; the hidden sections
+each disappeared with the close button and the heart surviving a hidden image;
+and a review was written, held for moderation, and reported as pending with
+the list deliberately not reloading. The rating meta was on the comment, which
+is the half WooCommerce's own code would have skipped.
+
 ## Nothing in WooCommerce lets a customer write a review over REST
 
 Reading is easy: `wc/store/v1/products/reviews` is public, returns only

@@ -35,8 +35,11 @@ pretty permalinks; static files are served directly, everything else goes to
 `index.php`.
 
 ## Plugins
-Both are git clones in `wp-content/plugins/`, each on a **`mobile-app`** branch
-cut from `main`:
+Both are git clones in `wp-content/plugins/`. Plugin work happens on a
+**`mobile-app`** branch cut from `main` — one branch for a batch of tasks,
+never one per task — and the branch is **deleted after its PR merges**, local
+and remote, then cut again from `main` for the next batch. Between merges both
+clones sit on `main`:
 
 | Plugin | Version | Repo |
 |---|---|---|
