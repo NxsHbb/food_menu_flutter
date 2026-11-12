@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../fulfilment/data/fulfilment_controller.dart';
 import '../../data/cart_controller.dart';
 import '../cart_screen.dart';
 
@@ -32,6 +33,14 @@ class CartBar extends ConsumerWidget {
     // Nothing while the first read is in flight, and nothing for an empty
     // cart: a bar that says zero is just a bar in the way.
     if (cart == null || cart.isEmpty) return const SizedBox.shrink();
+
+    // **Nor on a store that is not taking orders** (task 8.7). A real
+    // showcase store never fills a cart, but one that *switches* into
+    // showcase mode leaves its customers holding them — and a bar inviting
+    // them towards a checkout that can only refuse is worse than no bar.
+    // Found on the device, not in a test: the panel was drawn correctly and
+    // the cart bar sat on top of it offering $13.00.
+    if (ref.watch(orderingDisabledProvider)) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -119,5 +128,7 @@ class CartBar extends ConsumerWidget {
 /// Zero when there is no bar, so nothing is reserved for a bar that is not
 /// there.
 final cartBarInsetProvider = Provider<double>((ref) {
+  if (ref.watch(orderingDisabledProvider)) return 0;
+
   return ref.watch(cartCountProvider) > 0 ? CartBar.reservedSpace : 0;
 });

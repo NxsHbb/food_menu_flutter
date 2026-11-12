@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/app.dart';
+import 'package:food_menu/src/features/fulfilment/data/fulfilment_controller.dart';
 import 'package:food_menu/src/features/auth/data/token_store.dart';
 import 'package:food_menu/src/features/menu/data/banner_repository.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
@@ -23,6 +24,10 @@ void main() {
         // The menu screen is real now, so the shell tests would otherwise
         // reach for the network.
         overrides: [
+          // The cart bar asks whether this store takes orders at all
+          // (task 8.7). Pinned so these tests do not fire the real
+          // order-types request, whose timeout outlives the tree.
+          orderingDisabledProvider.overrideWithValue(false),
           menuRepositoryProvider.overrideWithValue(
             FakeMenuRepository(
               categoryList: [buildCategory()],
@@ -32,8 +37,9 @@ void main() {
           bannerRepositoryProvider.overrideWithValue(FakeBannerRepository()),
           // The cart and the dish screen are both real now, so the shell
           // tests would otherwise reach for the network.
-          cartRepositoryProvider
-              .overrideWithValue(FakeCartRepository(cart: cart)),
+          cartRepositoryProvider.overrideWithValue(
+            FakeCartRepository(cart: cart),
+          ),
           addonsRepositoryProvider.overrideWithValue(FakeAddonsRepository()),
           // The orders tab reads its history now, so without this it would
           // spin forever on a request that never answers and `pumpAndSettle`
@@ -57,8 +63,9 @@ void main() {
     expect(find.text('What are you craving?'), findsOneWidget);
   });
 
-  testWidgets('bottom navigation reaches every top-level destination',
-      (tester) async {
+  testWidgets('bottom navigation reaches every top-level destination', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     for (final label in ['Cart', 'Orders', 'Account']) {
@@ -83,8 +90,9 @@ void main() {
     expect(find.byIcon(Icons.close), findsOneWidget);
   });
 
-  testWidgets('closing a dish returns to the menu with its tab bar',
-      (tester) async {
+  testWidgets('closing a dish returns to the menu with its tab bar', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     await tester.tap(find.text('Margherita').first);
@@ -116,13 +124,16 @@ void main() {
       // The Badge widget is always in the tree; what matters is that it is
       // not showing a count.
       expect(
-        tester.widgetList<Badge>(find.byType(Badge)).any((b) => b.isLabelVisible),
+        tester
+            .widgetList<Badge>(find.byType(Badge))
+            .any((b) => b.isLabelVisible),
         isFalse,
       );
     });
 
-    testWidgets('a filled cart badges the tab and floats a bar over the menu',
-        (tester) async {
+    testWidgets('a filled cart badges the tab and floats a bar over the menu', (
+      tester,
+    ) async {
       await pumpApp(tester, cart: cartFromFixture('cart_with_addons'));
 
       expect(find.text('View cart'), findsOneWidget);
@@ -130,8 +141,9 @@ void main() {
       expect(find.widgetWithText(Badge, '3'), findsOneWidget);
     });
 
-    testWidgets('the bar belongs to the menu, not to every tab',
-        (tester) async {
+    testWidgets('the bar belongs to the menu, not to every tab', (
+      tester,
+    ) async {
       await pumpApp(tester, cart: cartFromFixture('cart_with_addons'));
 
       await tester.tap(find.text('Orders'));

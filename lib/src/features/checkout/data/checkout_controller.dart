@@ -240,7 +240,14 @@ final checkoutReadinessProvider = Provider<CheckoutReadiness>((ref) {
 
   final type = ref.watch(resolvedOrderTypeProvider);
   if (type == null) {
-    return const CheckoutBlocked('This store is not taking orders right now.');
+    // Two different nulls. The store having switched ordering off is
+    // permanent and worth saying plainly (task 8.7); anything else — a failed
+    // request, a store mid-edit — is "right now", because it may not be.
+    return CheckoutBlocked(
+      ref.watch(orderingDisabledProvider)
+          ? 'This restaurant is not taking online orders.'
+          : 'This store is not taking orders right now.',
+    );
   }
 
   final slots = ref.watch(slotsProvider).value;

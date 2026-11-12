@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
+import 'package:food_menu/src/features/fulfilment/data/fulfilment_controller.dart';
 import 'package:food_menu/src/features/cart/data/cart_controller.dart';
 import 'package:food_menu/src/features/cart/data/cart_repository.dart';
 import 'package:food_menu/src/features/cart/presentation/cart_screen.dart';
@@ -11,11 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'fake_cart_repository.dart';
 
 void main() {
-  Future<void> pump(
-    WidgetTester tester, {
-    Cart? cart,
-    ThemeData? theme,
-  }) async {
+  Future<void> pump(WidgetTester tester, {Cart? cart, ThemeData? theme}) async {
     final router = GoRouter(
       initialLocation: '/menu',
       routes: [
@@ -45,8 +42,13 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          cartRepositoryProvider
-              .overrideWithValue(FakeCartRepository(cart: cart)),
+          // The cart bar asks whether this store takes orders at all
+          // (task 8.7). Pinned so these tests do not fire the real
+          // order-types request, whose timeout outlives the tree.
+          orderingDisabledProvider.overrideWithValue(false),
+          cartRepositoryProvider.overrideWithValue(
+            FakeCartRepository(cart: cart),
+          ),
         ],
         child: MaterialApp.router(
           theme: theme ?? AppTheme.light(),
@@ -84,6 +86,10 @@ void main() {
   test('reserves room only while it is showing', () async {
     final container = ProviderContainer(
       overrides: [
+        // The cart bar asks whether this store takes orders at all
+        // (task 8.7). Pinned so these tests do not fire the real
+        // order-types request, whose timeout outlives the tree.
+        orderingDisabledProvider.overrideWithValue(false),
         cartRepositoryProvider.overrideWithValue(
           FakeCartRepository(cart: cartFromFixture('cart_with_addons')),
         ),

@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_exception.dart';
+
 import '../../branch/data/branch_controller.dart';
 import '../../cart/data/cart_controller.dart';
 import '../domain/order_types.dart';
@@ -100,6 +102,31 @@ final orderTypesProvider = FutureProvider<OrderTypes>(
   // `.future` ever completing, hiding the failure from anything awaiting it.
   retry: (retryCount, error) => null,
 );
+
+/// Whether this store is a showcase menu rather than a shop (task 8.7).
+///
+/// **Food Menu runs in two modes**, and only one of them is a shop. The
+/// `food_menu_post` mode is a menu built on the plugin's own post type, with
+/// no cart and no checkout, and it is the **default** — a store that has never
+/// opened the settings screen is in it. Every ordering feature in both plugins
+/// gates on that setting; the `fmp/v1/app` namespace did not, so the app would
+/// cheerfully take an order from a site that cannot accept one.
+///
+/// Read from the **order-types** failure rather than from a route of its own.
+/// That request is already made at launch — `cartRepositoryProvider` watches
+/// the resolved type — so the answer is in hand before the menu finishes
+/// drawing, and the app spends no extra round trip on a question most stores
+/// answer the same way forever.
+///
+/// False while loading, and false for every other failure. A store that cannot
+/// be reached is not a store that has switched ordering off, and telling a
+/// customer the restaurant is closed because their train went into a tunnel is
+/// worse than showing them the error.
+final orderingDisabledProvider = Provider<bool>((ref) {
+  final error = ref.watch(orderTypesProvider).error;
+
+  return error is ApiException && error.code == 'fmp_ordering_disabled';
+});
 
 /// The type actually in force: the customer's choice if the store still
 /// offers it, otherwise the store's default.
