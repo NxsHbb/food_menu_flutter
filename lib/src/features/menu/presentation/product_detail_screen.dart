@@ -17,6 +17,7 @@ import 'widgets/addon_group_card.dart';
 import 'widgets/variation_picker.dart';
 import 'widgets/food_data_section.dart';
 import 'widgets/food_tags.dart';
+import 'widgets/reviews_section.dart';
 import '../data/addons_repository.dart';
 import '../data/menu_repository.dart';
 import '../domain/addon_selection.dart';
@@ -609,6 +610,13 @@ class _Body extends StatelessWidget {
             title: 'Nutrition facts',
             rows: product.nutrition,
           ),
+        ],
+        // Last on the screen, below everything about the dish itself: it is
+        // other people's words, and the design put the rating at the top for
+        // whoever only wants the number.
+        if (product.sections.reviews) ...[
+          const SizedBox(height: AppTokens.space24),
+          ReviewsSection(product: product),
         ],
       ],
     );
