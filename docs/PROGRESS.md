@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Vendor feature list — coverage walk
-Branch `docs/vendor-feature-coverage`. **Docs only**, no code and no plugin
+Branch `docs/vendor-feature-coverage`, PR #59. **Docs only**, no code and no plugin
 change. Not a numbered task, like the review in PR #51 it extends.
 
 ### What landed
