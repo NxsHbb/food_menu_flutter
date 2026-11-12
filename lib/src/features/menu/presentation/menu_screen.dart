@@ -11,6 +11,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../branch/data/branch_controller.dart';
 import '../../branch/presentation/widgets/branch_picker_sheet.dart';
 import '../../cart/presentation/widgets/cart_bar.dart';
+import '../../fulfilment/data/fulfilment_controller.dart';
 import '../data/banner_repository.dart';
 import '../data/menu_repository.dart';
 import 'menu_list_screen.dart';
@@ -42,6 +43,13 @@ class MenuScreen extends ConsumerWidget {
     final branches = ref.watch(branchesProvider).value;
     final branch = ref.watch(activeBranchProvider);
 
+    // Task 8.7. Everything below the header is about ordering, so on a store
+    // that cannot be ordered from none of it is drawn — not the chips, not
+    // the banners, not an empty grid reading "Nothing on the menu here yet."
+    // which blames the restaurant for having no food rather than saying it
+    // does not sell online.
+    final orderingOff = ref.watch(orderingDisabledProvider);
+
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () async {
@@ -69,8 +77,7 @@ class MenuScreen extends ConsumerWidget {
                 address: branch?.name ?? 'Choose a branch',
                 greeting: 'Welcome',
                 prompt: 'What are you craving?',
-                onSearchTap: () =>
-                    context.goNamed(MenuListScreen.routeName),
+                onSearchTap: () => context.goNamed(MenuListScreen.routeName),
                 // Inert for a store with one location: there is nothing to
                 // choose between, and a chevron that opens a list of one
                 // reads as a bug.
@@ -79,25 +86,29 @@ class MenuScreen extends ConsumerWidget {
                     : () => BranchPickerSheet.show(context),
               ),
             ),
-            SliverToBoxAdapter(
-              child: switch (banners) {
-                // Absent while loading and when empty: a placeholder band
-                // would push the menu down for nothing.
-                AsyncData(:final value) when value.isNotEmpty => Padding(
+            if (orderingOff)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: _OrderingOff(),
+              )
+            else ...[
+              SliverToBoxAdapter(
+                child: switch (banners) {
+                  // Absent while loading and when empty: a placeholder band
+                  // would push the menu down for nothing.
+                  AsyncData(:final value) when value.isNotEmpty => Padding(
                     padding: const EdgeInsets.only(top: AppTokens.space16),
                     child: BannerCarousel(
                       banners: value,
-                      onTap: (_) =>
-                          context.goNamed(MenuListScreen.routeName),
+                      onTap: (_) => context.goNamed(MenuListScreen.routeName),
                     ),
                   ),
-                _ => const SizedBox.shrink(),
-              },
-            ),
-            SliverToBoxAdapter(
-              child: switch (categories) {
-                AsyncData(:final value) when value.isNotEmpty =>
-                  Padding(
+                  _ => const SizedBox.shrink(),
+                },
+              ),
+              SliverToBoxAdapter(
+                child: switch (categories) {
+                  AsyncData(:final value) when value.isNotEmpty => Padding(
                     padding: const EdgeInsets.only(top: AppTokens.space16),
                     child: CategoryChips(
                       categories: value,
@@ -105,25 +116,26 @@ class MenuScreen extends ConsumerWidget {
                       onSelected: (id) => id == null
                           ? ref.read(selectedCategoryProvider.notifier).clear()
                           : ref
-                              .read(selectedCategoryProvider.notifier)
-                              .toggle(id),
+                                .read(selectedCategoryProvider.notifier)
+                                .toggle(id),
                     ),
                   ),
-                _ => const SizedBox.shrink(),
-              },
-            ),
-            SliverToBoxAdapter(
-              child: _SectionHeader(
-                title: _titleFor(selectedId, categories),
-                onSeeAll: () => context.goNamed(MenuListScreen.routeName),
+                  _ => const SizedBox.shrink(),
+                },
               ),
-            ),
-            ..._dishSlivers(context, products),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: AppTokens.space24 + ref.watch(cartBarInsetProvider),
+              SliverToBoxAdapter(
+                child: _SectionHeader(
+                  title: _titleFor(selectedId, categories),
+                  onSeeAll: () => context.goNamed(MenuListScreen.routeName),
+                ),
               ),
-            ),
+              ..._dishSlivers(context, products),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: AppTokens.space24 + ref.watch(cartBarInsetProvider),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -147,51 +159,47 @@ class MenuScreen extends ConsumerWidget {
   ) {
     return switch (products) {
       AsyncLoading() => const [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 48),
-              child: Center(child: CircularProgressIndicator()),
-            ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 48),
+            child: Center(child: CircularProgressIndicator()),
           ),
-        ],
+        ),
+      ],
       AsyncError(:final error) => [
-          SliverToBoxAdapter(child: _MenuError(error: error)),
-        ],
+        SliverToBoxAdapter(child: _MenuError(error: error)),
+      ],
       AsyncData(:final value) when value.isEmpty => const [
-          SliverToBoxAdapter(
-            child: _EmptyMenu(),
-          ),
-        ],
+        SliverToBoxAdapter(child: _EmptyMenu()),
+      ],
       AsyncData(:final value) => [
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTokens.space16,
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: AppTokens.space16),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              // Two columns on a phone, more on a tablet, without a
+              // breakpoint table.
+              maxCrossAxisExtent: 220,
+              mainAxisSpacing: AppTokens.space12,
+              crossAxisSpacing: AppTokens.space12,
+              childAspectRatio: 0.72,
             ),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                // Two columns on a phone, more on a tablet, without a
-                // breakpoint table.
-                maxCrossAxisExtent: 220,
-                mainAxisSpacing: AppTokens.space12,
-                crossAxisSpacing: AppTokens.space12,
-                childAspectRatio: 0.72,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                childCount: value.length,
-                (context, index) {
-                  final product = value[index];
-                  return DishCard(
-                    product: product,
-                    onTap: () => context.pushNamed(
-                      ProductDetailScreen.routeName,
-                      pathParameters: {'id': '${product.id}'},
-                    ),
-                  );
-                },
-              ),
-            ),
+            delegate: SliverChildBuilderDelegate(childCount: value.length, (
+              context,
+              index,
+            ) {
+              final product = value[index];
+              return DishCard(
+                product: product,
+                onTap: () => context.pushNamed(
+                  ProductDetailScreen.routeName,
+                  pathParameters: {'id': '${product.id}'},
+                ),
+              );
+            }),
           ),
-        ],
+        ),
+      ],
     };
   }
 }
@@ -222,6 +230,48 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+/// What a showcase-menu store gets instead of a menu (task 8.7).
+///
+/// Written for a **customer**, not an administrator: nothing here mentions a
+/// setting, a plugin or a mode, because the person reading it cannot change
+/// any of them and did not ask. It says what they can do about it, which is
+/// to go to the restaurant.
+class _OrderingOff extends StatelessWidget {
+  const _OrderingOff();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final text = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTokens.space24,
+        vertical: 56,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.storefront_outlined, size: 48, color: palette.muted),
+          const SizedBox(height: AppTokens.space16),
+          Text(
+            'Not taking online orders',
+            textAlign: TextAlign.center,
+            style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppTokens.space12),
+          Text(
+            'This restaurant uses the app to show its menu rather than to '
+            'take orders. Give them a call or drop in to order.',
+            textAlign: TextAlign.center,
+            style: text.bodyMedium?.copyWith(color: palette.muted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EmptyMenu extends StatelessWidget {
   const _EmptyMenu();
 
@@ -234,10 +284,9 @@ class _EmptyMenu extends StatelessWidget {
         child: Text(
           'Nothing on the menu here yet.',
           textAlign: TextAlign.center,
-          style: Theme.of(context)
-              .textTheme
-              .bodyLarge
-              ?.copyWith(color: palette.muted),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: palette.muted),
         ),
       ),
     );

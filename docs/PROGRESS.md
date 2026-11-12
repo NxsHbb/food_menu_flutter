@@ -2,6 +2,46 @@
 
 Newest first. One entry per completed task.
 
+## Task 8.7 — The app refuses a store that is not a shop
+Branch `fix/ordering-mode-gate`. **App + Pro**. 7 new tests, 866 in total.
+**Phase 8 is complete.**
+
+### What landed
+`AppApiFns::check_ordering()` refuses the nine ordering routes with
+`fmp_ordering_disabled` when `fm_food_menu_type` is not `online_ordering` or
+WooCommerce is inactive — the gate every other ordering controller in both
+plugins already has. The account routes are untouched.
+
+The app reads that refusal off the **order-types call it already makes at
+launch** and draws an explanation where the menu would be, instead of
+"Nothing on the menu here yet." — which blamed the restaurant for having no
+food rather than saying it does not sell online.
+
+Verified on the OnePlus with the dev store flipped to `food_menu_post` and
+back: the panel replaces the whole menu, and everything returns when the
+setting is restored.
+
+### The default is the showcase, which is the point
+`?? 'food_menu_post'`. This was not an exotic misconfiguration — it was every
+store that had installed the plugin and not yet opened the settings screen.
+The app would have offered all of them a cart.
+
+### Three things worth not re-learning
+In `FINDINGS.md` with the evidence:
+
+- **The Store API checkout is deliberately left open.** It is WooCommerce's
+  own route, the one the website's block checkout posts to, and a showcase
+  store may still sell through WooCommerce's own pages. Refusing it would
+  break those sites. The app's routes refuse; that is far enough.
+- **The cart bar sat on top of the explanation offering $13.00.** Found on the
+  device. A real showcase store never fills a cart, but one that *switches*
+  into showcase mode leaves its customers holding them. The Cart tab stays
+  reachable on purpose; only the bar that leads towards checkout goes.
+- **Watching a network-backed provider from a widget cost three test files.**
+  `CartBar` had no such dependency before, and the failure reads "A Timer is
+  still pending even after the widget tree was disposed", which names the
+  timeout rather than the cause.
+
 ## Task 8.6 — A pickup order is no longer charged for delivery
 Branch `fix/pickup-shipping`, PR #60. **App + Pro**, not app-only as planned. 7 new
 tests, 859 in total.

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/cart/data/cart_repository.dart';
+import 'package:food_menu/src/features/fulfilment/data/fulfilment_controller.dart';
 import 'package:food_menu/src/features/cart/presentation/cart_screen.dart';
 import 'package:food_menu/src/features/cart/presentation/widgets/cart_line_row.dart';
 
@@ -22,7 +23,12 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [cartRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          cartRepositoryProvider.overrideWithValue(repo),
+          // See task 8.7: the cart bar now asks whether the store takes
+          // orders, and the real request's timeout outlives the tree.
+          orderingDisabledProvider.overrideWithValue(false),
+        ],
         child: MaterialApp(
           theme: theme ?? AppTheme.light(),
           home: const CartScreen(),

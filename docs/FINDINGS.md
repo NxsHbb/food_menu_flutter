@@ -2,6 +2,95 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## A showcase menu is the default, so the missing gate was the common case
+Food Menu runs in one of two modes. `online_ordering` makes dishes WooCommerce
+products with a cart and a checkout; `food_menu_post` is a menu built on the
+plugin's own post type, with neither. Every ordering controller in both plugins
+opens the same way —
+
+```php
+$fm_type = $this->options['fm_food_menu_type'] ?? 'food_menu_post';
+if ( TLPFoodMenu()->isWcActive() && 'online_ordering' === $fm_type ) {
+```
+
+— and the `fmp/v1/app` namespace was the one place that did not.
+
+**The `?? 'food_menu_post'` is the part that matters.** The default is the
+showcase, not the shop, so this was not an exotic misconfiguration: it was
+every store that had installed the plugin and not yet been through the settings
+screen. The app would offer them a cart.
+
+### Nine routes refuse, and the account routes do not
+`AppApiFns::check_ordering()` returns `fmp_ordering_disabled` with a 403, in
+the shape `check_transport()` already established. It guards order-types,
+slots, payment-methods, checkout-fields, add-ons, orders, the single order,
+tracking and reorder. `me`, `wishlist`, `address-fields`, auth and account
+security answer as before, because none of them is about placing an order.
+
+Measured with the dev store flipped to `food_menu_post`:
+
+| Route | Answer |
+|---|---|
+| `/app/order-types`, `/app/slots`, `/app/payment-methods`, `/app/checkout-fields` | 403 `fmp_ordering_disabled` |
+| `/app/orders` signed in | 403 `fmp_ordering_disabled` |
+| `/app/orders` signed out | 401 `fmp_app_not_authenticated` first |
+| `/app/me`, `/app/wishlist` | 200, unchanged |
+
+Auth running first is the permission callback doing its job before the body,
+and it is the right order: *who are you* before *what is this store*.
+
+### The Store API checkout is deliberately left open
+It would be the obvious place to stop an order dead, and it is the wrong one.
+`POST wc/store/v1/checkout` is **WooCommerce's own route**, the one the
+website's block checkout posts to. A store can run Food Menu as a showcase and
+still sell its WooCommerce products through WooCommerce's own pages; refusing
+that route would break those sites. The app's own routes refuse, the app will
+not draw a checkout, and that is as far as this goes.
+
+## The app learns it from a refusal it was already going to receive
+No new route for "can this store be ordered from". `orderTypesProvider` is
+already fetched at launch — `cartRepositoryProvider` watches the resolved order
+type, which task 8.6 made a dependency of the cart — so the answer is in hand
+before the menu finishes drawing, for no extra round trip.
+
+`orderingDisabledProvider` is therefore derived from that call's **error code**,
+and only from that one code. Any other failure is false: a store that cannot be
+reached is not a store that has switched ordering off, and telling a customer
+the restaurant is closed because their train went into a tunnel is worse than
+showing them the error.
+
+### What replaces the menu, and why the whole menu
+Everything below the header is about ordering, so on a showcase store none of
+it is drawn — not the chips, not the banners, not the grid. The alternative was
+leaving the dishes up with a dead "Add", which is the pattern tasks 4.7 and 8.3
+were both opened to remove.
+
+The panel is written for a **customer**, not an administrator: it does not
+mention a setting, a plugin or a mode, because the person reading it can change
+none of them and did not ask. It tells them to call or drop in.
+
+## The cart bar sat on top of the explanation, offering $13.00
+Found on the device, not in a test, and the test came after.
+
+A real showcase store never fills a cart, so this looked impossible. A store
+that **switches into** showcase mode does not: its customers are still holding
+whatever they had, the `Cart-Token` survives in secure storage, and the first
+launch after the switch drew the panel correctly with the floating bar over it
+inviting a tap towards a checkout that could only refuse.
+
+`CartBar` and `cartBarInsetProvider` now both ask. The Cart **tab** is left
+reachable on purpose — a customer who has a cart should be able to look at it
+and empty it — and the checkout behind it blocks with its own wording.
+
+### Watching a network-backed provider from a widget costs three test files
+`CartBar` had no provider dependency that reached the network, and
+`orderingDisabledProvider` does. Three suites — `cart_bar_test`,
+`cart_screen_test` and `widget_test` — began firing the real order-types
+request and failing on *"A Timer is still pending even after the widget tree
+was disposed"*, which names the timeout rather than the cause. They pin the
+provider now. Worth knowing before adding the next such watch: the failure
+does not mention the provider, the widget or the request.
+
 ## The website charges a pickup order for delivery too, and we left it alone
 Task 8.6 was planned as an app bug. It is not: **neither plugin has any
 order-type-aware shipping logic at all.** No `woocommerce_cart_needs_shipping`
