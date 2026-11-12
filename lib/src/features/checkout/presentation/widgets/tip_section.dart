@@ -7,6 +7,7 @@ import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../cart/data/cart_controller.dart';
 import 'checkout_card.dart';
+import '../../data/checkout_repository.dart';
 
 /// The store's tip prompt (task 9.4).
 ///
@@ -72,6 +73,17 @@ class _TipSectionState extends ConsumerState<TipSection> {
     final tip = cart?.tip ?? CartTip.none;
 
     if (!tip.enabled || tip.allow.isEmpty || !tip.showOn(widget.screen)) {
+      return const SizedBox.shrink();
+    }
+
+    // **Narrows task 9.4, never widens it** (task 10.2). The store's own tip
+    // rules above still decide whether there is a tip to ask for; this only
+    // takes the row away on a checkout the store asked to keep clear. The
+    // cart's copy of this section is untouched — `fmp_checkout_show_tips` is
+    // a checkout setting, and a store hiding the row here may well still
+    // want it there.
+    if (widget.screen == 'checkout' &&
+        !ref.watch(checkoutSectionsProvider).tips) {
       return const SizedBox.shrink();
     }
 

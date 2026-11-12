@@ -2,6 +2,83 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The checkout toggles answered their own open question, and the answer was the opposite of the obvious one
+
+Task 10.2 carried an open dependency for three tasks: should the app honour
+the `fmp_checkout_show_*` toggles unconditionally, or only when
+`fmp_enable_custom_checkout` is on? The argument for unconditional was decent
+— the app has one checkout and no template modes, and the plugin reads
+`show_additional_info` that way already.
+
+The settings screen settles it:
+
+```jsx
+{v('fmp_enable_custom_checkout') === 'on' && (
+    … every show_* toggle …
+)}
+```
+
+A store that never enabled the custom checkout **has never seen these
+switches**. Their stored values are not decisions — and the defaults are:
+
+| Toggle | Default |
+|---|---|
+| `show_order_type` | **off** |
+| `show_your_location` | **off** |
+| `show_tips` | **off** |
+| `show_coupon` | off |
+| `show_order_bumps` | off |
+| `show_order_notes` | on |
+| `show_shipping_address` | on |
+| `show_additional_info` | on |
+
+So honouring them unconditionally would have taken the pickup/delivery
+switch, the branch card and the tip row away from **every store that never
+opened that settings section** — which is most of them. Measured on the dev
+site: turning the custom checkout on and touching nothing else already
+returns `order_type: false, your_location: false, tips: false`.
+
+The lesson is narrower than "read the defaults". It is that a setting's
+meaning includes **whether the store could see it**: a value behind a
+conditional in the admin UI is a default, not an answer, and treating it as
+an answer inverts the store's intent.
+
+## Three of the eight toggles are not honoured, each for its own reason
+
+- **`show_additional_info`** already arrives as the fields' own `enabled`
+  (task 8.2). It is also the one toggle the plugin itself never gated —
+  `PickupDelivery` reads it directly rather than through the custom-checkout
+  template, so it applies either way. Honouring it twice would be the bug.
+- **`show_shipping_address`** hides a *separate* shipping card on the website
+  while the billing fields in "your details" still collect an address. The
+  app has **one** address card doing both jobs, so honouring it would leave a
+  delivery order with nowhere to send the food. Deliberately app-owned.
+- **`show_coupon` and `show_order_bumps`** govern coupons and order bumps,
+  both v2. There is nothing in the app for them to hide.
+
+## The texts are content, so they are not gated
+
+`fmp_checkout_heading_text`, `fmp_checkout_terms_text` and
+`fmp_checkout_place_order_text` are honoured **whatever** the custom checkout
+is set to, unlike the toggles. A store that typed its terms meant them
+whatever template renders them, and the alternative is the app continuing to
+print its own sentence about an agreement the customer is being asked to
+make.
+
+Empty stays empty: the app keeps its own wording rather than drawing a blank
+heading or an unlabelled button, and a whitespace-only setting counts as
+empty — clearing a field in WordPress leaves a space behind often enough to
+matter.
+
+## Hiding the tip row does not remove a tip already on the cart
+
+A store that switches `show_tips` off mid-session leaves a customer who had
+already added one with the fee on the order and no control to remove it. The
+website has the same shape — the tip lives in the session either way — and
+inventing a "clear the tip when the row disappears" rule would be the app
+making a decision about the customer's money that the store did not ask for.
+Recorded as a known edge rather than fixed.
+
 ## What the second device pass found: two defects the tests had agreed to
 
 8.9, 10.1 and 10.3 all shipped without a device pass, and running them on the

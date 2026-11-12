@@ -7,6 +7,7 @@ import '../../data/checkout_controller.dart';
 import '../../domain/checkout_contact.dart';
 import '../../domain/checkout_validation.dart';
 import 'checkout_card.dart';
+import '../../data/checkout_repository.dart';
 
 /// Who the order is for: a name, a phone number and the kitchen's note.
 ///
@@ -116,6 +117,7 @@ class _ContactDetailsSectionState
               controller.setPhone(value);
             },
           ),
+          if (ref.watch(checkoutSectionsProvider).orderNotes) ...[
           const SizedBox(height: AppTokens.space8),
           AuthField(
             label: 'Order notes',
@@ -127,6 +129,7 @@ class _ContactDetailsSectionState
             maxLines: 4,
             onChanged: controller.setNote,
           ),
+          ],
         ],
       ),
     );

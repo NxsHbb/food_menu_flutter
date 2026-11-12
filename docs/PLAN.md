@@ -211,7 +211,7 @@ being placed**. Last of the parity work for that reason.
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 10.1 | **The detail page's hidden sections are ignored.** Not eight `hide_*` toggles as this plan had it, but **one** store setting — `hide_options`, an array of section names, read in five places on the website to leave sections out of the dish page and the quick-view popup. Nothing published it, so the app drew all eight whatever the store asked for. The product payload now carries `sections`, **effective per dish**: the store's setting already combined with what the dish has, so the app keeps no second copy of the website's conditions. Two things the first reading missed. **Hiding the price hides the way to order** — `fmp_summery_price()` renders the price and `woocommerce_template_single_add_to_cart()` inside one condition — so the app drops its add bar too. And `summery` has **no app surface**: the dish screen draws the full description where the website draws the excerpt, and the excerpt only appears on a menu row, which a different setting governs — carried anyway so the gap stays visible. `_ingredient_status` and `_nutrition_status` are **deliberately not read**; see `FINDINGS.md` | pro + app | done |
-| 10.2 | **The checkout's `fmp_checkout_show_*` toggles are ignored, and so are its three texts.** Order type, your location, shipping address, order notes, coupon and tips are each switchable on the website and fixed in the app. Needs the ones the app can honour published and respected, and the rest recorded here as deliberately app-owned rather than left looking unnoticed. The second audit added the **texts**, which are content rather than layout and were not in this task's first reading: `fmp_checkout_terms_text`, `fmp_checkout_heading_text` and `fmp_checkout_place_order_text`. The terms one is the sharp case — the app is not silent there, it prints its own sentence in the exact spot the store wrote theirs for, which is the app putting words in the store's mouth. Carries the open question below about whether the toggles follow `fmp_enable_custom_checkout` | pro + app | todo |
+| 10.2 | **The checkout's `fmp_checkout_show_*` toggles are ignored, and so are its three texts.** `GET /app/checkout-fields` now carries `sections` and `texts`, and the checkout draws the order-type switch, the branch card, the order notes and the tip row as the store asked. **The open question below answered itself in the settings UI**: the toggles are rendered inside `{ fmp_enable_custom_checkout === 'on' && … }`, so a store that never enabled the custom checkout has never *seen* them — and three of them default to **off**. Honouring them unconditionally would have stripped the order-type switch, the branch card and the tip row out of every such store, so the server sends everything-shown unless the custom checkout is on. **Three of the eight are deliberately not honoured**: `show_additional_info` already arrives as the fields' own `enabled` and is the one toggle the plugin never gated; `show_shipping_address` hides a *separate* shipping card on the website while billing still collects an address, and the app's one address card does both jobs, so honouring it would leave a delivery order with nowhere to send the food; `show_coupon` and `show_order_bumps` govern v2 features. The **texts** are not gated on the custom checkout, because they are content rather than layout. See `FINDINGS.md` | pro + app | done |
 | 10.3 | **Reviews are read-only and partial.** The app showed the star, rating and count on a dish card and nothing else; the website has a full reviews tab. The list comes from `wc/store/v1/products/reviews`, which is public and needed nothing. **Leaving one needed Pro, which this plan had as `app`**: the Store API's review route is registered `READABLE` and nothing else, and WooCommerce's own `wc/v3/products/reviews` create maps to `edit_products`, a shop manager capability — so a token client had no door at all. `POST /app/products/{id}/reviews` is that door, and it re-implements three of WooCommerce's own rules because all three read `$_POST` and two answer by calling `wp_die()`. The store's review settings ride on the product payload; whether *this* customer qualifies comes from the refusal. **The design has no reviews list and no form**, so both are drawn to match, as the address and auth screens were. Gated by 10.1's `sections.reviews` | pro + app | done |
 | 10.4 | **Push notifications.** The website tells a customer by email, WhatsApp and SMS; the app has no channel at all, which leaves even task 7.3's tracking as something the customer must open the app to see. Account's Notifications row is already a stub waiting for it. **The one task here that can be dropped without blocking release**: it needs Firebase and APNs setup per store, device tokens stored against the customer, and a send on every status change | pro + app | todo |
 
@@ -336,15 +336,14 @@ the Store API returns whether or not the app asks for them. What the app still
 has to do is say so before the cart, which is Phase 9.
 
 ## Open dependencies
-- **Do the checkout's `show_*` toggles apply to the app at all?** On the
-  website every one of them is read through `CheckoutFns::get_checkout_settings()`
-  and does nothing unless `fmp_enable_custom_checkout` is on — they configure
-  the plugin's *custom* checkout template, not WooCommerce's. The app has one
-  checkout and no such mode. So either the app honours them unconditionally,
-  which gives a store settings that do more in the app than on its own site, or
-  it follows the gate, which leaves a store that never enabled the custom
-  checkout unable to hide anything. Needed before task 10.2 starts rather than
-  during it. To be confirmed.
+- ~~**Do the checkout's `show_*` toggles apply to the app at all?**~~
+  **Resolved by the code, not a judgement call.** The settings screen renders
+  the whole block inside `{ v('fmp_enable_custom_checkout') === 'on' && ( … ) }`,
+  so a store that never enabled the custom checkout has never seen those
+  switches — and `show_order_type`, `show_your_location` and `show_tips` all
+  default to **off**. Honouring them unconditionally would have emptied the
+  checkout of every store that never opened that section. The app follows the
+  gate. Settled in task 10.2.
 - **A required checkout field is not enforced anywhere but the app.** Task 8.2
   validates them in the checkout's own `Form`, and the Store API accepts an
   order without them — exactly as it does for the website's own **block**

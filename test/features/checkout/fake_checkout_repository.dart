@@ -2,6 +2,7 @@ export 'package:food_menu/src/features/checkout/domain/order_draft.dart';
 export 'package:food_menu/src/features/checkout/domain/placed_order.dart';
 
 import 'package:food_menu/src/features/checkout/data/checkout_repository.dart';
+import 'package:food_menu/src/features/checkout/domain/checkout_config.dart';
 import 'package:food_menu/src/features/checkout/domain/checkout_field.dart';
 import 'package:food_menu/src/features/checkout/domain/order_draft.dart';
 import 'package:food_menu/src/features/checkout/domain/placed_order.dart';
@@ -51,17 +52,27 @@ class FakeCheckoutRepository implements CheckoutRepository {
   /// no checkout questions, which is the common case.
   List<CheckoutField> fieldsAnswer = const [];
 
-  /// Thrown by the next [fields], then cleared.
+  /// What the store asked to be drawn. Everything, unless a test says less.
+  CheckoutSections sectionsAnswer = CheckoutSections.all;
+
+  /// The store's own wording, none unless a test sets some.
+  CheckoutTexts textsAnswer = CheckoutTexts.none;
+
+  /// Thrown by the next [config], then cleared.
   Object? failNextFields;
 
   @override
-  Future<List<CheckoutField>> fields() async {
+  Future<CheckoutConfig> config() async {
     final failure = failNextFields;
     if (failure != null) {
       failNextFields = null;
       throw failure;
     }
-    return fieldsAnswer;
+    return CheckoutConfig(
+      fields: fieldsAnswer,
+      sections: sectionsAnswer,
+      texts: textsAnswer,
+    );
   }
 }
 
