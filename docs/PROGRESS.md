@@ -2,6 +2,56 @@
 
 Newest first. One entry per completed task.
 
+## Task 10.2 — the checkout draws what the store asked for
+Branch `feat/checkout-sections`, PR #75. Plugin half in food-menu-pro#35.
+**App + Pro**. 11 new tests, 969 in total. **Phase 10 is down to push.**
+
+### What landed
+`GET /app/checkout-fields` gains `sections` and `texts`. The checkout draws
+the pickup/delivery switch, the pickup branch card, the order notes field and
+its tip row as the store asked, and uses the store's heading, terms sentence
+and Place order label where it set them.
+
+### The open question answered itself
+It had been carried for three tasks: honour the toggles unconditionally, or
+only when the custom checkout is on? The settings screen renders the whole
+block inside `{ fmp_enable_custom_checkout === 'on' && ( … ) }`, so a store
+that never enabled it **has never seen those switches** — and
+`show_order_type`, `show_your_location` and `show_tips` all default to
+**off**. Unconditional would have emptied the checkout of every store that
+never opened that section. Measured: custom checkout on and nothing else
+touched already returns three `false`s.
+
+So the server sends everything-shown unless the custom checkout is on, and
+the open dependency in `PLAN.md` is closed by evidence rather than a
+judgement call.
+
+### Three of the eight are deliberately not honoured
+`show_additional_info` already arrives as the fields' own `enabled`, and is
+the one toggle the plugin itself never gated. `show_shipping_address` hides a
+*separate* shipping card on the website while billing still collects an
+address — the app's one address card does both jobs, so honouring it would
+leave a delivery order with nowhere to send the food. `show_coupon` and
+`show_order_bumps` are v2.
+
+The **texts** are not gated at all: content, not layout.
+
+### Verified on the OnePlus
+Custom checkout on with order type, notes and tips hidden and all three texts
+set: the header read **Almost there**, the button **Send it**, the terms line
+**"By ordering you accept our kitchen terms."**, the Pickup/Delivery pills
+were gone while the times and the "Delivery · ASAP" subtitle stayed, the
+notes field was gone from Contact details, and the tip row was gone — with
+Additional information and the delivery address still drawn. Settings
+restored afterwards.
+
+### Four things worth not re-learning
+In `FINDINGS.md`: that a value behind a conditional in the admin UI is a
+default and not an answer, and treating it as one inverts the store's intent;
+why each of the three unhonoured toggles is unhonoured; why the texts are not
+gated when the toggles are; and that hiding the tip row does not remove a tip
+already on the cart, which is the website's shape too.
+
 ## Device pass — 8.9, 10.1 and 10.3 on the OnePlus
 Branch `fix/device-pass-10`, PR #74. **App only.** 2 new tests, 958 in total.
 

@@ -292,7 +292,7 @@ final checkoutReadinessProvider = Provider<CheckoutReadiness>((ref) {
       note: ref.watch(checkoutControllerProvider).note,
       // Both halves: the answers hold the values, the definitions decide
       // which key takes a list and which a string.
-      fields: ref.watch(checkoutFieldsProvider).value ?? const [],
+      fields: ref.watch(checkoutFieldsProvider),
       answers: ref.watch(checkoutControllerProvider).answers,
       type: type,
       // The server's own strings for both, never composed here.

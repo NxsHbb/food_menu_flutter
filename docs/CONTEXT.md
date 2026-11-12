@@ -1145,6 +1145,25 @@ Store API sends no default attributes to seed from.
 
 `FINDINGS.md` has the payload's shape and the demo-data trap behind it.
 
+### What the store hides on the checkout
+`GET fmp/v1/app/checkout-fields` carries three things: the store's own
+questions, a `sections` block and a `texts` block (task 10.2).
+
+- **`sections` is everything-true unless the store enabled the plugin's
+  custom checkout.** The toggles are only *rendered* in the settings screen
+  when it is on, so a store that never enabled it has never seen them and
+  three of them default to off. `FINDINGS.md` has the measurement.
+- Four are honoured: the pickup/delivery switch, the pickup branch card, the
+  order notes field and the checkout's tip row. The tip gate **narrows** task
+  9.4 and never widens it, and the **cart's** tip row is untouched —
+  `fmp_checkout_show_tips` is a checkout setting.
+- Three are not, and `FINDINGS.md` says why for each: `show_additional_info`
+  (already the fields' `enabled`), `show_shipping_address` (the app's one
+  address card does billing and shipping both), `show_coupon` and
+  `show_order_bumps` (v2 features).
+- **`texts` is not gated**, because a heading, the terms and a button label
+  are content rather than layout. Empty means the app keeps its own wording.
+
 ### The store's own checkout fields
 `GET fmp/v1/app/checkout-fields` (task 8.2, food-menu-pro#28). A store defines
 its own checkout questions — "Apartment / buzzer", "Allergies" — each a text

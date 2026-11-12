@@ -14,6 +14,7 @@ import '../../orders/presentation/order_received_screen.dart';
 import '../../fulfilment/data/fulfilment_controller.dart';
 import '../../fulfilment/presentation/widgets/fulfilment_section.dart';
 import '../data/checkout_controller.dart';
+import '../../../core/util/html_text.dart';
 import '../data/checkout_repository.dart';
 import '../domain/checkout_failure.dart';
 import '../domain/order_draft.dart';
@@ -310,7 +311,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           if (cart != null && !isEmpty)
             CheckoutTotalBar(
               cart: cart,
-              label: 'Place order',
+              // The store's own button text where it set one.
+              label: ref.watch(checkoutTextsProvider).placeOrder.isNotEmpty
+                  ? plainText(ref.watch(checkoutTextsProvider).placeOrder)
+                  : 'Place order',
               busy: _placing,
               onPlaceOrder: _placeOrder,
             ),
@@ -336,6 +340,8 @@ class _Header extends ConsumerWidget {
       ref.watch(selectedSlotProvider)?.label,
     ].nonNulls.where((part) => part.isNotEmpty).join(' · ');
 
+    final heading = ref.watch(checkoutTextsProvider).heading;
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: palette.card,
@@ -360,7 +366,10 @@ class _Header extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Checkout',
+                      // The store's own heading where it set one (task 10.2).
+                      heading.isNotEmpty ? plainText(heading) : 'Checkout',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: text.titleMedium
                           ?.copyWith(fontWeight: FontWeight.w800),
                     ),
@@ -461,19 +470,30 @@ class _SignInRequired extends StatelessWidget {
   }
 }
 
-class _Terms extends StatelessWidget {
+/// What the customer is told they are agreeing to.
+///
+/// **The store's sentence where it has one** (task 10.2). This spot had the
+/// app's own wording hard-coded, which is the app putting words in the
+/// store's mouth about an agreement the customer is being asked to make.
+/// `fmp_checkout_terms_text` is the store's; the fallback stays for a store
+/// that set none, because a blank line here would say less than the
+/// boilerplate does.
+class _Terms extends ConsumerWidget {
   const _Terms();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
+    final own = ref.watch(checkoutTextsProvider).terms;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppTokens.space4),
       child: Text(
-        'By placing your order you agree to our Terms & Conditions and '
-        'Privacy Policy.',
+        own.isNotEmpty
+            ? plainText(own)
+            : 'By placing your order you agree to our Terms & Conditions and '
+                'Privacy Policy.',
         style: text.bodySmall?.copyWith(color: palette.muted),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../fulfilment/domain/order_types.dart';
+import '../domain/checkout_config.dart';
 import '../domain/checkout_field.dart';
 import '../domain/order_draft.dart';
 import '../domain/placed_order.dart';
@@ -44,11 +45,28 @@ class CheckoutRepository {
   ///
   /// A plugin route, since the Store API knows nothing about them. Public, so
   /// the checkout can be drawn before the customer signs in.
-  Future<List<CheckoutField>> fields() async {
+  Future<CheckoutConfig> config() async {
     final raw = await _client.get<Map<String, dynamic>>(
       _client.foodMenuApi('app/checkout-fields'),
     );
 
+    final sections = raw['sections'];
+    final texts = raw['texts'];
+
+    return CheckoutConfig(
+      fields: _fields(raw),
+      // Absent on an older plugin, which is a store that has asked for
+      // nothing — so everything is drawn and the app keeps its own wording.
+      sections: sections is Map
+          ? CheckoutSections.fromJson(sections.cast<String, dynamic>())
+          : CheckoutSections.all,
+      texts: texts is Map
+          ? CheckoutTexts.fromJson(texts.cast<String, dynamic>())
+          : CheckoutTexts.none,
+    );
+  }
+
+  List<CheckoutField> _fields(Map<String, dynamic> raw) {
     // The store's master switch for the whole section. Off means the website
     // draws none of them, so neither does the app.
     if (raw['enabled'] != true) return const [];
@@ -70,12 +88,28 @@ class CheckoutRepository {
 /// checkout that refuses to draw because an optional section could not load
 /// would be worse than one without it. A failure resolves to no fields, as
 /// the add-ons provider does.
-final checkoutFieldsProvider = FutureProvider<List<CheckoutField>>((ref) async {
+final checkoutConfigProvider = FutureProvider<CheckoutConfig>((ref) async {
   try {
-    return await ref.watch(checkoutRepositoryProvider).fields();
+    return await ref.watch(checkoutRepositoryProvider).config();
   } on Object {
-    return const [];
+    return CheckoutConfig.empty;
   }
+});
+
+/// The store's checkout questions, or none.
+final checkoutFieldsProvider = Provider<List<CheckoutField>>((ref) {
+  return ref.watch(checkoutConfigProvider).value?.fields ?? const [];
+});
+
+/// Which parts of the checkout to draw. Everything, until a store says less.
+final checkoutSectionsProvider = Provider<CheckoutSections>((ref) {
+  return ref.watch(checkoutConfigProvider).value?.sections ??
+      CheckoutSections.all;
+});
+
+/// The store's own words, where it has any.
+final checkoutTextsProvider = Provider<CheckoutTexts>((ref) {
+  return ref.watch(checkoutConfigProvider).value?.texts ?? CheckoutTexts.none;
 });
 
 final checkoutRepositoryProvider = Provider<CheckoutRepository>((ref) {

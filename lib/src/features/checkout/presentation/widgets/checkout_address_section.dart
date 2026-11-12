@@ -14,6 +14,7 @@ import '../../../fulfilment/domain/order_types.dart';
 import '../../data/checkout_controller.dart';
 import 'checkout_address_sheet.dart';
 import 'checkout_card.dart';
+import '../../data/checkout_repository.dart';
 
 /// Where the order goes, or where it is collected from.
 ///
@@ -35,7 +36,18 @@ class CheckoutAddressSection extends ConsumerWidget {
     if (kind == null) return const SizedBox.shrink();
 
     return switch (kind) {
-      OrderTypeKind.pickup => const _PickupBranch(),
+      // **Only the pickup card answers to the store** (task 10.2). The
+      // website's "Your location" toggle hides the branch card, and the
+      // server already folds in that a single-branch store has nothing to
+      // say. The delivery card is *not* governed by
+      // `show_shipping_address`: on the website that hides a separate
+      // shipping card while the billing fields still collect an address,
+      // and this card is the app's only address surface — hiding it would
+      // leave a delivery order with nowhere to send the food.
+      OrderTypeKind.pickup =>
+        ref.watch(checkoutSectionsProvider).yourLocation
+            ? const _PickupBranch()
+            : const SizedBox.shrink(),
       OrderTypeKind.delivery => const _DeliveryAddress(),
     };
   }

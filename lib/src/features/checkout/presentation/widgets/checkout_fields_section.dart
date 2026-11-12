@@ -51,7 +51,7 @@ class _CheckoutFieldsSectionState
 
   @override
   Widget build(BuildContext context) {
-    final fields = ref.watch(checkoutFieldsProvider).value ?? const [];
+    final fields = ref.watch(checkoutFieldsProvider);
 
     if (fields.isEmpty) return const SizedBox.shrink();
 

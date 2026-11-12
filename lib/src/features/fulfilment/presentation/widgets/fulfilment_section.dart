@@ -10,6 +10,7 @@ import '../../domain/slots.dart';
 import 'date_strip.dart';
 import 'order_type_toggle.dart';
 import 'slot_picker.dart';
+import '../../../checkout/data/checkout_repository.dart';
 
 /// How and when the order arrives: the type switch and the time list.
 ///
@@ -49,16 +50,28 @@ class _Offered extends ConsumerWidget {
 
     final selected = ref.watch(resolvedOrderTypeProvider);
 
+    // **Hidden, not disabled** (task 10.2). A store that switched the order
+    // type off on its checkout has decided for the customer; the type still
+    // resolves and the slots below are still the right ones, so the only
+    // thing missing is the choice.
+    //
+    // Nothing here about `offered.length`: a single offered type still draws
+    // its one pill, which is the deliberate behaviour the toggle already has
+    // and not this task's to change.
+    final showToggle = ref.watch(checkoutSectionsProvider).orderType;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        OrderTypeToggle(
-          options: offered,
-          selected: selected,
-          onSelected:
-              ref.read(fulfilmentControllerProvider.notifier).chooseKind,
-        ),
-        const SizedBox(height: AppTokens.space20),
+        if (showToggle) ...[
+          OrderTypeToggle(
+            options: offered,
+            selected: selected,
+            onSelected:
+                ref.read(fulfilmentControllerProvider.notifier).chooseKind,
+          ),
+          const SizedBox(height: AppTokens.space20),
+        ],
         const _Slots(),
       ],
     );
