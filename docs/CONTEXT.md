@@ -341,6 +341,30 @@ are entity-escaped on top — an ampersand reaches the app as `&#038;`. Pass
 anything displayed through `plainText()` in `core/util/html_text.dart`; never
 render an API string directly.
 
+### Reviews
+`features/menu/` — `ReviewsSection` at the bottom of the dish screen, drawn
+only when `product.sections.reviews` is true (task 10.3).
+
+**Two backends, and the split is not arbitrary.** Reading is
+`wc/store/v1/products/reviews`, public and approved-only. Writing has no Store
+API route at all and WooCommerce's own needs `edit_products`, so it goes to
+`POST fmp/v1/app/products/{id}/reviews`. `ReviewsRepository` holds both.
+
+- **`product_id` is sent as a string**, not an array — the route types it
+  `string` with `wp_parse_id_list`, and an array is a 400. See `FINDINGS.md`.
+- **`ReviewsController` is a family notifier keyed by product id**, three
+  reviews a page, with `retry` disabled like the menu list's.
+- **`ReviewPolicy` on the product payload is store-level only.** Whether this
+  customer may review has a per-customer answer, and that payload is public,
+  so the app states the store's condition and learns the verdict from the
+  refusal — the shape task 8.7 established.
+- **A pending review does not reload the list.** `comment_previously_approved`
+  holds a customer's first review, and the read endpoint cannot see an
+  unapproved one; `ReviewOutcome.pending` is what the sheet answers with, and
+  the snackbar carries the store's own sentence.
+- The reviews **list and form are not in the design**, like the address (3.9)
+  and auth (3.11) screens, so they are drawn from the app's own vocabulary.
+
 ### Hidden sections on the dish screen
 The store's `hide_options` setting — **one array of section names**, not eight
 switches — reaches the app as a `sections` block on the same extension (task

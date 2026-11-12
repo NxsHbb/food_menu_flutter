@@ -8,12 +8,14 @@ import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/menu/data/addons_repository.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
+import 'package:food_menu/src/features/menu/data/reviews_repository.dart';
 import 'package:food_menu/src/features/menu/presentation/product_detail_screen.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/food_data_section.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/food_tags.dart';
 
 import 'fake_addons_repository.dart';
 import 'fake_menu_repository.dart';
+import 'fake_reviews_repository.dart';
 
 Product fromFixture(String name) {
   final json = jsonDecode(File('test/fixtures/$name.json').readAsStringSync());
@@ -60,10 +62,12 @@ void main() {
     Product? product,
     Object? error,
     ThemeData? theme,
+    FakeReviewsRepository? reviews,
   }) async {
     final repo = FakeMenuRepository()
       ..single = product
       ..productError = error;
+    final reviewRepo = reviews ?? FakeReviewsRepository();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -71,6 +75,7 @@ void main() {
           // These dishes have no add-ons; the groups have their own test
           // file. Overridden so no test reaches for the network.
           addonsRepositoryProvider.overrideWithValue(FakeAddonsRepository()),
+          reviewsRepositoryProvider.overrideWithValue(reviewRepo),
         ],
         child: MaterialApp(
           theme: theme ?? AppTheme.light(),
@@ -542,6 +547,156 @@ void main() {
       expect(find.byIcon(Icons.close), findsOneWidget);
       expect(find.byType(FoodDataSection), findsNothing);
       expect(find.text('Add to cart'), findsNothing);
+    });
+  });
+
+  group('reviews (task 10.3)', () {
+    testWidgets('lists what other customers said', (tester) async {
+      final reviews = FakeReviewsRepository(
+        stored: [
+          buildReview(id: 1, reviewer: 'Ayesha R.', review: 'Best in the city.'),
+          buildReview(id: 2, reviewer: 'Tom B.', review: 'Ordered it twice.'),
+        ],
+      );
+      await pump(
+        tester,
+        product: fromFixture('product_simple'),
+        reviews: reviews,
+      );
+
+      expect(find.text('Reviews (2)'), findsOneWidget);
+      expect(find.text('Ayesha R.'), findsOneWidget);
+      expect(find.text('Best in the city.'), findsOneWidget);
+      expect(find.text('Ordered it twice.'), findsOneWidget);
+    });
+
+    testWidgets('says so when there are none', (tester) async {
+      await pump(tester, product: fromFixture('product_simple'));
+
+      expect(find.text('No reviews yet. Be the first.'), findsOneWidget);
+    });
+
+    testWidgets('a failed read costs the section, not the screen',
+        (tester) async {
+      final reviews = FakeReviewsRepository()
+        ..failNext = const ApiException(
+          failure: ApiFailure.network,
+          message: 'offline',
+        );
+      await pump(
+        tester,
+        product: fromFixture('product_simple'),
+        reviews: reviews,
+      );
+
+      expect(find.text('Reviews could not be loaded.'), findsOneWidget);
+      // The dish is still orderable.
+      expect(find.text('Add to cart'), findsOneWidget);
+    });
+
+    testWidgets('marks a verified order', (tester) async {
+      final reviews = FakeReviewsRepository(
+        stored: [buildReview(verified: true)],
+      );
+      await pump(
+        tester,
+        product: fromFixture('product_simple'),
+        reviews: reviews,
+      );
+
+      expect(find.text('Verified order'), findsOneWidget);
+    });
+
+    testWidgets('offers the rest, and loads them', (tester) async {
+      final reviews = FakeReviewsRepository(
+        stored: [
+          for (var i = 1; i <= 5; i++)
+            buildReview(id: i, reviewer: 'Reviewer $i', review: 'Review $i'),
+        ],
+      );
+      await pump(
+        tester,
+        product: fromFixture('product_simple'),
+        reviews: reviews,
+      );
+
+      // Three at a time, so two are held back.
+      expect(find.text('Review 3'), findsOneWidget);
+      expect(find.text('Review 4'), findsNothing);
+      expect(find.text('Show more (2)'), findsOneWidget);
+
+      // The section is the last thing on a long screen, so it is built but
+      // below the fold at this viewport.
+      await tester.ensureVisible(find.text('Show more (2)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Show more (2)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Review 4'), findsOneWidget);
+      expect(find.text('Review 5'), findsOneWidget);
+      expect(find.text('Show more (2)'), findsNothing);
+      expect(reviews.calls.last, endsWith('page 2'));
+    });
+
+    testWidgets('names the store condition without claiming the answer',
+        (tester) async {
+      // Whether *this* customer qualifies is a per-customer question the
+      // product payload cannot answer, so the condition is stated and the
+      // verdict is left to the refusal.
+      final product = Product.fromJson({
+        'id': 17,
+        'name': 'Iced Latte',
+        'prices': const {'price': '395', 'currency_minor_unit': 2},
+        'extensions': const {
+          'food-menu-pro': {
+            'reviews': {'enabled': true, 'verification_required': true},
+          },
+        },
+      });
+      await pump(tester, product: product);
+
+      expect(
+        find.text('Only customers who have ordered this dish can review it.'),
+        findsOneWidget,
+      );
+      // Still offered — the server decides.
+      expect(find.text('Write a review'), findsOneWidget);
+    });
+
+    testWidgets('a store that takes no reviews is not offered the form',
+        (tester) async {
+      final product = Product.fromJson({
+        'id': 17,
+        'name': 'Iced Latte',
+        'prices': const {'price': '395', 'currency_minor_unit': 2},
+        'extensions': const {
+          'food-menu-pro': {
+            'reviews': {'enabled': false},
+          },
+        },
+      });
+      await pump(tester, product: product);
+
+      expect(find.text('Write a review'), findsNothing);
+      expect(find.text('No reviews yet.'), findsOneWidget);
+    });
+
+    testWidgets('hidden reviews take the whole section with them',
+        (tester) async {
+      // Task 10.1's switch governs this section too, which is the gate 10.3
+      // was planned behind.
+      final reviews = FakeReviewsRepository(stored: [buildReview()]);
+      await pump(
+        tester,
+        product: withHidden('product_simple', ['reviews']),
+        reviews: reviews,
+      );
+
+      expect(find.text('Reviews'), findsNothing);
+      expect(find.text('Reviews (1)'), findsNothing);
+      expect(find.text('Write a review'), findsNothing);
+      // Never even asked.
+      expect(reviews.calls, isEmpty);
     });
   });
 

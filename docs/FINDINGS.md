@@ -2,6 +2,106 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## Nothing in WooCommerce lets a customer write a review over REST
+
+Reading is easy: `wc/store/v1/products/reviews` is public, returns only
+approved reviews, and already carries the reviewer, the rating, the verified
+flag, the store's own formatted date and avatar urls.
+
+Writing has no door:
+
+- The Store API's review route registers **one** method,
+  `WP_REST_Server::READABLE`. There is no create.
+- WooCommerce's own `wc/v3/products/reviews` *can* create one, but
+  `wc_rest_check_product_reviews_permissions( 'create' )` maps `create` to
+  **`edit_products`** — a shop manager capability. A customer has it on no
+  store.
+
+So `POST /fmp/v1/app/products/{id}/reviews` exists. The plan had task 10.3 as
+`app`; it is `pro + app`.
+
+## Three of WooCommerce's own review rules do not work outside its comment form
+
+All three had to be re-implemented in the route, and the reason is the same
+each time — they read `$_POST`, which a REST request does not have:
+
+| Rule | Where | Why it cannot be reused |
+|---|---|---|
+| Verified owners only | `validate_product_review_verified_owners()` | On `pre_comment_on_post`, which `wp_new_comment()` never fires — and it answers with **`wp_die()`** |
+| A rating is required | `check_comment_rating()` | Guards on `isset( $_POST['rating'] )`, and also `wp_die()`s |
+| Store the rating | `add_comment_rating()` | Reads `$_POST['rating']`, so a programmatic insert saves **no rating at all** |
+
+The two `wp_die()`s are the part worth remembering: they are not merely
+unreachable over REST, they would be actively wrong if they were reached,
+because `wp_die()` in a REST request produces an HTML page where a client
+expects JSON.
+
+What is **not** re-implemented is approval. `wp_new_comment()` runs
+WordPress's own moderation, duplicate and flood checks, and the route reports
+the answer it reached rather than second-guessing it.
+
+## The rating has to be stored after the count has already been updated
+
+`WC_Comments::clear_transients()` runs off `wp_update_comment_count`, which
+`wp_new_comment()` fires while inserting. The rating meta can only be added
+*after* the comment exists — so by the time it does, the transients have
+already been cleared, without it.
+
+The dish therefore keeps the average it had until something else touches it.
+The route calls `WC_Comments::clear_transients()` itself, after writing the
+meta. Measured: a 5-star review on a dish at 4.67 moved it only once that
+second call was there.
+
+## A customer's first review is held, and the app has to say which
+
+`comment_previously_approved` defaults to `1`: a commenter with no approved
+comment yet is **held for moderation**. On the dev site, with
+`comment_moderation` off and that on, the very first review from a customer
+came back unapproved.
+
+That is why the route answers `status: 'approved' | 'pending'` and the app
+reads it rather than assuming. Both wrong answers are bad in different ways:
+showing the review in the list would tell the customer it is public when
+nobody else can see it, and showing nothing would look like the app had lost
+it. So a pending review gets the store's sentence and **no list reload** — the
+read endpoint cannot see it, so reloading would show it missing from the list
+the customer was just told it would join.
+
+## `product_id` on the reviews route is a comma-separated string, not an array
+
+```php
+$params['product_id'] = array(
+    'type'              => 'string',
+    'sanitize_callback' => 'wp_parse_id_list',
+```
+
+Its description says "specific product IDs", plural, which invites a JSON
+array. An array fails `rest_validate_request_arg` and the whole request comes
+back **400** — which reads like a server fault and is not one. Cost one
+confused probe, where a 400 carrying a three-key error object looked at a
+glance like three rows of data.
+
+## Repeat reviews are allowed, because the website allows them
+
+Nothing in WooCommerce or either plugin stops a customer reviewing the same
+dish twice. The route does not either. Refusing a second one would be a store
+policy this project invented, and inventing policy is the thing every other
+decision here has avoided.
+
+## A Riverpod 3 family notifier takes its argument in the constructor
+
+`FamilyAsyncNotifier<State, Arg>` with `build(Arg arg)` is the Riverpod 2
+shape and does not compile here. In 3.x the family's create function is
+`NotifierT Function(ArgT arg)`, so the notifier extends the plain
+`AsyncNotifier<State>`, takes the argument as a constructor parameter and
+overrides `build()` with no parameters. `ReviewsController` is the first
+family notifier in this app, hence worth writing down.
+
+Also: an `AsyncNotifierProvider` **retries on error by default**. The reviews
+section's "could not be loaded" state never appeared in a test until
+`retry: (_, _) => null` was added — the same line the menu list and order
+types already carry, for the same reason.
+
 ## `hide_options` is one setting, not eight, and hiding the price hides the Add button
 
 The plan called these "the detail page's eight `hide_*` toggles". There is no

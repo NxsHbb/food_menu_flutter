@@ -1,5 +1,6 @@
 import 'currency.dart';
 import 'money.dart';
+import '../../../features/menu/domain/review.dart';
 
 /// A product category as the Store API embeds it on a product.
 class ProductCategory {
@@ -260,6 +261,7 @@ class Product {
     required this.requiresChoices,
     required this.timed,
     required this.sections,
+    required this.reviewPolicy,
     required this.attributes,
     required this.variations,
     required this.onSale,
@@ -308,6 +310,7 @@ class Product {
       requiresChoices: _flag(json, 'requires_choices'),
       timed: TimedAvailability.fromExtension(json),
       sections: DishSections.fromExtension(json),
+      reviewPolicy: ReviewPolicy.fromExtension(json),
       attributes: _list(json['attributes'], ProductAttribute.fromJson),
       variations: _list(json['variations'], ProductVariation.fromJson),
       onSale: json['on_sale'] as bool? ?? false,
@@ -373,6 +376,10 @@ class Product {
 
   /// Which parts of the dish screen the store wants drawn (task 10.1).
   final DishSections sections;
+
+  /// What the store's settings let a customer do about reviews (task
+  /// 10.3). Whether reviews are *drawn* at all is [sections]'s business.
+  final ReviewPolicy reviewPolicy;
 
   /// The dish's attributes. Only those with [ProductAttribute.hasVariations]
   /// pick a variation; the rest are descriptive and are not drawn.

@@ -2,6 +2,57 @@
 
 Newest first. One entry per completed task.
 
+## Task 10.3 — reviews can be read, and left
+Branch `feat/reviews`, PR #73. Plugin half in food-menu-pro#34.
+**App + Pro**, not `app` as the plan had it. 25 new tests, 956 in total.
+
+### What landed
+The dish screen gains a reviews section: the list, a verified-order mark, a
+"show more" for the rest, and a form for leaving one. Reading is
+`wc/store/v1/products/reviews`, which is public and needed no plugin code.
+Writing is `POST /app/products/{id}/reviews`, which had to be built — see
+below.
+
+The store's review settings ride on the product payload, so the form asks for
+stars only where the store collects them and marks the rating optional where
+it is. Whether *this* customer qualifies under "verified owners only" is not
+claimed: the condition is stated and the server's refusal is shown verbatim.
+
+### Why it needed Pro, which the plan had not expected
+There is no way for a customer to write a review over REST. The Store API's
+review route registers `READABLE` and nothing else, and WooCommerce's own
+`wc/v3/products/reviews` create maps to `edit_products` — a shop manager
+capability. So the route is new.
+
+It also re-implements three of WooCommerce's own rules, because all three read
+`$_POST` and two answer by calling `wp_die()`: verified owners, the required
+rating, and storing the rating at all. What it does **not** re-implement is
+approval — `wp_new_comment()` runs WordPress's own checks and the route
+reports what they decided.
+
+### Measured on the dev site
+Every path through the real route, as a real customer, cleaning up after
+itself: a rated review accepted (**and held**, correctly, because
+`comment_previously_approved` holds a customer's first one), a missing rating
+refused, a rating of 6 refused, an empty review refused, a dish that does not
+exist 404, no bearer 401, and "verified owners only" refused for a customer
+who had not ordered it.
+
+### No device pass
+Third task running. Same reason: the iPhone points at the demo site, which
+runs the released plugin. This one adds a form a customer types into, so it
+needs one.
+
+### Seven things worth not re-learning
+In `FINDINGS.md`: that no REST door exists for a customer review and why; the
+three `$_POST`-bound rules and the two `wp_die()`s; that the rating has to be
+stored *after* the comment count has already been cleared, so the transients
+need clearing twice or the dish keeps its old average; that a customer's first
+review is held and the app has to say which; that `product_id` on the reviews
+route is a comma-separated string and an array is a 400; that repeat reviews
+are allowed because the website allows them; and the Riverpod 3 family
+notifier shape, plus the default retry that hid an error state from a test.
+
 ## Task 10.1 — the dish screen honours the sections the store switched off
 Branch `feat/detail-sections`, PR #72. Plugin half in food-menu-pro#33.
 **App + Pro**. 11 new tests, 931 in total.
