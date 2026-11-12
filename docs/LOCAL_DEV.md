@@ -117,6 +117,49 @@ Pro features.
   nothing about delivery pricing could be exercised. **It changes delivery
   totals** — a delivery order now costs $4.95 more than the dishes — which is
   what a real store looks like. `cart_with_shipping.json` is captured from it.
+- **A dish image on every product, and a wider catalogue.** Seeded so UI work
+  can be reviewed from a screenshot instead of a payload. The store went from
+  18 products to **28**.
+
+  The images are **generated, not photographed**: an 800x600 PNG per dish, a
+  food-toned gradient keyed to the category with the category and dish name
+  burnt into the lower-left. The food-photo APIs were all down, and a labelled
+  tile turned out to be the better tool anyway — every card is identifiable at
+  a glance in a screenshot, which is the whole point of having them. The
+  consequence to know about: **the dish name appears twice on a card**, once
+  in the image and once below it. That is the tile, not a layout bug.
+
+  **`Garlic Bread` is deliberately left with no image**, so the placeholder
+  path stays exercised.
+
+  The ten new dishes were each chosen for a case the UI has to handle:
+
+  | Dish | What it is there for |
+  |---|---|
+  | Chef's Slow-Braised Short Rib with Truffle Mash and Winter Greens | A name long enough to wrap and truncate. **It also carries an apostrophe**, which is how the entity bug below was found |
+  | Loaded Fries | A WooCommerce sale *inside* the 15% discounted category: 8.50 to 7.00 to **5.95**, the two mechanisms stacking |
+  | Sunrise Breakfast Platter | Timed, served 00:00–11:00, so it is **available** at the dev site's clock |
+  | Midnight Ramen | Timed, served 22:00–23:59, so it is **unavailable** and draws the note |
+  | Seasonal Soup | A second out-of-stock dish, in a different category |
+  | Espresso | The cheapest thing on the menu, $1.95 |
+  | Wagyu Tasting Menu | $125.00 — four figures in minor units, for the thousand separator |
+  | Mango Lassi | The third stock state, on backorder |
+  | Tiramisu | Carries three reviews, so a card shows a rating rather than "No reviews yet" |
+  | Family Feast Box | A second variable dish — *Feeds* Two/Four/Six at 24/42/58, with **explicit** attribute values, per task 8.1 |
+
+  Reviews were also added to *Double Smash* (4.5), *Margherita* (4.0) and
+  *Crispy Chicken Burger* (4.0), so ratings and the empty state both appear in
+  one screenful.
+
+- **Two timed rules added, and a thing worth knowing about `action`.** A
+  rule's `action` is only ever `show` or `hide`:
+  `TimedProducts::is_rule_unavailable()` tests for exactly those two strings
+  and **anything else silently never matches**. A rule written with
+  `action: disable` — which looks plausible, because `disable` is a valid
+  value of the *global* `fmp_timed_products_behavior` — is a rule that does
+  nothing at all, with no warning anywhere. `show` means the window is when
+  the dish **is** served; `hide` means the window is when it is not.
+
 - **An automatic discount, kept, for Phase 9.** 15% off the **Burgers**
   category (`fmp_include_cat: [18]`, `fmp_discount_percentage: 15`,
   `fmp_applicable_discount: product_total`, `fmp_discount_badge_display:

@@ -2,6 +2,26 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## `DishCard` is the one surface that does not decode entities
+Found by seeding the dev store with a dish called *Chef’s Slow-Braised Short
+Rib*. The menu grid draws it as **`Chef&#8217;s S…`**.
+
+`plainText()` exists for exactly this and is used by `DishRow`,
+`CartLineRow`, `ProductDetailScreen`, `AddonGroupCard`, `PromoBanner`,
+`PaymentSection` and `CheckoutFailure`. `DishCard` does not import it, so the
+one place a dish name is most often read is the one place it is rendered raw.
+
+The model keeps names as the API sends them — `name: json['name']` in all four
+`fromJson`s — which is the right call: decoding at the edge would make the
+model lossy, and every other surface already decodes at the point of drawing.
+So this is a missing call in one widget, not a model problem.
+
+**Nothing in the seed data before this had an apostrophe in it**, which is why
+eighteen dishes and a device pass never showed it. Task 8.8 fixed the same
+class of bug on the order screen; this is the menu's copy of it.
+
+Not fixed here: this was a dev-store seeding pass, not a code task.
+
 ## The discount never reached the price object, and the fix is one fold
 The plugin's automatic discount reaches the website through
 `woocommerce_get_price_html` and the cart through `woocommerce_add_cart_item`.
