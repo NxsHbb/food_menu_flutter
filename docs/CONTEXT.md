@@ -26,6 +26,32 @@ The existing `fmp/v1` routes are nonce-gated and unusable from a mobile client;
 exactly that reason — it is a separate prefix with no nonce anywhere, and its
 auth half now exists on the plugin's `mobile-app` branch (task 3.1).
 
+### Which plugin code runs for us, and which does not
+
+Worth knowing before reading either plugin and assuming a rule applies here.
+The app orders through the **Store API**, so it runs the same code path as the
+website's *block* checkout and a different one from its *classic* checkout.
+Anything the plugins hang off a classic-only hook is, for this app, dead code:
+
+| Hook | Fired by | Runs for the app |
+|---|---|---|
+| `woocommerce_checkout_process` | `WC_Checkout` only | no |
+| `woocommerce_checkout_create_order` | `WC_Checkout` only | no |
+| `woocommerce_check_cart_items` | both | yes — notices become a 409 |
+| `woocommerce_add_to_cart_validation` | both | yes |
+| `woocommerce_store_api_*` | Store API only | yes |
+
+Two consequences that have each cost a task. A plugin rule written for the
+classic checkout does not protect an app order even though the code is right
+there and looks active (task 8.9). And a plugin rule that reads `$_POST`, a
+cookie or the session reads nothing from us whatever hook it is on, because the
+app's own inputs arrive as JSON `extensions`, as a bearer token, and in the
+`X-FMP-*` headers (tasks 5.5, 8.6, 8.9).
+
+The same split is why fixing one of these is usually `pro + app` and gated on
+`X-FMP-App`: the website's block checkout shares the hole, and closing it for
+everyone changes a live store. `FINDINGS.md` has the convention.
+
 ## Architecture
 Feature-first, with a thin shared core.
 

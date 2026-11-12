@@ -167,6 +167,12 @@ They come **before hardening on purpose**: Phase 11's error sweep and test
 pass would otherwise be written against a checkout about to grow fields and a
 menu about to grow a state.
 
+**Reopened after Phase 9** by a second plugin audit, which found task 8.9. The
+phase was closed on the strength of eight tasks that each came from reading a
+*feature* against the app; 8.9 came from reading the *hooks* instead, and no
+earlier pass had done that systematically. Same argument for the same place in
+the plan: it is an order the website refuses and the app takes.
+
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 8.1 | **Variable dishes are orderable.** An attribute picker on the dish screen, the chosen variation read back for its own price and stock, and `variation` on add-to-cart. Stayed **app-only** as planned — but it needed the dev site's demo data fixed first: the three sizes had *empty* attribute values, which WooCommerce reads as "any", so no term could ever resolve to a variation. See `FINDINGS.md` | app | done |
@@ -178,6 +184,7 @@ menu about to grow a state.
 | 8.7 | **`fmp/v1/app/*` never checked `fm_food_menu_type`.** Every other ordering feature in both plugins gates on `online_ordering`; the app namespace did not, so it took orders on a site running as a showcase menu with ordering switched off — and the mode **defaults to the showcase**, so this was every store that had never opened the settings screen. `AppApiFns::check_ordering()` now refuses the nine ordering routes with `fmp_ordering_disabled`, while the account routes stay open. The app reads that one refusal off the order-types call it already makes at launch and draws an explanation where the menu would be, rather than "Nothing on the menu here yet." The **Store API checkout is deliberately not gated**: it is the website's own block checkout route, and refusing it would change the website. See `FINDINGS.md` | pro + app | done |
 
 | 8.8 | **What the first device pass found.** Tasks 7.2–8.2 all shipped without one, and running them on the OnePlus against the dev site turned up six defects in merged work: a variable-dish order can never be reordered, add-on choices on a variable dish are silently discarded, the order screen prints internal meta and undecoded entities, the dish header keeps the price range after a size is chosen, the size is named twice on an order line, and the tracking timeline uses the store's clock while every other date uses the phone's. **Taken before 8.3**, because 8.3 edits the same product payload and menu state these do | pro + app | done |
+| 8.9 | **An app order's time slot is never validated when it is placed.** The website guards a slot three times — the slot's own validity on `woocommerce_checkout_process`, the per-product cap on `woocommerce_checkout_create_order`, and the cap again on `woocommerce_check_cart_items` — and **not one of them protects an app order**. The first two are fired only by `WC_Checkout`, which the Store API never calls. The third the Store API does fire, and converts its notices into a 409, but it reads `PickupDelivery::get_selected_slot()`, which looks in `$_POST` and the `fmp_location_id` cookie — empty on a JSON request from a token client, so `check_product_limits()` returns on its first line and every caller passes. What the app has instead is read-time only: `SlotsApi::product_caps()` marks a slot full while it builds the list, which is true at that moment and never again. So the app can place an order into a slot that filled while the customer chose, past a dish's per-slot cap, or on a date and time outside the schedule altogether. The enforcement point is `woocommerce_store_api_checkout_update_order_from_request`, which Pro already handles and which runs **before payment**; the app half is the refusal's own message. **Gated on `X-FMP-App`**, because the website's own block checkout has the identical hole and closing it for everyone would change what live stores accept. See `FINDINGS.md` | pro + app | todo |
 
 ## Phase 9 — Discounts and promotions
 The plugin's own discount and promotion features, as distinct from
@@ -203,7 +210,7 @@ being placed**. Last of the parity work for that reason.
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 10.1 | **The detail page's eight `hide_*` toggles are ignored.** `hide_image`, `hide_price`, `hide_summery`, `hide_taxonomy`, `hide_description`, `hide_ingredient`, `hide_nutrition` and `hide_reviews` each switch a section off on the website; the app draws all eight whatever the store asked for. Needs them published and respected | pro + app | todo |
-| 10.2 | **The checkout's `fmp_checkout_show_*` toggles are ignored.** Order type, your location, shipping address, order notes, coupon and tips are each switchable on the website and fixed in the app. Needs the ones the app can honour published and respected, and the rest recorded here as deliberately app-owned rather than left looking unnoticed | pro + app | todo |
+| 10.2 | **The checkout's `fmp_checkout_show_*` toggles are ignored, and so are its three texts.** Order type, your location, shipping address, order notes, coupon and tips are each switchable on the website and fixed in the app. Needs the ones the app can honour published and respected, and the rest recorded here as deliberately app-owned rather than left looking unnoticed. The second audit added the **texts**, which are content rather than layout and were not in this task's first reading: `fmp_checkout_terms_text`, `fmp_checkout_heading_text` and `fmp_checkout_place_order_text`. The terms one is the sharp case — the app is not silent there, it prints its own sentence in the exact spot the store wrote theirs for, which is the app putting words in the store's mouth. Carries the open question below about whether the toggles follow `fmp_enable_custom_checkout` | pro + app | todo |
 | 10.3 | **Reviews are read-only and partial.** The app shows the star, rating and count on a dish card and nothing else; the website has a full reviews tab. Needs the list via `wc/store/v1/products/reviews` and, for a signed-in customer, leaving one. Gated by 10.1's `hide_reviews` | app | todo |
 | 10.4 | **Push notifications.** The website tells a customer by email, WhatsApp and SMS; the app has no channel at all, which leaves even task 7.3's tracking as something the customer must open the app to see. Account's Notifications row is already a stub waiting for it. **The one task here that can be dropped without blocking release**: it needs Firebase and APNs setup per store, device tokens stored against the customer, and a send on every status change | pro + app | todo |
 
@@ -256,6 +263,21 @@ the shape of each one is worth not repeating.
   plugin's own `fmp_preorder_max_days` out of the app. This is the same class
   of mistake as 5.5's branch scoping — the website does something through a
   path the app does not travel — and that one was caught. *Owned by 8.4.*
+- **5.2 built the slot list and let that stand for the whole feature.** The
+  read path got a careful endpoint; the write path was never asked about, so
+  the app picks from a list the server generated and the server then accepts
+  whatever comes back. Every other phase that touched a server rule went
+  looking for where the website enforces it — 5.5 for the menu query, 8.3 for
+  purchasability, 8.6 for shipping. Slots were the one where the list was
+  mistaken for the rule. *Owned by 8.9.*
+- **The audit axis was features, and features are not where hooks hide.**
+  Phase 8 and Phase 9 were both built by walking the vendor's feature list and
+  the settings screens. That finds anything the store can *configure* and the
+  app ignores, which is why `hide_*` and the `show_*` toggles were caught. It
+  does not find a rule that has no setting of its own — slot validation is
+  three `add_action` calls and no field — and 8.9 sat through two audits
+  because of it. The axis that found it was `add_filter`/`add_action` on
+  WooCommerce hooks, diffed against what the Store API fires. *Owned by 8.9.*
 - **A missing feature was closed with an empty default.** `fmp_custom_fields:
   {}` went in as a schema requirement — every registered key, every time — and
   the feature behind the key was never written down as absent. Nothing in this
@@ -313,6 +335,15 @@ the Store API returns whether or not the app asks for them. What the app still
 has to do is say so before the cart, which is Phase 9.
 
 ## Open dependencies
+- **Do the checkout's `show_*` toggles apply to the app at all?** On the
+  website every one of them is read through `CheckoutFns::get_checkout_settings()`
+  and does nothing unless `fmp_enable_custom_checkout` is on — they configure
+  the plugin's *custom* checkout template, not WooCommerce's. The app has one
+  checkout and no such mode. So either the app honours them unconditionally,
+  which gives a store settings that do more in the app than on its own site, or
+  it follows the gate, which leaves a store that never enabled the custom
+  checkout unable to hide anything. Needed before task 10.2 starts rather than
+  during it. To be confirmed.
 - **A required checkout field is not enforced anywhere but the app.** Task 8.2
   validates them in the checkout's own `Form`, and the Store API accepts an
   order without them — exactly as it does for the website's own **block**
