@@ -23,6 +23,64 @@ class of bug on the order screen; this is the menu's copy of it.
 **Fixed in task 9.2**, which was editing this widget anyway to add the
 discount badge. One `plainText()` call and three widget tests.
 
+## The fixed discount is lost when a Store API order is created
+Task 9.3 was planned as a missing explanation: the total drops and nothing
+says why. The reverse is true, and it is a good deal worse.
+
+`Discount::standard_discount_off()` filters **`woocommerce_calculated_total`**,
+a *cart* total filter. The classic checkout survives it because
+`WC_Checkout::create_order()` copies the cart's own figure onto the order —
+`$order->set_total( WC()->cart->get_total( 'edit' ) )`. The Store API instead
+calls **`$order->calculate_totals()`**, which re-adds line items, shipping,
+fees and tax and knows nothing about a cart-level filter.
+
+Measured on the dev store with "3 off orders over 25":
+
+| | |
+|---|---|
+| Cart quotes the customer | **122.00** |
+| Order is created at | **125.00** |
+| Refused? | **No** |
+
+**`expected_total` cannot catch it.** `Checkout::validate_order_totals()`
+compares the figure the customer agreed to against
+`$cart->get_total( 'edit' )` — the cart, which *is* correctly discounted. The
+guard that exists for precisely this has nothing to see. Cash on delivery then
+collects the larger number.
+
+### The website's block checkout has the same bug, and keeps it
+Only the classic checkout is correct. `CheckoutDiscount`, the plugin's Blocks
+integration, is a **frontend script** registration — it draws the discount
+message in the block cart and does nothing to any total.
+
+Fixing it in `Discount` would correct the app and the website together and
+remove a real overcharge from live sites. It would also change what every
+existing store charges, silently, on a plugin update. That is not this
+project's call, so the correction is gated on `X-FMP-App` and the website is
+left exactly as it was. **Worth reporting upstream as its own bug.**
+
+### `X-FMP-App`, because the Store API is not the app's private road
+The branch and order-type headers carry a *choice*, which may not have been
+made yet. This carries a fact, so it goes on every request unconditionally and
+is the first interceptor in the chain. It exists because the website's own
+block cart and checkout speak the same Store API, so "a Store API request" and
+"an app request" are not the same thing — and every app-only plugin change
+after this one will need the distinction too.
+
+### Only ever downwards
+The total is corrected only where the cart quoted **less** than the order
+worked out. A correction in the other direction would mean charging more than
+the customer agreed to, which is the thing being fixed rather than a thing to
+do.
+
+### The note is written twice, on purpose
+`Discount::standard_message()` reads `fmp_discount_off` with `get_post_meta()`,
+so the thank-you page and the admin order screen only show it if it is in post
+meta — the plugin's own convention, not ours to change. The CRUD copy is the
+one that is correct under HPOS, which the dev store has on, where an order's
+meta lives in its own table. Writing one without the other loses either the
+display or the correctness.
+
 ## A badge setting with two values, and no complaint about a third
 `fmp_discount_badge_display` is `product_page` — the default — or
 `everywhere`. Both of the website's badge paths test for exactly one of those

@@ -117,6 +117,17 @@ Pro features.
   nothing about delivery pricing could be exercised. **It changes delivery
   totals** — a delivery order now costs $4.95 more than the dishes — which is
   what a real store looks like. `cart_with_shipping.json` is captured from it.
+- **A fixed cart discount, kept, for task 9.3.** `fmp_fixed_discount: 3` off
+  orders of `fmp_fixed_order_amount: 25` or more. Before it the store had none
+  and the whole of 9.3 was unexercisable. **It only bites over $25**, which is
+  most of the catalogue's single items but not all — *Wagyu Tasting Menu* at
+  $125.00 is the quick way to trigger it.
+
+  Worth knowing while testing: on a request **without** `X-FMP-App` this
+  discount is still lost at order creation, so a cart quoted $122.00 becomes
+  an order of $125.00. That is the website's bug, deliberately left alone —
+  see `FINDINGS.md`. App requests are correct.
+
 - **A dish image on every product, and a wider catalogue.** Seeded so UI work
   can be reviewed from a screenshot instead of a payload. The store went from
   18 products to **28**.
