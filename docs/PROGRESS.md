@@ -2,6 +2,60 @@
 
 Newest first. One entry per completed task.
 
+## Task 9.3 — An app order charges what the customer agreed to
+Branch `fix/order-discount`, PR #66. **App + Pro**, not `pro` as planned.
+3 new tests, 885 in total.
+
+### The plan had this backwards
+9.3 was written as a missing explanation: the total drops and nothing says
+why. The reverse is true. The fixed discount is applied to the cart and
+**lost when the order is created** — the Store API calls
+`$order->calculate_totals()` where the classic checkout copies
+`WC()->cart->get_total( 'edit' )`.
+
+Measured: cart quoted **$122.00**, order created at **$125.00**, and nothing
+refused it. `expected_total` compares against the cart, which *was* correctly
+discounted, so the guard that exists for exactly this had nothing to catch.
+Cash on delivery then collects the larger figure.
+
+So the planned fix — write a meta note — would have papered over an
+overcharge by explaining a discount the customer never received.
+
+### What landed
+Pro carries the quoted total onto the order in
+`woocommerce_store_api_checkout_update_order_from_request`, the one window
+after `calculate_totals()` and before the route saves, and writes
+`fmp_discount_off` so the website's own thank-you page and admin screen can
+say why.
+
+Verified against the dev store, same cart both ways:
+
+| Request | Cart quoted | Order created at | Note |
+|---|---|---|---|
+| no `X-FMP-App` | $122.00 | **$125.00** | — |
+| with `X-FMP-App` | $122.00 | **$122.00** | `After Discount off 3` |
+
+### Three things worth not re-learning
+In `FINDINGS.md`:
+
+- **The website's block checkout has the identical bug** and deliberately
+  keeps it. Only its classic checkout is correct; `CheckoutDiscount` is a
+  frontend script that draws a message and touches no total. Fixing it for
+  everyone would change what live stores charge on a plugin update.
+- **`X-FMP-App` exists because the Store API is not the app's private road.**
+  The website's block cart speaks it too, so "a Store API request" and "an app
+  request" are different things. Unconditional and first in the chain, unlike
+  the branch and order-type headers, which carry a choice that may not have
+  been made yet. Every app-only plugin change after this one will need it.
+- **The note is written to post meta *and* through CRUD.**
+  `standard_message()` reads it with `get_post_meta()`, so that is where the
+  display looks; CRUD is what is correct under HPOS, which this store has on.
+
+### Not included
+The app's own order screen still does not show the discount — `/app/orders/{id}`
+does not publish `fmp_discount_off`. 9.3 was scoped to the order, the emails
+and the admin, and that is what it did.
+
 ## Task 9.2 — The discount says so
 Branch `feat/discount-badge`, PR #65. **App + Pro**. 10 new tests, 882 in
 total.

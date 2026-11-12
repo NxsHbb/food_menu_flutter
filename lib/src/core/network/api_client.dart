@@ -5,6 +5,7 @@ import '../../features/auth/data/auth_controller.dart';
 import '../../features/branch/data/branch_controller.dart';
 import '../config/app_config.dart';
 import 'api_exception.dart';
+import 'app_identity_interceptor.dart';
 import 'auth_interceptor.dart';
 import 'auth_refresh_interceptor.dart';
 import 'branch_interceptor.dart';
@@ -85,6 +86,11 @@ final dioProvider = Provider<Dio>((ref) {
           .absorb(nonce: nonce, cartToken: cartToken),
     ),
   );
+
+  // First, and unconditional: every request the app sends says so, which is
+  // what lets the plugin correct the app's orders without touching the
+  // website's own Store API traffic. See `AppIdentityInterceptor`.
+  dio.interceptors.add(const AppIdentityInterceptor());
 
   dio.interceptors.add(
     BranchInterceptor(
