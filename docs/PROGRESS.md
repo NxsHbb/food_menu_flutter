@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Task 9.1 — The menu charges what the cart charges
-Branch `feat/menu-discount`. **App + Pro**. 6 new tests, 872 in total.
+Branch `feat/menu-discount`, PR #62. **App + Pro**. 6 new tests, 872 in total.
 
 ### What landed
 The product payload's `food-menu-pro` extension gains a `discount` block —
