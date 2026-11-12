@@ -117,6 +117,14 @@ Pro features.
   nothing about delivery pricing could be exercised. **It changes delivery
   totals** — a delivery order now costs $4.95 more than the dishes — which is
   what a real store looks like. `cart_with_shipping.json` is captured from it.
+- **Tipping is left at its defaults**, which is itself the test for task 9.4:
+  `enable_tip` is unset and reads as **on**, `allow_tip_for` is unset and
+  reads as **both**, `show_tip_form` is unset and reads as **both**, and
+  `tip_heading_text` is unset so the app shows the plugin's own fallback,
+  "Do you want to provide a tip?". Set `allow_tip_for` to `fixed` or
+  `percentage` to see the kind toggle disappear, or `show_tip_form` to `cart`
+  to see the checkout stop asking.
+
 - **A Special Menu, kept, for task 9.5.** "Weekend Specials", offer
   `20% off`, duration "Friday to Sunday only", running until
   `fmp_menu_popup_duration: 2027-06-30`, over four dishes: *Double Smash*,

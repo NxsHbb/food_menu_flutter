@@ -2,6 +2,43 @@
 
 Newest first. One entry per completed task.
 
+## Task 9.4 — The customer can leave a tip
+Branch `feat/tips`, PR #68. **App + Pro**. 16 new tests, 913 in total.
+**Phase 9 is complete.**
+
+### What landed
+The cart payload gains a `tip` block — whether the store takes tips, which
+kinds, where it asks, its own prompt, and what is currently on the cart — and
+`POST cart/extensions` sets or clears it. The app draws the row on the
+checkout **and the cart**, since a store can ask on either.
+
+On the OnePlus: "Do you want to provide a tip?", an Amount/Percent toggle, a
+$3.00 tip added, and the total moving **$26.77 → $29.77**.
+
+### Four things worth not re-learning
+In `FINDINGS.md`:
+
+- **A tip is a fee, which is why it survives where 9.3's discount did not.**
+  Fees are line items, so `$order->calculate_totals()` counts them. An order
+  placed with a 15% tip came out carrying `Tip(15%) = 1.95`. The rule to keep:
+  when the plugin reaches the cart through a *fee* the app needs nothing; when
+  it reaches the cart through a *total filter* the order will not see it.
+- **`cart/extensions` is the only door into the cart's session.** The session
+  the app's cart uses is the one the `Cart-Token` names, and only Store API
+  routes load it — a tip written from an `fmp/v1` route would land on a
+  different session and never reach the cart.
+- **Registering it has the `woocommerce_blocks_loaded` timing trap** the
+  codebase already documents three times. Cost one round of "there is no such
+  namespace registered".
+- **Every `FilledButton` here is full width by theme**, because
+  `Size.fromHeight` means infinite width. One cannot sit in a `Row` without a
+  `SizedBox`, and the error names neither the button nor the theme.
+
+### No preset amounts
+The plugin configures none — the website renders a bare number input — so the
+app offers none. Drawing "10% / 15% / 20%" would be inventing a store policy
+and then charging a customer for it.
+
 ## Task 9.5 — The banners are the store's own promotion
 Branch `feat/special-menu`, PR #67. **App + Pro**. 12 new tests, 897 in total.
 

@@ -6,6 +6,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/store_api/models/cart.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../checkout/presentation/widgets/tip_section.dart';
 import '../../checkout/presentation/checkout_screen.dart';
 import '../../menu/presentation/menu_list_screen.dart';
 import '../data/cart_controller.dart';
@@ -129,6 +130,11 @@ class _Cart extends ConsumerWidget {
                     ],
                   ),
                 ),
+                // A store can ask for the tip on the cart, on the checkout or
+                // on both (task 9.4). Honoured in both places, or a store set
+                // to "cart" would find the app asking nowhere.
+                const SizedBox(height: AppTokens.space12),
+                const TipSection(screen: 'cart'),
                 const SizedBox(height: AppTokens.space12),
                 _Totals(totals: cart.totals),
               ],

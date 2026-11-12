@@ -110,6 +110,31 @@ class CartRepository {
     return Cart.fromJson(raw);
   }
 
+  /// Sets or clears the customer's tip (task 9.4).
+  ///
+  /// **`cart/extensions`, not a plugin route.** The tip lives on the
+  /// WooCommerce session, and the session the app's cart uses is the one the
+  /// `Cart-Token` names — which only the Store API's own routes load. A
+  /// `fmp/v1` route would have written a tip onto a different session and it
+  /// would never have reached this cart.
+  ///
+  /// An [amount] of zero removes the tip, which is the website's "Remove Tip"
+  /// rather than a second call.
+  ///
+  /// [amount] is minor units for a fixed tip and whole percent for a
+  /// percentage one — the two things the plugin's own session stores.
+  Future<Cart> setTip({required String type, required int amount}) async {
+    final raw = await _client.post<Map<String, dynamic>>(
+      _client.storeApi('cart/extensions'),
+      body: {
+        'namespace': 'food-menu-pro',
+        'data': {'type': type, 'amount': amount},
+      },
+      headers: _headers,
+    );
+    return Cart.fromJson(raw);
+  }
+
   /// Empties the cart, for the design's "Clear all".
   ///
   /// The odd one out: `DELETE cart/items` answers with the **items list**,
