@@ -22,6 +22,12 @@ enum CheckoutFailureKind {
   /// a total that moved. The summary has to catch up before trying again.
   cart,
 
+  /// The chosen time is no longer available — it filled while the customer
+  /// was choosing, a dish in the cart is sold out of it, the kitchen does not
+  /// serve one of them at that hour, or the time has simply passed. The slot
+  /// list has to be re-read before trying again (task 8.9).
+  slot,
+
   /// The gateway refused, or the store stopped accepting it.
   payment,
 
@@ -78,6 +84,9 @@ class CheckoutFailure {
   /// Whether the cart on screen is now known to be out of date.
   bool get staleCart => kind == CheckoutFailureKind.cart;
 
+  /// Whether the slot list on screen is now known to be out of date.
+  bool get staleSlot => kind == CheckoutFailureKind.slot;
+
   static CheckoutFailureKind _kindOf(ApiException error) {
     if (error.failure == ApiFailure.network ||
         error.failure == ApiFailure.timeout) {
@@ -87,6 +96,13 @@ class CheckoutFailure {
     if (error.isAuthFailure) return CheckoutFailureKind.auth;
 
     final code = error.code ?? '';
+
+    // **Before the cart arm, and that order matters.** A slot refusal can
+    // name a dish — "Only 1 of X left for this slot" — but the thing to
+    // change is the time, not the cart. Matching `cart_item` first would send
+    // the customer to the summary to fix a dish that is perfectly orderable
+    // an hour later.
+    if (code.startsWith('slot_')) return CheckoutFailureKind.slot;
 
     // Checked before the generic 5xx arm: a 409 total mismatch is a server
     // answer, not a server fault.

@@ -2,6 +2,69 @@
 
 Newest first. One entry per completed task.
 
+## Task 8.9 — an app order's slot is judged when it is placed
+Branch `fix/slot-validation`, PR #71. Plugin half in food-menu-pro#32.
+**App + Pro**. 7 new tests, 920 in total.
+**Phase 8 is complete again.**
+
+### What landed
+Pro gains `AppSlotGuard`, on
+`woocommerce_store_api_checkout_update_order_from_request` at priority 5 —
+the one hook on this path that is handed the request, and one that runs
+**before payment**, so a refusal costs the customer nothing. It asks
+`SlotsApi::validate_choice()`, which **rebuilds the list the app was given and
+looks for the entry**. That is the whole design: a second implementation of
+the rules would drift from the first, and the rules are the schedule, the
+preorder window, closed days, past times, the slot's order cap, a timed dish's
+hours and a dish's per-slot cap.
+
+Refusals come back as a 409 with the plugin's own words. The app classifies
+any `slot_*` code as a new `CheckoutFailureKind.slot`, forgets the chosen
+time, re-reads the list and says so in the banner.
+
+**Gated on `X-FMP-App`**, so the website's block checkout — which has the
+identical hole — behaves exactly as before. Verified both ways on the dev
+site: with the header a stale time is refused `409 slot_not_offered`, without
+it the same order is accepted.
+
+### Measured on the dev site
+Every path exercised through the real plugin against real settings, seeding
+and restoring as it went:
+
+| Submitted | Result |
+|---|---|
+| a slot the list just offered | accepted |
+| ASAP (empty time) | accepted |
+| a time no window contains | `slot_not_offered` |
+| no date | `slot_missing_date` |
+| a date 30 days out, window 2 | `slot_after_last_date` |
+| cart 2 of a dish capped at 1 | `slot_sold_out`, "Only 1 of … left for this slot." |
+| an unparseable date | accepted, deliberately |
+| a stale time, no `X-FMP-App` | accepted — the website is untouched |
+
+### No device pass, and that is a gap
+Only the iPhone is attached, and it points at the live demo site, which runs
+the **released** plugin — so it cannot see this code at all. The OnePlus, the
+one device that can reach the dev site, is not connected. The server half is
+verified against the real plugin as above and the app half by widget tests;
+what has not been watched is a customer reading the banner and picking again.
+The sequence to run is in the PR.
+
+### Four things worth not re-learning
+In `FINDINGS.md`:
+
+- **The ASAP row's value is the empty string.** The first draft refused an
+  empty time before looking it up, which would have refused every ASAP order
+  on every store. An empty time is not a missing one; the lookup decides.
+- **A presence check for the Store API exists and is hooked to nothing.**
+  `CheckoutPickupDelivery::validate_checkout_data()` is referenced once in the
+  whole plugin — its own declaration. Part of why this gap read as covered.
+- **`slot_` is matched before `cart_item`, on purpose.** A slot refusal names
+  a dish and is not about the dish.
+- **`is_enabled()` defaults dine-in to on and `PickupDelivery` does not.**
+  Spotted, deliberately not fixed, and the dine-in-only open question will
+  have to settle it.
+
 ## Audit — a second pass over both plugins, by hooks rather than features
 Branch `docs/slot-validation-gap`. **Docs only.** No code, no new tests.
 

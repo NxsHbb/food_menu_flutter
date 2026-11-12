@@ -418,6 +418,65 @@ void main() {
       expect(find.text('Place order'), findsOneWidget);
     });
 
+    testWidgets('a refused slot re-reads the times and says so',
+        (tester) async {
+      // Task 8.9. The server rebuilt the list the app was given and refused
+      // the entry, so the list on screen is wrong: it has to be re-read, and
+      // the customer has to be told their time moved.
+      final harness = CheckoutHarness()
+        ..checkout.failNext = const ApiException(
+          failure: ApiFailure.http,
+          statusCode: 409,
+          code: 'slot_not_offered',
+          message: 'That time is no longer available. Please choose another.',
+        );
+      await harness.pump(tester);
+
+      final before =
+          harness.fulfilment.calls.where((c) => c.startsWith('slots')).length;
+
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      final after =
+          harness.fulfilment.calls.where((c) => c.startsWith('slots')).length;
+
+      expect(
+        find.textContaining('That time is no longer available'),
+        findsOneWidget,
+      );
+      // Not the cart's advice: the dish is fine, the hour is not.
+      expect(
+        find.textContaining('The times below have been refreshed'),
+        findsOneWidget,
+      );
+      expect(after, greaterThan(before), reason: 'the slot list was re-read');
+      expect(find.text('Order placed!'), findsNothing);
+      expect(find.text('Place order'), findsOneWidget);
+    });
+
+    testWidgets('a refused slot does not re-read the cart', (tester) async {
+      // The cart is not the problem, and reloading it would throw away the
+      // summary the customer is looking at for no reason.
+      final harness = CheckoutHarness()
+        ..checkout.failNext = const ApiException(
+          failure: ApiFailure.http,
+          statusCode: 409,
+          code: 'slot_sold_out',
+          message: 'Only 1 of Short Rib left for this slot.',
+        );
+      await harness.pump(tester);
+
+      final before = harness.cart.calls.where((c) => c == 'cart').length;
+
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      expect(harness.cart.calls.where((c) => c == 'cart').length, before);
+    });
+
     testWidgets('an order with no id is not confirmed', (tester) async {
       // A 200 with `order_id: 0` is a refusal dressed as a success.
       final harness = CheckoutHarness()..checkout.order = placedOrder(id: 0);
