@@ -2,6 +2,36 @@
 
 Newest first. One entry per completed task.
 
+## Task 9.2 — The discount says so
+Branch `feat/discount-badge`, PR #65. **App + Pro**. 10 new tests, 882 in
+total.
+
+### What landed
+The discount block gains a `badge`: `scope`, the store's own `label`
+("Discount 15%") and its compact `short` ("15% off"). The app draws the short
+form in a card corner opposite the heart, beside the prices on a menu row, and
+the full phrasing on the dish screen next to the struck pair.
+
+On the OnePlus: *Loaded Fries* carries **15% off** over its photo and
+**Discount 15%** beside `$5.95 $7.00` on its own screen.
+
+### Where the store asked for it, and nowhere else
+`fmp_discount_badge_display` is `product_page` or `everywhere`, and both of
+the website's badge paths return early on anything else — so a third value
+means **no badge anywhere on the website**, silently. The payload reports that
+as `scope: none` rather than guessing, because the app has to agree with the
+website rather than improve on it.
+
+The dev store had exactly that problem: seeded with `all`, which looks right
+and does nothing. Corrected to `everywhere` and recorded in `LOCAL_DEV.md`.
+
+### Also fixed: the entity bug on the dish card
+`DishCard` was the one surface drawing a dish name raw, so *Chef's* reached
+the menu grid as `Chef&#8217;s`. Folded in rather than given its own task
+because 9.2 was editing that widget anyway. One `plainText()` call, three
+widget tests, and it now matches `DishRow`, `CartLineRow` and the detail
+screen.
+
 ## Task 9.1 — The menu charges what the cart charges
 Branch `feat/menu-discount`, PR #62. **App + Pro**. 6 new tests, 872 in total.
 

@@ -20,7 +20,38 @@ So this is a missing call in one widget, not a model problem.
 eighteen dishes and a device pass never showed it. Task 8.8 fixed the same
 class of bug on the order screen; this is the menu's copy of it.
 
-Not fixed here: this was a dev-store seeding pass, not a code task.
+**Fixed in task 9.2**, which was editing this widget anyway to add the
+discount badge. One `plainText()` call and three widget tests.
+
+## A badge setting with two values, and no complaint about a third
+`fmp_discount_badge_display` is `product_page` — the default — or
+`everywhere`. Both of the website's badge paths test for exactly one of those
+and return early otherwise:
+`Discount::append_discount_badge_to_price()` on `'product_page' !== $display`,
+and `render_discount_badge_script()` on `'everywhere' !== $display`. **A third
+value therefore shows no badge anywhere**, silently.
+
+Which is not hypothetical: the dev store had been seeded with `all`, a value
+that looks right and does nothing. The same shape as the timed rules'
+`action`, where only `show` and `hide` match — see `LOCAL_DEV.md`. Two
+settings in this plugin now, both failing closed without a word.
+
+So the payload reports an unrecognised value as `scope: none` rather than
+guessing at an intent. **The app has to agree with the website, not improve on
+it**: a store that is showing no badge on its own site should not find the app
+showing one.
+
+### Both phrasings come from the plugin
+`check_discount_of_product()` answers two ways. With no flag it gives
+`message` — "Discount 15%", the string the website's own badge prints. With a
+flag it gives `percentage_offer` — "15% off", the plugin's compact form. Both
+are published, and the app picks by the room it has: the short one in a card
+corner, the full one on the dish screen.
+
+Nothing composes `'$percentage% off'` in Dart. It would be the one
+untranslatable string in an app whose every other word comes from the server,
+and it would quietly disagree with the website for any store that has
+translated the plugin.
 
 ## The discount never reached the price object, and the fix is one fold
 The plugin's automatic discount reaches the website through

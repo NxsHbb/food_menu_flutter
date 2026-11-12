@@ -4,6 +4,7 @@ import '../../../../core/store_api/models/product.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/util/html_text.dart';
+import 'discount_badge.dart';
 import '../../../../core/widgets/dish_image_placeholder.dart';
 import '../../../cart/presentation/widgets/quick_add_button.dart';
 import '../../../wishlist/presentation/widgets/wishlist_heart.dart';
@@ -146,6 +147,14 @@ class DishRow extends StatelessWidget {
                                     color: palette.muted,
                                     decoration: TextDecoration.lineThrough,
                                   ),
+                                ),
+                              // Beside the prices rather than over the photo:
+                              // a row's thumbnail is too small to carry a
+                              // pill without covering the dish.
+                              if (product.discount.showInList)
+                                DiscountBadge(
+                                  text: product.discount.short,
+                                  compact: true,
                                 ),
                             ],
                           ),

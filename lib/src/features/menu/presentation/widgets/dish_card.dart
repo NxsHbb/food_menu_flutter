@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../../core/store_api/models/product.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/util/html_text.dart';
 import '../../../../core/widgets/dish_image_placeholder.dart';
 import '../../../cart/presentation/widgets/quick_add_button.dart';
 import '../../../wishlist/presentation/widgets/wishlist_heart.dart';
+import 'discount_badge.dart';
 
 /// The design's dish card: image, name, rating row, price and an add button,
 /// with the favourite heart over the top-right of the photo.
@@ -74,6 +76,17 @@ class DishCard extends StatelessWidget {
                     right: AppTokens.space8,
                     child: WishlistHeart(product: product),
                   ),
+                  // Opposite the heart, which is the only other thing over
+                  // the photo. Compact, because a card corner is not a line.
+                  if (product.discount.showInList)
+                    Positioned(
+                      top: AppTokens.space8,
+                      left: AppTokens.space8,
+                      child: DiscountBadge(
+                        text: product.discount.short,
+                        compact: true,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -83,7 +96,10 @@ class DishCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    product.name,
+                    // **Decoded, like every other surface.** WordPress sends
+                    // an apostrophe as `&#8217;`, and this card was the one
+                    // place that drew a dish name raw.
+                    plainText(product.name),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: text.titleSmall,
