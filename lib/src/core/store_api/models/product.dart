@@ -259,6 +259,7 @@ class Product {
     required this.hasOptions,
     required this.requiresChoices,
     required this.timed,
+    required this.sections,
     required this.attributes,
     required this.variations,
     required this.onSale,
@@ -306,6 +307,7 @@ class Product {
       hasOptions: json['has_options'] as bool? ?? false,
       requiresChoices: _flag(json, 'requires_choices'),
       timed: TimedAvailability.fromExtension(json),
+      sections: DishSections.fromExtension(json),
       attributes: _list(json['attributes'], ProductAttribute.fromJson),
       variations: _list(json['variations'], ProductVariation.fromJson),
       onSale: json['on_sale'] as bool? ?? false,
@@ -368,6 +370,9 @@ class Product {
   /// Always served on a site whose plugin predates the field, which leaves
   /// the old behaviour rather than emptying a menu.
   final TimedAvailability timed;
+
+  /// Which parts of the dish screen the store wants drawn (task 10.1).
+  final DishSections sections;
 
   /// The dish's attributes. Only those with [ProductAttribute.hasVariations]
   /// pick a variation; the rest are descriptive and are not drawn.
@@ -683,6 +688,99 @@ enum TimedBehavior {
 
 /// Whether the store serves a dish at this moment (task 8.3).
 ///
+/// Which parts of the dish screen the store wants drawn.
+///
+/// The plugin's `hide_options` is **one store setting** — an array of section
+/// names, not eight switches — read in five places on the website to leave
+/// sections out of the dish page and the quick-view popup. The app drew all
+/// eight whatever the store had asked for, which is task 10.1.
+///
+/// **The server answers per dish, already combined with what the dish has**,
+/// so [description] is false on a dish with no text and [reviews] false where
+/// comments are closed. Nothing here is re-derived in Dart: the point is that
+/// the app does not keep a second copy of the website's conditions.
+///
+/// Everything is shown on a site that says nothing, so a store on an older
+/// plugin keeps the screen it had.
+class DishSections {
+  const DishSections({
+    required this.image,
+    required this.price,
+    required this.summary,
+    required this.taxonomy,
+    required this.description,
+    required this.ingredients,
+    required this.nutrition,
+    required this.reviews,
+  });
+
+  /// Everything drawn — the answer for a payload with no section block in it.
+  static const all = DishSections(
+    image: true,
+    price: true,
+    summary: true,
+    taxonomy: true,
+    description: true,
+    ingredients: true,
+    nutrition: true,
+    reviews: true,
+  );
+
+  /// Reads the block out of the plugin's Store API extension.
+  factory DishSections.fromExtension(Map<String, dynamic> json) {
+    final extensions = json['extensions'];
+    if (extensions is! Map) return all;
+
+    final foodMenu = extensions['food-menu-pro'];
+    if (foodMenu is! Map) return all;
+
+    final sections = foodMenu['sections'];
+    if (sections is! Map) return all;
+
+    // Absent means shown, one key at a time: a half-written payload must not
+    // empty a dish screen.
+    bool on(String key) => sections[key] != false;
+
+    return DishSections(
+      image: on('image'),
+      price: on('price'),
+      summary: on('summary'),
+      taxonomy: on('taxonomy'),
+      description: on('description'),
+      ingredients: on('ingredients'),
+      nutrition: on('nutrition'),
+      reviews: on('reviews'),
+    );
+  }
+
+  final bool image;
+
+  /// False also means **no way to order it from this screen**.
+  ///
+  /// Not an interpretation of the setting: `ActionHooks::fmp_summery_price()`
+  /// renders the price and `woocommerce_template_single_add_to_cart()` inside
+  /// one `! in_array( 'price', … )`, so a store hiding the price on the
+  /// website has no add-to-cart button either. Honouring half of that would
+  /// leave an Add button with no price beside it.
+  final bool price;
+
+  /// The short description. **The app's dish screen has no surface for this**
+  /// — it draws the full [Product.description] where the website draws the
+  /// excerpt, and the excerpt only appears on a menu row, which a different
+  /// setting governs. Carried so the gap is visible rather than silently
+  /// dropped. See `FINDINGS.md`.
+  final bool summary;
+
+  final bool taxonomy;
+  final bool description;
+  final bool ingredients;
+  final bool nutrition;
+
+  /// Anything about reviews: the rating, the count, and the "No reviews yet"
+  /// line a store with comments closed should never have seen.
+  final bool reviews;
+}
+
 /// Timed rules are the plugin's own — "breakfast until eleven", "off the menu
 /// on Mondays" — and the website hides or greys the dish per
 /// `fmp_timed_products_behavior`. Before this, the app offered a breakfast

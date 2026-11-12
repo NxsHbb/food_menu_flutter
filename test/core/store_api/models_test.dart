@@ -223,6 +223,48 @@ void main() {
       expect(product.unavailableReason, isEmpty);
     });
 
+    test('a plugin that sends no sections block draws everything', () {
+      // Task 10.1. A store on an older plugin must keep the dish screen it
+      // had, so absence means shown — at every level, and per key.
+      final product = Product.fromJson({
+        'id': 17,
+        'name': 'Iced Latte',
+        'prices': const {'price': '395', 'currency_minor_unit': 2},
+      });
+
+      expect(product.sections.image, isTrue);
+      expect(product.sections.price, isTrue);
+      expect(product.sections.summary, isTrue);
+      expect(product.sections.taxonomy, isTrue);
+      expect(product.sections.description, isTrue);
+      expect(product.sections.ingredients, isTrue);
+      expect(product.sections.nutrition, isTrue);
+      expect(product.sections.reviews, isTrue);
+    });
+
+    test('a half-written sections block only hides what it names', () {
+      final product = Product.fromJson({
+        'id': 17,
+        'name': 'Iced Latte',
+        'prices': const {'price': '395', 'currency_minor_unit': 2},
+        'extensions': const {
+          'food-menu-pro': {
+            'sections': {'price': false, 'reviews': false},
+          },
+        },
+      });
+
+      expect(product.sections.price, isFalse);
+      expect(product.sections.reviews, isFalse);
+      // The six keys the block never mentioned.
+      expect(product.sections.image, isTrue);
+      expect(product.sections.summary, isTrue);
+      expect(product.sections.taxonomy, isTrue);
+      expect(product.sections.description, isTrue);
+      expect(product.sections.ingredients, isTrue);
+      expect(product.sections.nutrition, isTrue);
+    });
+
     test('parses a variable product price range', () {
       final prices = ProductPrices.fromJson(const {
         'price': '900',
