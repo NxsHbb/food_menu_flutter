@@ -218,7 +218,7 @@ being placed**. Last of the parity work for that reason.
 ## Phase 11 — Hardening
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 11.1 | Offline and error handling pass: retries, empty states, connectivity loss | app | todo |
+| 11.1 | **Offline and error handling pass.** The audit found the error paths in better shape than this line assumed — every list screen already had an error state and empty states existed everywhere — and one defect under all of them: **a `SocketException` arrived as `ApiFailure.unknown`**, so the commonest failure on a phone read "Something went wrong." and, because `isRetryable` was false, was offered **no retry** anywhere. dio reserves `connectionError` for a narrow set of cases; a dropped Wi-Fi, a DNS failure, a server that is not running and a failed TLS handshake all arrive as `unknown`. One classification fix corrected the wording and the retry on every surface at once. Also: the menu **list** screen and the **dish** screen were dead ends on a failed load, and both now offer a retry — not on a 404, where asking again fetches the same answer. **No connectivity package was added**; see `FINDINGS.md` for why a persistent offline banner was judged the wrong trade | app | done |
 | 11.2 | Widget and integration test coverage for cart, add-ons, slots and checkout handoff | app | todo |
 
 ## Phase 12 — Payment methods

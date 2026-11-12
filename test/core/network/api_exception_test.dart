@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/core/network/api_exception.dart';
@@ -55,6 +56,54 @@ void main() {
 
       expect(error.failure, ApiFailure.timeout);
       expect(error.isRetryable, isTrue);
+    });
+
+    test('a socket failure is a connection failure, not an unknown one', () {
+      // dio reserves `connectionError` for a narrow set of cases. A dropped
+      // Wi-Fi, a DNS failure and a server that is not running all arrive as
+      // `unknown` wrapping a SocketException — which used to mean the
+      // customer read "Something went wrong." and, worse, was offered no
+      // retry for the one failure most likely to work on a second tap.
+      final error = ApiException.from(
+        DioException(
+          requestOptions: request,
+          type: DioExceptionType.unknown,
+          error: const SocketException('Failed host lookup: shop.local'),
+        ),
+      );
+
+      expect(error.failure, ApiFailure.network);
+      expect(error.isRetryable, isTrue);
+      expect(error.message, 'Could not reach the server. Check your connection.');
+    });
+
+    test('so is a failed TLS handshake', () {
+      final error = ApiException.from(
+        DioException(
+          requestOptions: request,
+          type: DioExceptionType.unknown,
+          error: const TlsException('handshake failed'),
+        ),
+      );
+
+      expect(error.failure, ApiFailure.network);
+      expect(error.isRetryable, isTrue);
+    });
+
+    test('a genuine unknown still says so, and is not retried', () {
+      // A bug in our own code reaches here. Calling it a connection problem
+      // would send the customer to check their Wi-Fi over a null check.
+      final error = ApiException.from(
+        DioException(
+          requestOptions: request,
+          type: DioExceptionType.unknown,
+          error: ArgumentError('bad state'),
+          message: 'Something broke in the client.',
+        ),
+      );
+
+      expect(error.failure, ApiFailure.unknown);
+      expect(error.isRetryable, isFalse);
     });
 
     test('maps connection failures', () {

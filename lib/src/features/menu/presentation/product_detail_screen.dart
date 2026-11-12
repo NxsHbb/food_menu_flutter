@@ -198,7 +198,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     return Scaffold(
       body: switch (product) {
         AsyncLoading() => const Center(child: CircularProgressIndicator()),
-        AsyncError(:final error) => _DetailError(error: error),
+        AsyncError(:final error) =>
+          _DetailError(error: error, productId: widget.productId),
         AsyncData(:final value) => _Detail(
             product: value,
             groups: groups,
@@ -862,13 +863,16 @@ class _StepButton extends StatelessWidget {
   }
 }
 
-class _DetailError extends StatelessWidget {
-  const _DetailError({required this.error});
+class _DetailError extends ConsumerWidget {
+  const _DetailError({required this.error, required this.productId});
 
   final Object error;
 
+  /// So the retry re-asks for the dish the screen is actually about.
+  final int productId;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
     // A deleted or hidden dish 404s, which deserves its own wording rather
@@ -892,6 +896,17 @@ class _DetailError extends StatelessWidget {
               style: text.bodyLarge?.copyWith(color: palette.muted),
             ),
             const SizedBox(height: AppTokens.space16),
+            // **A retry, except where retrying cannot help.** A 404 is a
+            // dish that has gone; asking again will fetch the same answer,
+            // so that case keeps its one honest way out. Anything else is
+            // worth a second attempt before sending the customer back to
+            // the menu and losing the dish they picked.
+            if (api?.statusCode != 404)
+              FilledButton(
+                onPressed: () => ref.invalidate(productProvider(productId)),
+                child: const Text('Try again'),
+              ),
+            if (api?.statusCode != 404) const SizedBox(height: AppTokens.space8),
             OutlinedButton(
               onPressed: () => closeDish(context),
               child: const Text('Back to the menu'),

@@ -2,6 +2,70 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The commonest failure on a phone was the one the app handled worst
+
+`ApiException.from` mapped `DioExceptionType.unknown` to
+`ApiFailure.unknown` with dio's own message. That reads like a tidy
+catch-all. It is not: **dio reserves `connectionError` for a narrow set of
+cases**, and a dropped Wi-Fi, a DNS failure, a server that is simply not
+running and a failed TLS handshake all arrive as `unknown` wrapping a
+`SocketException` or a `TlsException`.
+
+Measured before the fix:
+
+```
+failure=ApiFailure.unknown  retryable=false
+message="Something went wrong."
+```
+
+Two costs, and the second is the worse one. The customer read a generic
+sentence instead of being told to check their connection — and
+`isRetryable` was **false**, so every surface that offers a retry only for a
+retryable failure offered none. For the single failure most likely to work on
+a second tap.
+
+The fix is one arm in one switch, matched on the wrapped error's **type**
+rather than its message — the wording of a `SocketException` differs between
+platforms and Dart versions, and a string match would quietly stop working.
+It corrects the wording and the retry on every screen at once, because every
+surface already keys off `failure` and `isRetryable`.
+
+The lesson: a catch-all arm in a classifier is worth measuring rather than
+reading. This one looked exhaustive and was the hot path.
+
+## No connectivity package, and that is a decision rather than an omission
+
+Task 11.1 named "connectivity loss", which usually means `connectivity_plus`
+and a persistent offline banner. It was not added.
+
+The classification fix above is what "connectivity loss" actually cost the
+app: every screen now says *"Could not reach the server. Check your
+connection."* and offers a retry. A banner would add a dependency, an Android
+`ACCESS_NETWORK_STATE` permission for task 13.1 to audit, and a new way to be
+wrong — the plugins report a captive portal as connected, so the banner would
+be absent exactly when the customer most needs it.
+
+Per-screen truth beats a global claim about the network. Worth revisiting if
+a store asks for it, not worth adding unasked.
+
+## What the error-path audit found already done
+
+Recorded so a future hardening pass starts from here rather than re-checking:
+
+- **Empty states exist** on the cart, the checkout's cart card, the menu, the
+  orders list, the wishlist and the address book.
+- **Retries exist** on the cart, the orders list and detail, the wishlist, the
+  address book, the branch picker, the menu screen, the payment section, the
+  fulfilment section, the reviews section and the checkout banner.
+- **Timeouts are set**: 10s connect, 20s send and receive.
+- The screens with no retry are the **form** screens — login, register, the
+  password and email changes — where the retry is the button the customer is
+  already looking at.
+
+The two that were dead ends, and are no longer: the paginated **menu list**
+screen, which a customer reaches by opening a category or searching, and the
+**dish** screen, where a blip lost the dish they had picked.
+
 ## The checkout toggles answered their own open question, and the answer was the opposite of the obvious one
 
 Task 10.2 carried an open dependency for three tasks: should the app honour

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 
 /// What went wrong, at a granularity the UI can act on.
@@ -124,11 +125,43 @@ class ApiException implements Exception {
       case DioExceptionType.badResponse:
         return ApiException._fromResponse(error.response);
       case DioExceptionType.unknown:
+        // **The commonest real failure on a phone lands here.** dio reserves
+        // `connectionError` for a narrow set of cases; a dropped Wi-Fi, a
+        // DNS failure, a server that is simply not running and a TLS
+        // handshake that fails all arrive as `unknown` wrapping a
+        // `SocketException` or a `TlsException`.
+        //
+        // Classifying those as `unknown` cost twice over: the customer read
+        // "Something went wrong." instead of being told to check their
+        // connection, and `isRetryable` was false, so every surface that
+        // offers a retry only for a retryable failure offered none — for the
+        // one failure most likely to work on a second tap.
+        if (_isSocketLevel(error.error)) {
+          return const ApiException(
+            failure: ApiFailure.network,
+            message: 'Could not reach the server. Check your connection.',
+          );
+        }
+
         return ApiException(
           failure: ApiFailure.unknown,
+          // dio's own text, which is developer language — only ever shown
+          // for a failure that is genuinely none of the above.
           message: error.message ?? 'Something went wrong.',
         );
     }
+  }
+
+  /// Whether the thing dio wrapped is a transport failure rather than a bug.
+  ///
+  /// Matched on type, not on message text: the wording of a
+  /// `SocketException` differs between platforms and Dart versions, and a
+  /// string match would quietly stop working.
+  static bool _isSocketLevel(Object? error) {
+    return error is SocketException ||
+        error is TlsException ||
+        error is HttpException ||
+        error is WebSocketException;
   }
 
   factory ApiException._fromResponse(Response<dynamic>? response) {

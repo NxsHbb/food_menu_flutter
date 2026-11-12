@@ -354,5 +354,30 @@ void main() {
       find.text('Could not reach the server. Check your connection.'),
       findsOneWidget,
     );
+    // **It used to be a dead end.** A failed first page left a cloud icon, a
+    // sentence and nothing to tap — on the screen a customer reaches by
+    // opening a category or searching, which is most of the menu.
+    expect(find.text('Try again'), findsOneWidget);
+  });
+
+  testWidgets('the first-page retry re-reads the list', (tester) async {
+    final repo = FakeMenuRepository(
+      productList: [buildProduct()],
+      productsError: const ApiException(
+        failure: ApiFailure.network,
+        message: 'Could not reach the server. Check your connection.',
+      ),
+    );
+    await pump(tester, repository: repo);
+
+    expect(find.byType(DishRow), findsNothing);
+
+    repo.productsError = null;
+
+    await tester.tap(find.text('Try again'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DishRow), findsAtLeast(1));
+    expect(find.text('Try again'), findsNothing);
   });
 }

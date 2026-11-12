@@ -268,6 +268,10 @@ void main() {
       );
 
       expect(find.text('This dish is no longer on the menu.'), findsOneWidget);
+      // Nothing to retry: asking again fetches the same 404, and a button
+      // that cannot work is worse than no button.
+      expect(find.text('Try again'), findsNothing);
+      expect(find.text('Back to the menu'), findsOneWidget);
     });
 
     testWidgets('other failures show the server message', (tester) async {
@@ -283,6 +287,44 @@ void main() {
         find.text('Could not reach the server. Check your connection.'),
         findsOneWidget,
       );
+      // **The screen used to be a dead end.** A dropped connection lost the
+      // dish the customer picked, with only a way back to the menu.
+      expect(find.text('Try again'), findsOneWidget);
+    });
+
+    testWidgets('the retry re-asks for the dish', (tester) async {
+      final repo = FakeMenuRepository()
+        ..productError = const ApiException(
+          failure: ApiFailure.network,
+          message: 'Could not reach the server. Check your connection.',
+        );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            menuRepositoryProvider.overrideWithValue(repo),
+            addonsRepositoryProvider.overrideWithValue(FakeAddonsRepository()),
+            reviewsRepositoryProvider
+                .overrideWithValue(FakeReviewsRepository()),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            home: const ProductDetailScreen(productId: 26),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The dish is there on the second ask.
+      repo
+        ..productError = null
+        ..single = fromFixture('product_simple');
+
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Iced Latte'), findsOneWidget);
+      expect(find.text('Try again'), findsNothing);
     });
   });
 
