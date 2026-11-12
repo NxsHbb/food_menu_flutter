@@ -27,6 +27,7 @@ import 'widgets/contact_details_section.dart';
 import 'widgets/order_summary_section.dart';
 import 'widgets/payment_section.dart';
 import 'widgets/shipping_section.dart';
+import 'widgets/tip_section.dart';
 
 /// The design's checkout: how and when the order arrives, where it goes, who
 /// it is for, and what it comes to.
@@ -277,6 +278,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         // it, and before payment, because it moves the total
                         // the payment is for.
                         const ShippingSection(),
+                        // Before payment, which is the last thing the
+                        // customer settles: a tip changes the figure on the
+                        // Place order button, and a control that moves the
+                        // total belongs above the one that commits to it.
+                        const TipSection(),
                         const PaymentSection(),
                         if (cart != null) ...[
                           const SizedBox(height: AppTokens.space12),

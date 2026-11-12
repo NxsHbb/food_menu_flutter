@@ -367,6 +367,82 @@ class CartTotals {
   bool get hasDiscount => !totalDiscount.isZero;
 }
 
+/// What the store offers by way of tipping, and what the customer has chosen.
+///
+/// **A tip is an input, not arithmetic** (task 9.4). The website asks, writes
+/// the answer to the session, and the plugin turns it into a cart **fee** on
+/// every recalculation — so it reaches the order as a line item, with none of
+/// the trouble task 9.3 found with the cart-level discount.
+///
+/// **No preset amounts**, because the plugin configures none: the settings say
+/// which *kinds* of tip are allowed and where the form belongs, and the amount
+/// is whatever the customer enters. Offering "10% / 15% / 20%" here would be
+/// the app inventing a store policy.
+class CartTip {
+  const CartTip({
+    required this.enabled,
+    required this.allow,
+    required this.where,
+    required this.heading,
+    required this.type,
+    required this.fixed,
+    required this.percentage,
+  });
+
+  static const none = CartTip(
+    enabled: false,
+    allow: [],
+    where: 'both',
+    heading: '',
+    type: '',
+    fixed: null,
+    percentage: 0,
+  );
+
+  factory CartTip.fromJson(Map<String, dynamic> json, Currency currency) {
+    final allow = json['allow'];
+
+    return CartTip(
+      enabled: json['enabled'] == true,
+      allow: allow is List
+          ? allow.map((e) => e.toString()).toList(growable: false)
+          : const [],
+      where: json['where'] as String? ?? 'both',
+      heading: json['heading'] as String? ?? '',
+      type: json['type'] as String? ?? '',
+      fixed: Money.tryParse(json['fixed'], currency),
+      percentage: (json['percentage'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  final bool enabled;
+
+  /// The kinds the store accepts: `fixed`, `percentage`, or both.
+  final List<String> allow;
+
+  /// Where the store shows its tip form: `cart`, `checkout` or `both`.
+  final String where;
+
+  /// The store's own prompt, already translated.
+  final String heading;
+
+  /// The kind currently on the cart, or empty for none.
+  final String type;
+
+  final Money? fixed;
+  final int percentage;
+
+  bool get allowsFixed => allow.contains('fixed');
+  bool get allowsPercentage => allow.contains('percentage');
+
+  /// Whether a tip is on the cart right now.
+  bool get isSet =>
+      (type == 'fixed' && (fixed?.minorUnits ?? 0) > 0) ||
+      (type == 'percentage' && percentage > 0);
+
+  bool showOn(String screen) => where == 'both' || where == screen;
+}
+
 /// The whole cart.
 class Cart {
   const Cart({
@@ -378,6 +454,7 @@ class Cart {
     required this.shippingPackages,
     required this.paymentMethods,
     required this.errors,
+    this.tip = CartTip.none,
   });
 
   factory Cart.fromJson(Map<String, dynamic> json) {
@@ -390,6 +467,7 @@ class Cart {
       totals: CartTotals.fromJson(
         (json['totals'] as Map?)?.cast<String, dynamic>() ?? const {},
       ),
+      tip: _tip(json),
       needsPayment: json['needs_payment'] as bool? ?? false,
       needsShipping: json['needs_shipping'] as bool? ?? false,
       shippingPackages: ((json['shipping_rates'] as List?) ?? const [])
@@ -442,6 +520,31 @@ class Cart {
 
   /// Server-side complaints, e.g. a dish that went out of stock.
   final List<String> errors;
+
+  /// Tipping, as this store has it set up (task 9.4).
+  final CartTip tip;
+
+  /// Reads the plugin's tip block off the cart's extensions.
+  ///
+  /// Absent on a store whose plugin predates it, which reads as "this store
+  /// does not take tips" — the honest answer, since it cannot.
+  static CartTip _tip(Map<String, dynamic> json) {
+    final extensions = json['extensions'];
+    if (extensions is! Map) return CartTip.none;
+
+    final foodMenu = extensions['food-menu-pro'];
+    if (foodMenu is! Map) return CartTip.none;
+
+    final tip = foodMenu['tip'];
+    if (tip is! Map) return CartTip.none;
+
+    return CartTip.fromJson(
+      tip.cast<String, dynamic>(),
+      CartTotals.fromJson(
+        (json['totals'] as Map?)?.cast<String, dynamic>() ?? const {},
+      ).currency,
+    );
+  }
 
   bool get isEmpty => items.isEmpty;
 

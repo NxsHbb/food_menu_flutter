@@ -169,6 +169,22 @@ class FakeCartRepository implements CartRepository {
     );
   }
 
+  /// Records the tip a test asked for; the fake does no arithmetic.
+  String? tipType;
+  int? tipAmount;
+
+  @override
+  Future<Cart> setTip({required String type, required int amount}) async {
+    if (failNext != null) {
+      final error = failNext!;
+      failNext = null;
+      throw error;
+    }
+    tipType = type;
+    tipAmount = amount;
+    return _cart;
+  }
+
   @override
   Future<Cart> clear() {
     calls.add('clear');

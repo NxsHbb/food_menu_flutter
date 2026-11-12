@@ -142,6 +142,18 @@ class CartController extends AsyncNotifier<Cart> {
     state = AsyncData(cart);
   }
 
+  /// Sets or clears the tip (task 9.4). Zero removes it.
+  ///
+  /// Not optimistic, like every other cart mutation here: a percentage tip is
+  /// the server's arithmetic over the server's subtotal, and showing a figure
+  /// it has not agreed to is the one thing a cart must not do.
+  Future<void> setTip({required String type, required int amount}) async {
+    final cart = await ref
+        .read(cartRepositoryProvider)
+        .setTip(type: type, amount: amount);
+    state = AsyncData(cart);
+  }
+
   /// Re-reads the cart, for pull-to-refresh and for recovering from an error.
   Future<void> reload() async {
     state = const AsyncLoading();

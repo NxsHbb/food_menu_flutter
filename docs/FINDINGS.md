@@ -23,6 +23,64 @@ class of bug on the order screen; this is the menu's copy of it.
 **Fixed in task 9.2**, which was editing this widget anyway to add the
 discount badge. One `plainText()` call and three widget tests.
 
+## A tip is a fee, which is why it survives where the discount did not
+Task 9.3 found the fixed discount lost at order creation: it filters
+`woocommerce_calculated_total`, a **cart** total filter, and the Store API
+rebuilds the order's total from its line items. The tip takes the other road.
+`Tip::cart_calculate_fee_update()` calls `$cart->add_fee()` on
+`woocommerce_cart_calculate_fees`, and a fee **is** a line item — so
+`$order->calculate_totals()` adds it up like everything else.
+
+Confirmed rather than assumed: an order placed with a 15% tip came out at
+14.95 with a fee line reading `Tip(15%) = 1.95`. No `AppCartDiscount`-style
+correction was needed.
+
+**The difference is worth carrying forward.** When the plugin reaches the cart
+through a *fee*, the app needs nothing. When it reaches the cart through a
+*total filter*, the order will not see it.
+
+## `cart/extensions` is the only door into the cart's session
+The website writes the tip over `admin-ajax` `add_tip`, which is nonce-gated
+and cookie-bound — closed to a token client. The obvious alternative, a plain
+`fmp/v1/app/tip` route that sets `WC()->session`, is a trap: **the session the
+app's cart uses is the one the `Cart-Token` header names**, and only the Store
+API's own routes load it. A tip written from an `fmp/v1` route lands on a
+different session and never reaches the cart.
+
+So the tip goes through WooCommerce's own extension mechanism:
+`woocommerce_store_api_register_update_callback()` with the plugin's namespace,
+which the client calls as `POST wc/store/v1/cart/extensions`. It answers with
+the whole cart, so the new total arrives in the same round trip.
+
+### Registering it has the timing trap the codebase already documents
+`woocommerce_blocks_loaded` has usually fired by the time Pro boots, so
+`add_action` alone registers nothing and the namespace is simply absent —
+`There is no such namespace registered`. `AppCartItemAddons`,
+`AppProductStoreApi` and `PickupDelivery` all guard with `did_action()` first,
+and this one now does too. Cost one round of "why is my extension not there".
+
+## There are no preset tip amounts, because the plugin configures none
+`allow_tip_for` says which *kinds* are allowed and `show_tip_form` says where
+the form belongs. The amount is whatever the customer types — the website
+renders a bare number input.
+
+So the app offers none either. Drawing "10% / 15% / 20%" would be the app
+inventing a store policy and then charging a customer for it, which is a
+different thing from rendering what the store set up. The prompt is the
+store's own `tip_heading_text`, defaulting to the same wording the website's
+template falls back to rather than to an empty heading.
+
+## Every `FilledButton` in this app is full width, by theme
+`AppTheme` sets `minimumSize: Size.fromHeight(AppTokens.buttonHeight)`, and
+`Size.fromHeight` means **infinite width**. That is right for the full-bleed
+buttons the design is made of, and it means one cannot be put in a `Row`
+without being told how wide to be — the failure is
+`BoxConstraints forces an infinite width` from a `RenderPhysicalShape`, which
+names neither the button nor the theme.
+
+The tip row's "Add" sits in a `SizedBox`. Worth knowing before the next
+side-by-side button.
+
 ## The promotion's schedule is its only switch
 `fmp_menu_popup_duration` is an **end date**, and there is no enable flag
 beside it: `SpecialMenu::render_special_menu_popup()` returns early when it is
