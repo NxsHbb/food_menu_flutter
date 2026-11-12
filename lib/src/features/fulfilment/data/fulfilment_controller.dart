@@ -69,6 +69,17 @@ class FulfilmentController extends Notifier<FulfilmentChoice> {
   }
 
   /// Picks a slot by its identity within the day. -1 is ASAP.
+  /// Forgets the chosen time, so the refreshed list's first available one is
+  /// what [selectedSlotProvider] resolves to.
+  ///
+  /// Used when the server has refused the slot the customer had (task 8.9).
+  /// `resolve()` would already skip an unavailable slot, but leaving the
+  /// number behind means a stale minute-of-day that a later date change could
+  /// match by coincidence.
+  void clearSlot() {
+    state = state.copyWith(clearSlot: true);
+  }
+
   void chooseSlot(int startMinutes) {
     state = state.copyWith(slotMinutes: startMinutes);
   }

@@ -2,6 +2,70 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The ASAP row's value is the empty string, which nearly broke every ASAP order
+
+`SlotsApi::asap_entry()` returns `'value' => ''`. That is deliberate and
+correct — the web checkout submits an empty `fmp_{type}_time` for "as soon as
+possible", and the slot list hands the app the string to submit rather than
+one to build.
+
+Task 8.9's first draft refused an empty time as `slot_missing_time` before it
+reached the list, which would have refused **every ASAP order on every
+store**, the common case on a store that never configured slots. Caught by
+probing the dev site rather than by reading: the read path's first slot came
+back `value=''  available=true`, which is the thing itself.
+
+The rule it leaves behind: an empty time is not a missing one. The lookup
+decides. A store offering ASAP has a row whose value is `''` and it matches;
+a store not offering it has no such row and `''` falls through to the refusal.
+So the check belongs **after** `find_slot()`, never before it, and the
+distinction between "missing" and "no longer offered" is which of the two the
+submitted string was.
+
+## A presence check for the Store API, written and never hooked
+
+`CheckoutPickupDelivery::validate_checkout_data()` refuses a Store API order
+with no date, or no time where the store asks for one. It throws a proper
+`RouteException`, its docblock says "Validate pickup/delivery data during
+Store API checkout" — and `grep` finds exactly one occurrence of its name in
+the plugin: its own declaration. Nothing hooks it. The only `add_action` in
+that file is for a stylesheet.
+
+Worth recording for two reasons. It is part of why this gap read as covered:
+the code exists, it is on the right class, and it names the right path. And it
+is a presence check, not a validity check — it would never have caught a slot
+that filled, a dish sold out of it, or a time that passed. Task 8.9 does the
+presence check too, inside `validate_choice()`, so the behaviour that was
+intended here now happens for app orders. The dead method is left alone: it is
+the website's, wiring it would change the block checkout, and that is the line
+this project does not cross.
+
+## A slot refusal is classified before the cart arm, and the order matters
+
+`CheckoutFailure._kindOf()` matches `slot_` before `cart_item`. The reason is
+that a slot refusal can name a dish — *"Only 1 of Short Rib left for this
+slot"* comes from `blocked_products()` — so it reads like a cart problem and
+is not one. The dish is orderable an hour later. Sending the customer to the
+summary to fix it would be advice that cannot be followed.
+
+The same argument is why a slot refusal re-reads the **slot list** and
+deliberately does not re-read the cart: the cart is right, and reloading it
+would throw away the summary the customer is looking at for nothing.
+
+## `is_enabled()` defaults dine-in to on, and `PickupDelivery` does not
+
+`AppSchedules::is_enabled()` is `'on' === ( $settings["enable_{$type}"] ?? 'on' )`
+— absent means enabled, for every type. `PickupDelivery::init()` reads the
+same settings as `?? 'on'` for pickup and delivery but `?? ''` for dine-in, so
+on a store that has never opened the settings screen the website treats
+dine-in as **off** and `/app/order-types` reports it **on**.
+
+Spotted while probing 8.9 and **not fixed**: it would change what
+`/app/order-types` publishes, which is task 5.1's contract and not this task's
+subject, and the app asks for pickup and delivery only so nothing downstream
+reads the dine-in answer today. It matters for the open question about a store
+that enables dine-in alone — the answer will have to settle this first.
+
 ## A slot is guarded three times, and never for the app
 
 The store's slot rules are enforced in `PickupDelivery::init()`, gated by

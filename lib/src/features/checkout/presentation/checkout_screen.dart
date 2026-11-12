@@ -100,9 +100,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   /// Sends it, and leaves the screen exactly as it was if the server says no.
   ///
-  /// **Nothing is cleared on a refusal.** Every field, the address, the slot
-  /// and the payment method are where the customer left them, so trying again
-  /// is one tap rather than a second checkout.
+  /// **Nothing is cleared on a refusal, with one exception.** Every field,
+  /// the address and the payment method are where the customer left them, so
+  /// trying again is one tap rather than a second checkout. The **slot** is
+  /// the exception: when the server refuses it, keeping it would mean
+  /// offering the customer one more go at a time they cannot have (task 8.9).
   Future<void> _submit(OrderDraft draft) async {
     setState(() {
       _placing = true;
@@ -160,6 +162,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } else if (failure.staleCart) {
       // It said the cart is the problem but did not say what it now is.
       await ref.read(cartControllerProvider.notifier).reload();
+    }
+
+    // The slot was refused, so the list that offered it is wrong. Forget the
+    // choice and re-read — the refreshed list either marks that time full or
+    // no longer carries it, and `selectedSlotProvider` resolves to the first
+    // one still available. The banner says a time has been picked, because
+    // moving the customer's order to another time without saying so would be
+    // the worse half of this fix.
+    if (failure.staleSlot) {
+      ref.read(fulfilmentControllerProvider.notifier).clearSlot();
+      ref.invalidate(slotsProvider);
     }
 
     if (!mounted) return;

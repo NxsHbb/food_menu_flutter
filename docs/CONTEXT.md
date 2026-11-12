@@ -745,6 +745,14 @@ screen renders as its first section. The screen itself is
 - **The slot row scrolls horizontally**, as the design draws it. Wrapping was
   tried: a store open all day at a half-hour interval offers nearly forty
   slots, which ran down the screen and buried everything below.
+- **The list is an offer, and the server judges it again when the order is
+  placed** (task 8.9). `AppSlotGuard` asks `SlotsApi::validate_choice()`,
+  which rebuilds the list and looks for the entry, so a time that filled or
+  passed between the list and the tap is refused as a 409 rather than taken.
+  A `slot_*` code is `CheckoutFailureKind.slot`: the chosen time is forgotten,
+  `slotsProvider` is invalidated, and the banner says a new time has been
+  selected. **Re-reading the slot list is the response, not re-reading the
+  cart** — a slot refusal can name a dish, but the dish is orderable later.
 - Unavailable chips are drawn struck through and **explain themselves on tap**
   with the server's own sentence. A chip that ignores taps reads as broken.
 - **The date strip** (task 8.4) is drawn from `first_date` and `last_date`,

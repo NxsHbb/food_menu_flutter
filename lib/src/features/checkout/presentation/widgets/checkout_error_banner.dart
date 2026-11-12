@@ -34,6 +34,9 @@ class CheckoutErrorBanner extends StatelessWidget {
         CheckoutFailureKind.cart =>
           'Your order summary has been updated. Review it and place the '
               'order again.',
+        CheckoutFailureKind.slot =>
+          'The times below have been refreshed and one is now selected for '
+              'you. Check it and place the order again.',
         CheckoutFailureKind.payment => 'Choose another way to pay.',
         CheckoutFailureKind.auth => 'Sign in again to place this order.',
         CheckoutFailureKind.unknown =>

@@ -78,6 +78,53 @@ void main() {
       expect(failure.canRetry, isFalse);
     });
 
+    test('a time that has gone is about the slot', () {
+      // Task 8.9's refusal. The server rebuilds the list the app was given
+      // and refuses the entry that is no longer in it.
+      final failure = failureFor(status: 409, code: 'slot_not_offered');
+
+      expect(failure.kind, CheckoutFailureKind.slot);
+      expect(failure.staleSlot, isTrue);
+      expect(failure.staleCart, isFalse);
+    });
+
+    test('a full slot is about the slot', () {
+      final failure = failureFor(status: 409, code: 'slot_full');
+
+      expect(failure.kind, CheckoutFailureKind.slot);
+      expect(failure.staleSlot, isTrue);
+    });
+
+    test('a dish sold out of a slot is about the slot, not the cart', () {
+      // The server's message names a dish — "Only 1 of X left for this slot"
+      // — and `slot_sold_out` contains neither `cart_item` nor `out_of_stock`,
+      // but the code is matched before the cart arm either way. The thing to
+      // change is the time: the dish is orderable an hour later.
+      final failure = failureFor(
+        status: 409,
+        code: 'slot_sold_out',
+        message: 'Only 1 of Short Rib left for this slot.',
+      );
+
+      expect(failure.kind, CheckoutFailureKind.slot);
+      expect(failure.staleCart, isFalse);
+    });
+
+    test('a dish the kitchen does not serve then is about the slot', () {
+      expect(
+        failureFor(status: 409, code: 'slot_not_served').kind,
+        CheckoutFailureKind.slot,
+      );
+    });
+
+    test('a slot refusal is not offered an immediate retry', () {
+      // The identical order would be refused identically until the time
+      // changes, which is why the banner asks for a new one instead.
+      final failure = failureFor(status: 409, code: 'slot_not_offered');
+
+      expect(failure.canRetry, isFalse);
+    });
+
     test('a refused gateway is about payment', () {
       expect(
         failureFor(
