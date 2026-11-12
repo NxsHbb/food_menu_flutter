@@ -117,6 +117,17 @@ Pro features.
   nothing about delivery pricing could be exercised. **It changes delivery
   totals** — a delivery order now costs $4.95 more than the dishes — which is
   what a real store looks like. `cart_with_shipping.json` is captured from it.
+- **An automatic discount, kept, for Phase 9.** 15% off the **Burgers**
+  category (`fmp_include_cat: [18]`, `fmp_discount_percentage: 15`,
+  `fmp_applicable_discount: product_total`, `fmp_discount_badge_display:
+  all`). Before it the store had no discount configured at all, so the whole
+  of Phase 9 was unexercisable — the same hole task 8.5 found with shipping.
+  **It changes menu prices**: the three burgers now read $8.29/$9.75,
+  $11.82/$13.90 and $8.93/$10.50, charged over struck. *Crispy Chicken
+  Burger* is the useful one, because it is **also** on a WooCommerce sale
+  ($11.25 down to $9.75), so it is the case where the two discount mechanisms
+  stack and only the inner pair should be shown.
+
 - **One timed-product rule kept for task 8.3**, in `fmp_timed_products`:
   "Off the menu late", hiding *Mushroom Risotto* between 11:00 pm and
   11:59 pm site time. Chosen because it blocks nothing during working hours

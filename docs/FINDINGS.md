@@ -2,6 +2,53 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The discount never reached the price object, and the fix is one fold
+The plugin's automatic discount reaches the website through
+`woocommerce_get_price_html` and the cart through `woocommerce_add_cart_item`.
+Neither touches the price object the Store API serves — there is no
+`woocommerce_product_get_price` filter in either plugin — so `/products` quoted
+1390 for *Double Smash* while the cart charged 1182, with nothing in between to
+explain it.
+
+### Matched on the parent, priced from the item
+That is what the cart does. `FrontendCartAction::price_calculate()` passes
+`$cart_data['product_id']` — the **parent** for a variation — while the price it
+discounts is `$cart_item_data['data']->get_price( 'edit' )`, the variation's
+own. The rule could not match a variation anyway:
+`Discount::check_discount_of_product()` tests `in_array( $id, fmp_include_menu )`
+and then `get_the_terms( $id, 'product_cat' )`, and a variation carries no
+`product_cat` terms at all.
+
+**The free engine is the only engine.** `FnsPro::discount_price()` is a
+one-line pass-through to `Fns::discount_price()`, and the free
+`apply_discount_to_cart_item()` steps aside when Pro is active so Pro's
+`FrontendCartAction` can price the line including add-ons. Pro's own
+`Discount` is a different feature entirely — `woocommerce_calculated_total`, a
+whole-cart deduction, which is 9.3's `fmp_discount_off`, not this.
+
+### `was` is the sale price, not the regular price
+*Crispy Chicken Burger* is 11.25 reduced to 9.75 by a WooCommerce sale, then
+15% off by the plugin: charged **8.29**, struck **9.75**. The 11.25 was already
+crossed out before this discount existed, and striking it would claim a saving
+of 2.96 when the customer is actually saving 1.46 against the price they would
+otherwise have paid.
+
+Verified against the live store rather than reasoned about: `was` came back
+equal to `prices.price` for all three burgers (975, 1390, 1050), so the two
+numbers cannot drift apart, and the charged 1182 is the number the cart had
+already been charging.
+
+### Folded into the Store API's own prices, not drawn as a third price
+`Product._applyMenuDiscount()` overwrites `price` and `regularPrice` with the
+plugin's pair. A card, a row and the detail screen already know how to put a
+struck price beside a charged one, because a WooCommerce sale needs exactly
+that — all three were right at once, with **no widget changed**, and
+`isDiscounted` kept meaning what it meant.
+
+Both amounts or neither. A charged price with nothing to strike through is a
+price cut nobody can see; a struck price with nothing charged is a dish with no
+price at all.
+
 ## A showcase menu is the default, so the missing gate was the common case
 Food Menu runs in one of two modes. `online_ordering` makes dishes WooCommerce
 products with a cart and a checkout; `food_menu_post` is a menu built on the

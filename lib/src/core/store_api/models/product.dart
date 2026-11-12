@@ -200,8 +200,11 @@ class Product {
       slug: json['slug'] as String? ?? '',
       permalink: json['permalink'] as String? ?? '',
       type: json['type'] as String? ?? 'simple',
-      prices: ProductPrices.fromJson(
-        (json['prices'] as Map?)?.cast<String, dynamic>() ?? const {},
+      prices: _applyMenuDiscount(
+        ProductPrices.fromJson(
+          (json['prices'] as Map?)?.cast<String, dynamic>() ?? const {},
+        ),
+        json,
       ),
       images: ((json['images'] as List?) ?? const [])
           .whereType<Map>()
@@ -356,6 +359,59 @@ class Product {
 
   /// True when there is any food data worth giving a section to.
   bool get hasFoodData => ingredients.isNotEmpty || nutrition.isNotEmpty;
+
+  /// Folds the plugin's automatic discount into the Store API's own prices.
+  ///
+  /// **Task 9.1.** The discount reaches the website through
+  /// `woocommerce_get_price_html` and the cart through
+  /// `woocommerce_add_cart_item`, and never the price object `/products`
+  /// serves — so a dish card read the full price and the cart then charged
+  /// less, with nothing in between to explain it.
+  ///
+  /// Folded in **here** rather than drawn as a third price somewhere: a card,
+  /// a row and the detail screen already know how to put a struck-through
+  /// price beside a charged one, because a WooCommerce sale needs exactly
+  /// that. Setting [ProductPrices.price] and [ProductPrices.regularPrice] to
+  /// the plugin's pair makes every one of those surfaces right at once, and
+  /// `isDiscounted` keeps meaning what it meant.
+  ///
+  /// **The struck price is `was`, not the regular price.** A dish at 11.25
+  /// reduced to 9.75 and then discounted 15% is charged 8.29, and 9.75 is
+  /// what is crossed out — the 11.25 was already crossed out before this
+  /// discount existed, and showing it would overstate the saving.
+  ///
+  /// Absent on a store whose plugin predates this, which leaves the Store
+  /// API's own prices exactly as they were.
+  static ProductPrices _applyMenuDiscount(
+    ProductPrices prices,
+    Map<String, dynamic> json,
+  ) {
+    final extensions = json['extensions'];
+    if (extensions is! Map) return prices;
+
+    final foodMenu = extensions['food-menu-pro'];
+    if (foodMenu is! Map) return prices;
+
+    final discount = foodMenu['discount'];
+    if (discount is! Map || discount['active'] != true) return prices;
+
+    final charged = Money.tryParse(discount['price'], prices.currency);
+    final was = Money.tryParse(discount['was'], prices.currency);
+
+    // Both or neither. A charged price with nothing to strike through is a
+    // price cut nobody can see, and a struck price with nothing charged is a
+    // dish with no price at all.
+    if (charged == null || was == null) return prices;
+
+    return ProductPrices(
+      price: charged,
+      regularPrice: was,
+      salePrice: charged,
+      currency: prices.currency,
+      priceRangeMin: prices.priceRangeMin,
+      priceRangeMax: prices.priceRangeMax,
+    );
+  }
 
   /// Reads one boolean out of the plugin's Store API extension block.
   ///
