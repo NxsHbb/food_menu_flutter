@@ -121,13 +121,23 @@ Pro features.
   can be reviewed from a screenshot instead of a payload. The store went from
   18 products to **28**.
 
-  The images are **generated, not photographed**: an 800x600 PNG per dish, a
-  food-toned gradient keyed to the category with the category and dish name
-  burnt into the lower-left. The food-photo APIs were all down, and a labelled
-  tile turned out to be the better tool anyway — every card is identifiable at
-  a glance in a screenshot, which is the whole point of having them. The
-  consequence to know about: **the dish name appears twice on a card**, once
-  in the image and once below it. That is the tile, not a layout bug.
+  The images are **real food photographs**, one per dish, from
+  [TheMealDB](https://www.themealdb.com) and, for the drinks,
+  [TheCocktailDB](https://www.thecocktaildb.com) — both free, no key, and both
+  serving photos of the dish they name. 45–180 KB JPEGs at photographic
+  aspect ratios, which is what a real store's media library looks like.
+
+  They replaced a first pass of **generated gradient tiles**, which were
+  legible but read as coloured blocks rather than food and so were no use for
+  judging a card. The tiles are gone from the media library, not merely
+  unlinked.
+
+  Matching is by search term per dish, picking the first result not already
+  used, so no two dishes share a photo. A few are approximate rather than
+  literal — *Pepperoni* is a cassava pizza, *Espresso* is an espresso martini,
+  *Tiramisu* is a trifle — which is fine for judging layout and would not be
+  for judging copy. If a photo ever needs replacing, the dish's own file in
+  `wp-content/uploads/2026/11/` is named after it.
 
   **`Garlic Bread` is deliberately left with no image**, so the placeholder
   path stays exercised.
@@ -136,7 +146,7 @@ Pro features.
 
   | Dish | What it is there for |
   |---|---|
-  | Chef's Slow-Braised Short Rib with Truffle Mash and Winter Greens | A name long enough to wrap and truncate. **It also carries an apostrophe**, which is how the entity bug below was found |
+  | Chef's Slow-Braised Short Rib with Truffle Mash and Winter Greens | A name long enough to wrap and truncate. **It also carries an apostrophe**, which is how the entity bug in `FINDINGS.md` was found |
   | Loaded Fries | A WooCommerce sale *inside* the 15% discounted category: 8.50 to 7.00 to **5.95**, the two mechanisms stacking |
   | Sunrise Breakfast Platter | Timed, served 00:00–11:00, so it is **available** at the dev site's clock |
   | Midnight Ramen | Timed, served 22:00–23:59, so it is **unavailable** and draws the note |
