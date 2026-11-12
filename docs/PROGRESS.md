@@ -3,7 +3,7 @@
 Newest first. One entry per completed task.
 
 ## Task 8.6 — A pickup order is no longer charged for delivery
-Branch `fix/pickup-shipping`. **App + Pro**, not app-only as planned. 7 new
+Branch `fix/pickup-shipping`, PR #60. **App + Pro**, not app-only as planned. 7 new
 tests, 859 in total.
 
 ### What landed
