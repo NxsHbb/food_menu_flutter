@@ -323,16 +323,22 @@ class _Detail extends StatelessWidget {
             ],
           ),
         ),
-        _AddBar(
-          product: product,
-          groups: groups,
-          selection: selection,
-          variation: variation,
-          variationProduct: variationProduct,
-          quantity: quantity,
-          onQuantityChanged: onQuantityChanged,
-          onAdd: onAdd,
-        ),
+        // **No price, no way to order** (task 10.1). The website renders the
+        // price and `woocommerce_template_single_add_to_cart()` inside one
+        // `! in_array( 'price', … )`, so hiding the price there leaves no
+        // button either. Honouring half of it would show an Add bar pricing
+        // a line the screen refuses to name.
+        if (product.sections.price)
+          _AddBar(
+            product: product,
+            groups: groups,
+            selection: selection,
+            variation: variation,
+            variationProduct: variationProduct,
+            quantity: quantity,
+            onQuantityChanged: onQuantityChanged,
+            onAdd: onAdd,
+          ),
       ],
     );
   }
@@ -347,6 +353,29 @@ class _Hero extends StatelessWidget {
   Widget build(BuildContext context) {
     final image = product.primaryImage;
     final top = MediaQuery.paddingOf(context).top;
+
+    // **Not simply dropped.** The photo shares this box with the close
+    // button and the heart, so leaving the hero out would take the only way
+    // off the screen with it. The website widens the summary to full width
+    // when the image is hidden; here the controls keep a row of their own and
+    // everything below reflows up. See `FINDINGS.md`.
+    if (!product.sections.image) {
+      return Padding(
+        padding: EdgeInsets.only(
+          top: top + AppTokens.space8,
+          left: AppTokens.space16,
+          right: AppTokens.space16,
+          bottom: AppTokens.space24,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const _CircleButton(icon: Icons.close),
+            WishlistHeart(product: product, size: 38),
+          ],
+        ),
+      );
+    }
 
     return SizedBox(
       height: 300,
@@ -462,7 +491,10 @@ class _Body extends StatelessWidget {
       children: [
         Text(product.name, style: text.headlineSmall),
         const SizedBox(height: AppTokens.space8),
-        if (product.reviewCount > 0)
+        // The rating, the count and the "No reviews yet" line are all one
+        // surface: a store with comments closed should never have been told
+        // it has no reviews yet (task 10.1).
+        if (product.sections.reviews && product.reviewCount > 0)
           Row(
             children: [
               Icon(Icons.star_rounded, size: 16, color: palette.star),
@@ -478,16 +510,17 @@ class _Body extends StatelessWidget {
               ),
             ],
           )
-        else
+        else if (product.sections.reviews)
           Text(
             'No reviews yet',
             style: text.bodyMedium?.copyWith(color: palette.muted),
           ),
         const SizedBox(height: AppTokens.space12),
-        Wrap(
-          spacing: AppTokens.space8,
-          crossAxisAlignment: WrapCrossAlignment.end,
-          children: [
+        if (product.sections.price)
+          Wrap(
+            spacing: AppTokens.space8,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            children: [
             if (prices.hasRange)
               Text(
                 'from',
@@ -514,10 +547,10 @@ class _Body extends StatelessWidget {
             // sentence. This is the one place the website shows it by
             // default, so a store that asked for `product_page` only still
             // gets its badge.
-            if (product.discount.showOnDetail)
-              DiscountBadge(text: product.discount.label),
-          ],
-        ),
+              if (product.discount.showOnDetail)
+                DiscountBadge(text: product.discount.label),
+            ],
+          ),
         // **Or a heads-up while it is still orderable**: "Will be
         // Unavailable: 11:00 pm – 11:59 pm" is worth a line on the dish the
         // customer is reading about, where there is room for it.
@@ -527,14 +560,14 @@ class _Body extends StatelessWidget {
           const SizedBox(height: AppTokens.space12),
           _StockBadge(product: product, lowStock: lowStock),
         ],
-        if (description.isNotEmpty) ...[
+        if (product.sections.description && description.isNotEmpty) ...[
           const SizedBox(height: AppTokens.space16),
           Text(
             description,
             style: text.bodyLarge?.copyWith(color: palette.muted2),
           ),
         ],
-        if (product.tags.isNotEmpty) ...[
+        if (product.sections.taxonomy && product.tags.isNotEmpty) ...[
           const SizedBox(height: AppTokens.space16),
           FoodTags(tags: product.tags),
         ],
@@ -563,14 +596,14 @@ class _Body extends StatelessWidget {
             onLimitReached: () => onLimitReached(group),
           ),
         ],
-        if (product.ingredients.isNotEmpty) ...[
+        if (product.sections.ingredients && product.ingredients.isNotEmpty) ...[
           const SizedBox(height: AppTokens.space24),
           FoodDataSection(
             title: 'Ingredients',
             rows: product.ingredients,
           ),
         ],
-        if (product.nutrition.isNotEmpty) ...[
+        if (product.sections.nutrition && product.nutrition.isNotEmpty) ...[
           const SizedBox(height: AppTokens.space24),
           FoodDataSection(
             title: 'Nutrition facts',

@@ -2,6 +2,57 @@
 
 Newest first. One entry per completed task.
 
+## Task 10.1 — the dish screen honours the sections the store switched off
+Branch `feat/detail-sections`, PR #72. Plugin half in food-menu-pro#33.
+**App + Pro**. 11 new tests, 931 in total.
+
+### What landed
+The product payload gains a `sections` block on the `food-menu-pro` extension
+— eight booleans, **effective per dish**: the store's `hide_options` already
+combined with what the dish has, so `description` is false on a dish with no
+text and `reviews` false where comments are closed. The app keeps no second
+copy of the website's conditions. Absence means shown, per key, so a store on
+an older plugin keeps the screen it had.
+
+The dish screen then drops the image, the price, the food tags, the
+description, the ingredients, the nutrition and anything about reviews as the
+store asked.
+
+### Three things the plan had wrong, and one it could not have known
+- **It is one setting, not eight.** There is no `hide_price` anywhere;
+  `hide_options` is an array of section names, read in five places on the
+  website.
+- **Hiding the price hides the way to order.** `fmp_summery_price()` renders
+  the price and `woocommerce_template_single_add_to_cart()` inside one
+  condition, so a store hiding the price gets a showcase entry. The app drops
+  its add bar with it. The card's quick-add `+` stays, as on the website.
+- **`summery` has no app surface.** The dish screen draws the full
+  description where the website draws the excerpt; the excerpt appears only on
+  a menu row, which `fmp_item_fields` governs. Published and carried so the
+  gap looks deliberate rather than unnoticed.
+- **`_ingredient_status` and `_nutrition_status` are not the per-dish
+  switches they look like.** They are only ever written on the plugin's own
+  post type, so on a WooCommerce product they are always absent. Reading them
+  would have hidden every row task 2.7 let a store enter.
+
+### Measured on the dev site
+Six cases through the real payload, seeding `hide_options` and restoring it:
+nothing hidden, four hidden, all eight hidden, a dish with no content, a
+variation inheriting its parent's answer, and no product behind the payload
+at all.
+
+### No device pass
+Same as 8.9: the iPhone points at the demo site, which runs the released
+plugin, and the OnePlus is not attached. This one is more visible than most —
+it changes what a dish screen draws — so it is worth a look before release.
+
+### Five things worth not re-learning
+In `FINDINGS.md`: the one-setting shape and the price/Add-button pairing; why
+`_ingredient_status` must not be read, and the website bug on the other side
+of it; `summery`'s missing surface; that `_Hero` holds the only way off the
+screen, so hiding the image cannot drop it; and a setting whose own help text
+promises an excerpt fallback that no code in either plugin implements.
+
 ## Task 8.9 — an app order's slot is judged when it is placed
 Branch `fix/slot-validation`, PR #71. Plugin half in food-menu-pro#32.
 **App + Pro**. 7 new tests, 920 in total.

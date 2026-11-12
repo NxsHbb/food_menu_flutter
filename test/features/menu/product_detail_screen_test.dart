@@ -20,6 +20,40 @@ Product fromFixture(String name) {
   return Product.fromJson(json as Map<String, dynamic>);
 }
 
+/// The same fixture with the store having hidden some of the dish screen.
+///
+/// Only the named sections are turned off, so a test says what it is about
+/// and nothing else moves.
+Product withHidden(String name, List<String> hidden) {
+  final json = jsonDecode(File('test/fixtures/$name.json').readAsStringSync())
+      as Map<String, dynamic>;
+
+  final extensions = (json['extensions'] as Map?)?.cast<String, dynamic>() ??
+      <String, dynamic>{};
+  final foodMenu =
+      (extensions['food-menu-pro'] as Map?)?.cast<String, dynamic>() ??
+          <String, dynamic>{};
+
+  foodMenu['sections'] = {
+    for (final key in const [
+      'image',
+      'price',
+      'summary',
+      'taxonomy',
+      'description',
+      'ingredients',
+      'nutrition',
+      'reviews',
+    ])
+      key: !hidden.contains(key),
+  };
+
+  extensions['food-menu-pro'] = foodMenu;
+  json['extensions'] = extensions;
+
+  return Product.fromJson(json);
+}
+
 void main() {
   Future<void> pump(
     WidgetTester tester, {
@@ -398,6 +432,116 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Mozzarella'), findsOneWidget);
+    });
+  });
+
+  group('the sections the store switched off (task 10.1)', () {
+    testWidgets('draws everything when the store hid nothing', (tester) async {
+      await pump(tester, product: withHidden('product_with_food_data', []));
+
+      expect(find.byType(FoodDataSection), findsNWidgets(2));
+      expect(find.text('Mozzarella'), findsOneWidget);
+      expect(find.text('Calories'), findsOneWidget);
+    });
+
+    testWidgets('a hidden price takes the add bar with it', (tester) async {
+      // The website renders the price and the add-to-cart button inside one
+      // condition, so honouring half of it would price nothing and offer to
+      // charge for it.
+      await pump(tester, product: withHidden('product_simple', ['price']));
+
+      expect(find.text('Iced Latte'), findsOneWidget);
+      expect(find.text(r'$3.95'), findsNothing);
+      expect(find.text('Add to cart'), findsNothing);
+    });
+
+    testWidgets('a hidden image keeps the way off the screen', (tester) async {
+      // The photo shares its box with the close button and the heart, so
+      // dropping the hero would strand the customer.
+      await pump(tester, product: withHidden('product_simple', ['image']));
+
+      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byType(Image), findsNothing);
+      // Everything else still drawn.
+      expect(find.text('Iced Latte'), findsOneWidget);
+      expect(find.text('Add to cart'), findsOneWidget);
+    });
+
+    testWidgets('a hidden description leaves the rest alone', (tester) async {
+      await pump(
+        tester,
+        product: withHidden('product_with_food_data', ['description']),
+      );
+
+      expect(find.byType(FoodDataSection), findsNWidgets(2));
+      expect(find.text('Add to cart'), findsOneWidget);
+    });
+
+    testWidgets('hidden food data drops both sections', (tester) async {
+      await pump(
+        tester,
+        product: withHidden(
+          'product_with_food_data',
+          ['ingredients', 'nutrition'],
+        ),
+      );
+
+      expect(find.byType(FoodDataSection), findsNothing);
+      expect(find.text('Mozzarella'), findsNothing);
+      expect(find.text('Calories'), findsNothing);
+    });
+
+    testWidgets('one of the two can go without the other', (tester) async {
+      await pump(
+        tester,
+        product: withHidden('product_with_food_data', ['nutrition']),
+      );
+
+      expect(find.byType(FoodDataSection), findsOneWidget);
+      expect(find.text('Mozzarella'), findsOneWidget);
+      expect(find.text('Calories'), findsNothing);
+    });
+
+    testWidgets('a hidden taxonomy drops the food tags', (tester) async {
+      await pump(
+        tester,
+        product: withHidden('product_with_food_data', ['taxonomy']),
+      );
+
+      expect(find.byType(FoodTags), findsNothing);
+    });
+
+    testWidgets('hidden reviews say nothing at all about reviews',
+        (tester) async {
+      // Including the "No reviews yet" line: a store with comments closed
+      // was being told it has no reviews yet, which is the website saying
+      // nothing and the app saying something.
+      await pump(tester, product: withHidden('product_simple', ['reviews']));
+
+      expect(find.text('No reviews yet'), findsNothing);
+      expect(find.textContaining('reviews)'), findsNothing);
+    });
+
+    testWidgets('everything off still renders', (tester) async {
+      await pump(
+        tester,
+        product: withHidden('product_with_food_data', [
+          'image',
+          'price',
+          'summary',
+          'taxonomy',
+          'description',
+          'ingredients',
+          'nutrition',
+          'reviews',
+        ]),
+      );
+
+      expect(tester.takeException(), isNull);
+      // The name and the way out are not the store's to hide.
+      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byType(FoodDataSection), findsNothing);
+      expect(find.text('Add to cart'), findsNothing);
     });
   });
 

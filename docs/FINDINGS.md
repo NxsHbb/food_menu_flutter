@@ -2,6 +2,101 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## `hide_options` is one setting, not eight, and hiding the price hides the Add button
+
+The plan called these "the detail page's eight `hide_*` toggles". There is no
+`hide_image` or `hide_price` anywhere. There is **one** setting,
+`hide_options`, an array of section names — `image`, `price`, `summery`,
+`taxonomy`, `description`, `ingredient`, `nutrition`, `reviews` — with free
+contributing the first two and Pro filtering in the rest through
+`tlp_fm_hidden_field_option`.
+
+The part worth knowing is what `price` does:
+
+```php
+// ActionHooks::fmp_summery_price(), Pro
+if ( ! in_array( 'price', $hiddenOptions ) && ! $is_unavailable ) {
+    if ( $post->post_type == 'product' && TLPFoodMenu()->isWcActive() ) {
+        woocommerce_template_single_price();
+        echo '<div class="wc-add-to-cart fmp-qv-add-to-cart">';
+        woocommerce_template_single_add_to_cart();
+```
+
+The price and the add-to-cart button are inside **one** condition. A store
+hiding the price on the website gets no way to order the dish from that page
+either — it becomes a showcase entry. So the app hides its add bar with the
+price. Honouring half of it would leave an Add bar pricing a line the screen
+refuses to name.
+
+The app's card-level quick-add `+` stays live, because `hide_options` is a
+*detail page* setting and the website's own cards are governed by
+`fmp_item_fields` instead. The website has that same asymmetry.
+
+## `_ingredient_status` is a different post type's switch, and reading it would hide real data
+
+`FilterHooks::default_tabs()` gates the website's Ingredients and Nutrition
+tabs on `_ingredient_status` and `_nutrition_status`, which reads exactly like
+the per-dish switch the app should honour. It is not.
+
+Those two metas are written in one place — `PostMeta::save()`, through
+`Fns::singleFoodMetaFields()` — and that method returns early unless
+`TLPFoodMenu()->post_type === $post->post_type`. They only ever exist on the
+plugin's own `fmp_food_menu` posts. Task 2.7 put ingredients and nutrition on
+WooCommerce **products**, through `ProductFoodData`'s own metabox, which has
+no such switch. Confirmed on the dev site: every product reads `''` for both.
+
+So gating the app's payload on them would hide every row a store deliberately
+entered. The app reads the data and the store-level `hide_options`, and
+nothing else.
+
+**The flip side is a website bug we are leaving alone.** On a product, those
+metas are always absent, so `default_tabs()` never adds the Ingredients or
+Nutrition tab — 2.7's data is unreachable in the website's own quick-view
+popup. Fixing it means changing what the website renders, which is the line
+this project does not cross. Worth reporting to the vendor separately.
+
+## The `summery` toggle has no surface on the app's dish screen
+
+The website draws the excerpt in the summary area and the full content in a
+tab, so `summery` and `description` hide two different things. The app's dish
+screen draws **one** text block, from `Product.description` — the full one.
+`shortDescription` is used in exactly one place in the whole app, `DishRow` on
+the menu list, and that row's fields are governed by `fmp_item_fields`, a
+different setting at a different scope.
+
+So `summary` is published, carried onto `DishSections`, and acted on by
+nothing. Recorded rather than dropped, per the plan's own instruction for
+10.2: a toggle the app cannot honour should look deliberate, not unnoticed.
+
+## The hero holds the only way off the dish screen
+
+Hiding the image is not `if (sections.image)` around `_Hero`. That 300px box
+also carries the close button and the wishlist heart, so dropping it strands
+the customer on a screen with no back affordance — the detail screen is
+pushed outside the tab shell, so there is no bottom bar either.
+
+The website's answer is to widen the summary to full width
+(`fmp_before_summery()` swaps `fmp-col-md-7` for `fmp-col-md-12`). The app's
+is a short padded row keeping the two controls and dropping the photo, the
+scrim and the height. There is a test for it, because "hidden image" and
+"unreachable screen" are one line apart.
+
+## A setting whose help text describes behaviour the plugin does not have
+
+`hide_options`' own description reads: *"When the description is disabled, the
+short description will automatically display the complete content of the
+description to ensure no information is lost."*
+
+Nothing implements it. `description` is read in exactly one place —
+`FilterHooks::default_tabs():299` — and all it does is drop the tab. There is
+no `get_the_excerpt` or `the_excerpt` filter in either plugin, and
+`fmp_summery()` calls `the_excerpt()` plainly.
+
+The app follows the **code**, not the help text: hiding the description hides
+the description. Promoting the content into the summary slot would make the
+app do something the website does not, which is the opposite of what honouring
+a store's settings means.
+
 ## The ASAP row's value is the empty string, which nearly broke every ASAP order
 
 `SlotsApi::asap_entry()` returns `'value' => ''`. That is deliberate and

@@ -341,6 +341,34 @@ are entity-escaped on top — an ampersand reaches the app as `&#038;`. Pass
 anything displayed through `plainText()` in `core/util/html_text.dart`; never
 render an API string directly.
 
+### Hidden sections on the dish screen
+The store's `hide_options` setting — **one array of section names**, not eight
+switches — reaches the app as a `sections` block on the same extension (task
+10.1):
+
+```json
+"sections": {
+  "image": true, "price": false, "summary": true, "taxonomy": true,
+  "description": true, "ingredients": false, "nutrition": false,
+  "reviews": true
+}
+```
+
+- **Effective, per dish.** The server has already combined the store setting
+  with what the dish has, so `description` is false on a dish with no text and
+  `reviews` false where comments are closed. The app keeps no second copy of
+  the website's conditions.
+- **Absence means shown**, at every level and per key, so a store on an older
+  plugin keeps the screen it had.
+- **`price: false` also drops the add bar.** The website renders the price and
+  `woocommerce_template_single_add_to_cart()` inside one condition. The card's
+  quick-add `+` is unaffected — a different setting governs cards, on the
+  website too.
+- **`image: false` does not drop `_Hero`**, which also holds the close button
+  and the heart. It renders as a short row with those two and no photo.
+- **`summary` is carried and acted on by nothing**: the dish screen draws the
+  full description where the website draws the excerpt. See `FINDINGS.md`.
+
 ### Timed dishes
 The plugin's own rules — "breakfast until eleven", "off the menu on Mondays"
 — reach the app as a `timed` block on the Store API product payload's
