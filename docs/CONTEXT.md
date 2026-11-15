@@ -1327,6 +1327,55 @@ docs/           plan, progress, findings, local dev, this file
 tool/           dev scripts (setup_hooks.sh)
 ```
 
+## Testing
+`test/` mirrors `lib/src`, one file per unit or screen, plus a `fake_*.dart`
+per repository that answers from memory. Fixtures in `test/fixtures` are
+**captured responses** from the dev store, not hand-written shapes — a fixture
+stops being a capture the moment it is edited, so a payload that needs to
+change is re-captured.
+
+**The app's own font is loaded for every test**, by
+`test/flutter_test_config.dart`. Without it `flutter test` draws every glyph in
+a fallback typeface that is *wider* than Plus Jakarta Sans, and anything the
+suite says about whether content fits is then measured against a font the app
+never uses — in both directions. See `FINDINGS.md`.
+
+### Two layers, and which one to reach for
+**Single-screen tests** are the default and where nearly all of the suite
+lives: pump one screen, override the repositories it reads, stub the routes it
+leads to, and ask what it draws. A test about what a screen *shows* belongs
+here.
+
+**Journeys** (`test/journeys/`) pump `FoodMenuApp` itself — the shipped router,
+the shell's tabs, every provider — and walk from screen to screen. They exist
+because a single-screen test stubs whatever comes next, so a handoff can be
+broken in the real router while every one of them passes. Reach for a journey
+only when the behaviour under test **is** the handoff: what one screen gives
+the next.
+
+- `JourneyHarness` fakes all seventeen repositories and stores, and signs the
+  customer in before the first pump.
+- Journeys use `journeyTest`, not `testWidgets`. It runs the body inside a
+  zone that filters exactly one framework assertion — riverpod refreshing its
+  scope during a build — and re-raises everything else. See `FINDINGS.md`.
+- The default viewport is 390dp wide (a real phone, where layout bugs live)
+  over a tall surface, so cards below the fold are built and can be asserted
+  on. The checkout is a `ListView`; at a real 844dp height its lower sections
+  never exist.
+- Journeys are built on the two dishes the captured cart holds — Fresh
+  Lemonade (25, with add-on groups) and Margherita (14, without) — so the dish
+  screen, the cart and the checkout can all be checked against the *same*
+  captured response.
+
+### What a fake will and will not model
+`FakeCartRepository` applies a quantity change and a removal, because those
+are mechanical. It does **not** price an add: every cart route answers with the
+whole cart, and what an add costs is the plugin's answer once its discounts and
+add-on pricing have had their say. A fake that worked it out would have a
+journey asserting its own arithmetic. Tests hand over the next answer as a
+captured response instead — `writeAnswers`, a queue consumed one write at a
+time.
+
 ## Conventions
 - Analyzer: `package:flutter_lints` via `analysis_options.yaml`.
   `flutter analyze` and `flutter test` must both be clean before any commit.
