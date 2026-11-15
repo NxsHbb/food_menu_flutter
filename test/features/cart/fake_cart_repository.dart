@@ -47,6 +47,18 @@ class FakeCartRepository implements CartRepository {
   /// Replaces what the next read or mutation will answer with.
   void seed(Cart cart) => _cart = cart;
 
+  /// What successive **writes** answer with, oldest first, each one becoming
+  /// the cart from then on.
+  ///
+  /// Every cart route answers with the whole cart, so an add is only ever
+  /// observable as the cart that comes back — and the app does not work that
+  /// cart out, the server does. Adding a line here would mean this fake
+  /// pricing the plugin's add-ons, and a journey asserting its own
+  /// arithmetic. A test hands over the next answer as a **captured response**
+  /// instead. Empty leaves every write answering with the cart as seeded,
+  /// which is what the single-screen tests want.
+  final List<Cart> writeAnswers = [];
+
   Future<Cart> _answer({bool write = false}) async {
     if (delay > Duration.zero) await Future<void>.delayed(delay);
 
@@ -59,6 +71,11 @@ class FakeCartRepository implements CartRepository {
       }
       throw failure;
     }
+
+    // After the failure check on purpose: a refused write leaves the cart
+    // exactly as it was, so it must not consume an answer either.
+    if (write && writeAnswers.isNotEmpty) _cart = writeAnswers.removeAt(0);
+
     return _cart;
   }
 

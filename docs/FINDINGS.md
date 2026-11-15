@@ -2959,3 +2959,100 @@ fixes it.
 
 Only visible by running it: the widget test pumps the sheet without the shell
 around it, so there is no cart bar to be covered by.
+
+## A widget test's text is not the app's text
+`flutter test` renders every glyph in a fallback typeface unless a font is
+loaded explicitly, and that typeface is **wider** than Plus Jakarta Sans. The
+whole suite had therefore been measuring layout against a font the app never
+uses.
+
+Found by pumping the real app at a real phone width for the first time. Two
+rows reported overflow at 390dp:
+
+```
+RenderFlex overflowed by 51 pixels   product_detail_screen.dart:765  (the add bar)
+RenderFlex overflowed by 34 pixels   reviews_section.dart:235        (_Message)
+```
+
+Both looked like genuine layout bugs — the add bar's was with nothing more
+exotic than `Add to cart` and `$3.25` in it. Loading
+`assets/fonts/PlusJakartaSans-Variable.ttf` through a `FontLoader` and pumping
+the identical tree: **neither overflows**. The 51 pixels were the fallback
+font's.
+
+The error runs the other way too, and that direction is the dangerous one: a
+row that only just fits under the fallback font passes a no-overflow test
+while being broken in the app. Task 8.4's *"a long slot label does not
+overflow a narrow phone"* and every test like it were weaker than they read.
+
+`test/flutter_test_config.dart` now loads the font before any test runs — it is
+the one hook that covers every test file. **All 974 existing tests passed
+unchanged with it**, which is the expected direction: they had been passing
+with less room than the app really has.
+
+The general lesson: a widget test can only answer "does this fit?" if the font
+is the shipped one. Presence assertions were never affected; measurements
+always were.
+
+## Riverpod refreshes its scope during a build, twice over an order
+Driving the real app from screen to screen trips a debug-only framework
+assertion that no single-screen test had ever produced:
+
+```
+setState() or markNeedsBuild() called during build.
+The widget on which setState() was called was: UncontrolledProviderScope
+```
+
+Two different routes to it, both ending in
+`_UncontrolledProviderScopeState.scheduleRefresh`:
+
+**1. Popping a route with a provider that went dirty behind it.** Adding to
+the cart from the dish screen invalidates the cart providers the menu screen
+behind it is watching. Popping flips that subtree's `TickerMode` back on, and
+`ConsumerStatefulElement._updateTickerMode` answers by resuming the paused
+subscription **from inside `didUpdateWidget`** — a provider flush mid-build.
+
+**2. `ref.watch` on a derived provider whose chain went dirty unwatched.**
+`_Header.build` in `checkout_screen.dart` watches `slotsProvider`. Re-opening
+the checkout after the cart changed makes that first `watch` flush
+`cartItemsProvider` → `slotRequestProvider` → `slotsProvider` during the build
+that is watching it, and a provider in the chain invalidates itself.
+
+**Neither is the app misusing riverpod.** There is no app frame between
+`markNeedsBuild` and riverpod's own code in case 1, and case 2 is a
+`ConsumerWidget` calling `ref.watch` in `build`, which is the documented way to
+use it. A plain `ProviderScope` wired exactly as `main.dart` wires it
+reproduces both, so it is not an artifact of the test harness either.
+
+Riverpod catches these in `runBinaryGuarded` and hands them to the **zone**
+rather than to `FlutterError.onError`, so `tester.takeException()` cannot
+reach them — which is why `journeyTest` filters them in a zone instead. The
+match requires `scheduleRefresh` on the stack, a frame app code cannot
+produce: a widget of the app's own calling `setState` during build has its own
+`State` there instead, and still fails the test.
+
+Both are `assert`s, so they are stripped from a release build. In debug they
+log on ordinary use — every add to the cart from a dish, every return to the
+checkout after changing the cart. **Worth its own task** rather than a
+workaround buried in a test: the fix is probably to stop watching
+`slotsProvider` from a header that rebuilds on every frame of a route
+transition, and to confirm case 1 against flutter_riverpod upstream.
+
+## The add confirmation lands on top of the cart bar
+Adding from the dish screen pops back to the menu and shows
+`2× Fresh Lemonade added` as a snackbar — which draws over the cart bar the
+same add just made appear. A tap on `View cart` lands on the snackbar for the
+four seconds it is up:
+
+```
+Warning: A call to tap() ... derived an Offset (159.7, 2280.0) that would not
+hit test on the specified widget.
+```
+
+Only a journey can see this: `cart_bar_test.dart` owns the bar and
+`product_detail_*_test.dart` owns the snackbar, and neither has both on screen
+at once. It is mild — the customer waits or taps the Cart tab — and it is the
+standard Material behaviour for a snackbar over a bottom bar, so nothing is
+changed here. Recorded because the next person to see it in a test will
+otherwise think the bar is broken. A `SnackBarBehavior.floating` with the bar's
+height as its margin is the fix if it is ever judged worth one.

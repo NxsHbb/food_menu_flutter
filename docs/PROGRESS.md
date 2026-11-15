@@ -2,6 +2,71 @@
 
 Newest first. One entry per completed task.
 
+## Task 11.2 — journeys, and what the suite was measuring text with
+Branch `test/journeys`, PR #77. **App only.** 12 new tests, 986 in total.
+
+### What the audit found
+The four areas this task names were already covered thoroughly — at unit and
+single-screen level. 81 test files, 974 tests, every screen with its own file.
+What none of them could do is prove two screens **connect**: each pumps one
+screen with a *stub* where the next one belongs, so the cart's `Go to
+checkout` had never been pressed in a test at all, and a handoff could be
+broken in the shipped router with the whole suite green.
+
+So the gap was a layer, not a list of missing cases. `test/journeys/` pumps
+`FoodMenuApp` itself — the real router, the shell, every provider — and walks
+the app as a customer does.
+
+### The journeys
+One captured order runs the length of it: dish 25 at $3.25, `Medium 12"` at
+$2.50, `Mushrooms` twice at $0.75, a note, two of them. That is
+`cart_with_addons.json`, a real response from the dev store, and
+`product_addons.json` is the same dish's groups — so the dish screen's running
+total, the cart line and the checkout summary are all checked against the
+*same* capture. The app's own preview reaching $14.50 and the plugin's line
+total being $14.50 is now one assertion apart.
+
+Twelve tests over four areas: the whole path from menu to order received, the
+quick add that skips the dish screen, the cart→checkout handoff and the total
+it carries, slots following the cart across screens, the pickup switch, and
+signing in from the middle of a checkout and coming back to the order.
+
+### The font the whole suite had been measuring with
+Pumping the real app at a real phone width turned up two overflows — the dish
+screen's add bar by 51px, the reviews message by 34px — with nothing exotic in
+them. Both are the **fallback test font**, which is wider than Plus Jakarta
+Sans; loading the real font through a `FontLoader` and pumping the identical
+tree overflows neither.
+
+So every layout assertion in the suite had been measured against a typeface
+the app never uses. `test/flutter_test_config.dart` now loads the font for
+every test file, and **all 974 existing tests passed unchanged** — the
+expected direction, since they had been passing with less room than the app
+really has. The dangerous direction is the other one: a row that only just
+fits under the fallback font passes a no-overflow test while being broken on
+a phone.
+
+### Two framework assertions, and one that is worth a task
+Navigating the real app trips a debug-only `setState() ... called during
+build` on the provider scope, by two routes: popping a route whose provider
+went dirty behind it (riverpod resuming a paused subscription inside
+`didUpdateWidget`), and `_Header` watching `slotsProvider` after the cart
+changed. Neither has app code on the stack between the assertion and
+riverpod's own frames, and a plain `ProviderScope` wired as `main.dart` wires
+it reproduces both.
+
+`journeyTest` filters exactly those two in a zone — riverpod hands them to the
+zone, not to `FlutterError.onError`, so `takeException` cannot reach them —
+matching on a frame app code cannot produce, so a real `setState` during build
+still fails. **Flagged in `FINDINGS.md` as deserving its own task**, not a
+quiet workaround: in debug they log on every add to the cart.
+
+### Not verified on the device
+Nothing here changes the UI, so there was nothing to look at — but the one
+open question the device *could* settle (whether those assertions show up in
+logcat during ordinary use) is unanswered: starting the LAN-bound dev server
+was refused by the sandbox.
+
 ## Task 11.1 — the error paths, and the one defect under all of them
 Branch `fix/error-paths`, PR #76. **App only.** 5 new tests, 974 in total.
 
