@@ -11,7 +11,7 @@ import 'package:dio/dio.dart';
 /// **Zero means store-wide** and is sent as such — it is a real answer, not
 /// an absent one — while a null branch sends nothing at all.
 class BranchInterceptor extends Interceptor {
-  BranchInterceptor({required Future<int?> Function() read}) : _read = read;
+  BranchInterceptor({required this._read});
 
   static const header = 'X-FMP-Branch';
 

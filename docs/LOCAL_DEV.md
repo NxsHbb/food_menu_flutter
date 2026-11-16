@@ -6,7 +6,7 @@ nothing WordPress-related enters the Flutter git tree.
 | Item | Value |
 |---|---|
 | Site root | `~/dev/wp/foodmenu-dev` |
-| URL | `http://192.168.0.171:8080` (LAN IP, not `localhost` — see below) |
+| URL | `http://192.168.0.165:8080` (LAN IP, not `localhost` — see below) |
 | WordPress | 7.1.4 |
 | WooCommerce | 11.2.1 |
 | Admin | `admin` / `Admin@2020##` |
@@ -258,7 +258,7 @@ this.**
 ```sh
 xcrun simctl list devices available | grep iPhone     # pick one
 xcrun simctl boot <id> && open -a Simulator
-flutter run -d <id> --dart-define=FOOD_MENU_BASE_URL=http://192.168.0.171:8080
+flutter run -d <id> --dart-define=FOOD_MENU_BASE_URL=http://192.168.0.165:8080
 xcrun simctl io booted screenshot /tmp/shot.png
 ```
 
@@ -278,7 +278,7 @@ be reached this way at all. Those are covered by widget tests instead.
 The four routes from task 3.1 need no nonce and no cookie:
 
 ```sh
-B='http://192.168.0.171:8080/?rest_route='
+B='http://192.168.0.165:8080/?rest_route='
 
 # Sign in and keep the tokens.
 curl -s -X POST "$B/fmp/v1/app/auth/login" -H 'Content-Type: application/json' \
@@ -327,7 +327,7 @@ can be driven end to end from a terminal.
 
 ```sh
 flutter devices                      # find the ids
-flutter run -d <id> --dart-define=FOOD_MENU_BASE_URL=http://192.168.0.171:8080
+flutter run -d <id> --dart-define=FOOD_MENU_BASE_URL=http://192.168.0.165:8080
 ```
 
 The device reaches this Mac over the LAN, so `FOOD_MENU_BASE_URL` must be the

@@ -9,7 +9,7 @@
 | Slug | `foodmenu` |
 | Bundle ID / applicationId | `com.foodmenu` |
 | Platforms | Android, iOS only (no web/desktop) |
-| Flutter | 3.41.6 stable (Dart 3.11.4) |
+| Flutter | 3.50.0 stable (Dart 3.14.0) |
 | Remote | `NxsHbb/food_menu_flutter`, default branch `main` |
 
 ## Working rules

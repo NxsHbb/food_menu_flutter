@@ -3033,10 +3033,70 @@ produce: a widget of the app's own calling `setState` during build has its own
 
 Both are `assert`s, so they are stripped from a release build. In debug they
 log on ordinary use — every add to the cart from a dish, every return to the
-checkout after changing the cart. **Worth its own task** rather than a
-workaround buried in a test: the fix is probably to stop watching
-`slotsProvider` from a header that rebuilds on every frame of a route
-transition, and to confirm case 1 against flutter_riverpod upstream.
+checkout after changing the cart.
+
+**Resolved in task 11.3, and by upgrading rather than by writing app code.**
+Confirming case 1 against upstream was the first step listed here, and it
+answered the whole thing: flutter_riverpod had already fixed both, across
+3.4.0 ("flushing a provider inside Widget lifecycle"), 3.4.2 ("a different
+source of `markNeedsBuild` error") and 3.5.0 ("resuming a consumer with a
+diamond-shaped provider dependency graph" — case 1 precisely). The guess
+recorded above, that the fix was to stop `_Header` watching `slotsProvider`,
+would have been **the wrong change**: nothing in the slot chain calls
+`invalidateSelf`, the header is a `ConsumerWidget` watching in `build`, and
+the shape it was blamed for is the documented way to use riverpod. It would
+have moved the symptom and left the cause.
+
+The general lesson: when a stack trace has **no app frame** in it, price the
+upgrade before designing the workaround. The workaround was estimated at a
+provider refactor; the fix was a version number.
+
+## An SDK upgrade is a feature, and it brings its own work
+Task 11.3's fix was a version number — flutter_riverpod 3.5.0 — but 3.4.1
+onwards needs Dart 3.12, so taking it meant moving the project from Flutter
+3.41.6 to 3.50.0, eight months of stable releases in one step. What that cost,
+recorded so the next upgrade is costed properly rather than assumed free:
+
+- **The Android toolchain moved with it.** 3.50 refuses to build under Gradle
+  below 9.3.1, and AGP 9 turns the Kotlin DSL deprecations into *errors*, so
+  `android { kotlinOptions { ... } }` stopped compiling. Gradle 9.5.0, AGP
+  9.3.1 and KGP 2.4.20 — the versions 3.50's own templates generate — with
+  `jvmTarget` moved to a top-level `kotlin { compilerOptions { … } }` block.
+  The `flutter` tool rewrote `gradle.properties` on its own on the first run,
+  adding `android.newDsl=false` and `android.builtInKotlin=false`, which is
+  what keeps the existing DSL working under AGP 9.
+- **`package:flutter/material.dart` is deprecated**, in favour of the separate
+  `material_ui` package. That is 115 imports here and it is **task 11.4**,
+  because the two are not interchangeable: `material_ui` ships its own copies
+  of every Material widget rather than re-exporting the SDK's, so its
+  `ThemeData` is not the SDK's `ThemeData` and the move cannot be made file by
+  file. `analysis_options.yaml` carries a deprecation suppression until then,
+  and it is the only thing keeping `flutter analyze` quiet.
+- **Two of our own defects surfaced**, below and in 11.3's PR. Both had been
+  there for months; the newer SDK simply started saying so.
+
+The whole upgrade, including the Gradle fallout and two fixes, was an
+afternoon. The workaround it replaced was a provider refactor with no end
+state. Price the upgrade first.
+
+## A ListTile in a coloured box has no ink, and nothing said so
+The checkout's address sheet drew its rounded white panel with a
+`Container(decoration: BoxDecoration(color: …))` and put `ListTile`s inside
+it. A tile paints its background and its ink splash on the **nearest Material
+ancestor** — which, with a coloured box in between, was the sheet's backdrop,
+underneath the box. So tapping an address switched it but gave no feedback at
+all, on a sheet whose entire purpose is choosing between two rows.
+
+Flutter 3.50 asserts on the arrangement; 3.41 was silent, and so were 985
+tests, because a missing ripple is not something any of them looked for. The
+fix is a `Material` in place of the decorated box — it takes the same colour
+and `borderRadius`, so nothing about the sheet's appearance changes.
+
+Worth knowing where else this can hide: anywhere a `DecoratedBox`, a
+`Container` with a `decoration`, or a `ClipRRect` with a background sits
+between a Material and an `InkWell`, `ListTile` or `InkResponse`. The symptom
+is always the same — the tap works, the feedback does not — and it reads as a
+design choice rather than a bug.
 
 ## The add confirmation lands on top of the cart bar
 Adding from the dish screen pops back to the menu and shows

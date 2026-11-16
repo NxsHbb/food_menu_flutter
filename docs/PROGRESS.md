@@ -2,6 +2,54 @@
 
 Newest first. One entry per completed task.
 
+## Task 11.3 — the riverpod assertion was riverpod's, and already fixed
+Branch `fix/riverpod-scope-refresh`, PR #78. **App only.** 985 tests, all
+passing with nothing filtered.
+
+### The answer was a changelog, not a refactor
+Task 11.2 left two debug-only assertions and a guess at the fix: stop
+`_Header` watching `slotsProvider`. It also left an instruction to check
+upstream first, and that is what settled it. flutter_riverpod had already
+fixed both — 3.4.0 ("flushing a provider inside Widget lifecycle"), 3.4.2 and
+3.5.0 ("resuming a consumer with a diamond-shaped provider dependency graph",
+which is case 1 exactly).
+
+The guess would have been the wrong change. Nothing in the slot chain calls
+`invalidateSelf`, and `_Header` is a `ConsumerWidget` watching in `build` —
+the documented way to use riverpod. It would have moved the symptom.
+
+**Proved before and after.** Switching the filter off on 3.3.2 fails 3 of the
+12 journeys, with the two stacks `FINDINGS.md` describes. On 3.5.0, with the
+filter deleted rather than disabled, all 12 pass.
+
+### What it cost
+flutter_riverpod 3.4.1+ needs Dart 3.12, so this moved the project to
+**Flutter 3.50.0 (Dart 3.14.0)** from 3.41.6, and the Android toolchain with
+it: Gradle 9.5.0, AGP 9.3.1, KGP 2.4.20, `jvmTarget` out of `kotlinOptions`
+and into a top-level `kotlin` block, because AGP 9 makes those deprecations
+errors. See `FINDINGS.md`.
+
+### Two defects of our own, found by the newer SDK
+- **The address sheet's rows had no ink.** Its `ListTile`s sat inside a
+  coloured `DecoratedBox`, so the splash painted on the Material *underneath*
+  it and was covered. Tapping an address worked and looked like nothing had
+  happened. A `Material` with the same colour and radius replaces the box.
+- **Five constructors** assigned a parameter to a field by hand where Dart
+  3.14 takes `required this._field` directly.
+
+### The filter is gone, not disabled
+`JourneyHarness.run` keeps its zone guard — riverpod hands these to the zone,
+where `tester.takeException` cannot see them, so without it a journey could
+trip a framework assertion on every run and still report green — but it now
+**fails on everything**. A recurrence fails the suite.
+
+### On the phone
+Walked on the OnePlus against the dev site, because that is where 11.2 found
+them: dish → add to cart → pop to menu (case 1), and cart → checkout → back →
+change quantity → checkout (case 2). Both paths, plus the address sheet,
+produced **no assertion in 302 lines of log**. The dev site's LAN IP had
+moved; `LOCAL_DEV.md` now has the current one.
+
 ## Task 11.2 — journeys, and what the suite was measuring text with
 Branch `test/journeys`, PR #77. **App only.** 12 new tests, 986 in total.
 

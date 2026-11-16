@@ -114,9 +114,7 @@ final dioProvider = Provider<Dio>((ref) {
 /// Thin wrapper over dio that speaks in [ApiException] rather than
 /// `DioException`, so no feature layer imports dio's error types.
 class ApiClient {
-  ApiClient({required Dio dio, required AppConfig config})
-      : _dio = dio,
-        _config = config;
+  ApiClient({required this._dio, required this._config});
 
   final Dio _dio;
   final AppConfig _config;

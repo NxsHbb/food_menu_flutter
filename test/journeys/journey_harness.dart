@@ -62,10 +62,10 @@ const lemonadeId = 25;
 const margheritaId = 14;
 
 /// `testWidgets` for a journey: the body runs under [JourneyHarness.run], so
-/// the one framework assertion that navigating a riverpod app provokes is
-/// filtered and every other error still fails the test.
+/// an error riverpod hands to the zone fails the test instead of passing
+/// unnoticed.
 ///
-/// Journeys use this instead of `testWidgets` so the filter is not something
+/// Journeys use this instead of `testWidgets` so the guard is not something
 /// each new one has to remember.
 void journeyTest(String description, Future<void> Function(WidgetTester) body) {
   testWidgets(description, (tester) => JourneyHarness.run(() => body(tester)));
@@ -203,32 +203,19 @@ class JourneyHarness {
   }
 
 
-  /// Runs a journey with one **flutter_riverpod** assertion filtered out, and
-  /// nothing else.
+  /// Runs a journey with every error it provokes failing the test, including
+  /// the ones that never reach `FlutterError.onError`.
   ///
-  /// Riverpod refreshes its scope by calling `setState` on it, and twice over
-  /// a journey it does that while the framework is building:
+  /// Riverpod refreshes its scope by calling `setState` on it, and it catches
+  /// what that throws in `runBinaryGuarded`, which hands the error to the
+  /// **zone**. `tester.takeException` cannot reach an error delivered that
+  /// way, so a journey that walked the app without this guard could trip a
+  /// framework assertion on every run and still report green.
   ///
-  /// * popping a route flips the `TickerMode` of the subtree underneath, and
-  ///   `ConsumerStatefulElement._updateTickerMode` resumes a paused provider
-  ///   subscription from inside `didUpdateWidget`. Adding to the cart is
-  ///   enough to make that subscription dirty while the dish covers the menu.
-  /// * `ref.watch` on a derived provider whose dependencies went dirty while
-  ///   nobody was listening flushes that chain during the build that is
-  ///   watching it — the checkout's header watching `slotsProvider` after the
-  ///   cart changed.
-  ///
-  /// Both end in `_UncontrolledProviderScopeState.scheduleRefresh`, and app
-  /// code cannot reach that frame: a widget of the app's own calling
-  /// `setState` during build has its own `State` on the stack instead. So that
-  /// frame is what is matched, and everything else is re-raised. A journey
-  /// that quietly ate real errors would be worse than no journey at all.
-  ///
-  /// Riverpod catches these in `runBinaryGuarded` and hands them to the
-  /// **zone** rather than to `FlutterError.onError`, which is why
-  /// `tester.takeException` cannot reach them and this wrapper exists at all.
-  /// Both are debug-only assertions. See FINDINGS.md — they are worth a task,
-  /// not a workaround buried in a test.
+  /// Task 11.2 found two such assertions and filtered them here; task 11.3
+  /// removed the filter, because flutter_riverpod 3.5.0 fixed both. Nothing
+  /// is filtered now, and nothing should be: if a journey starts failing in
+  /// here, the app or the framework under it has a real problem to look at.
   static Future<void> run(Future<void> Function() journey) async {
     final completer = Completer<void>();
 
@@ -240,18 +227,10 @@ class JourneyHarness {
         if (!completer.isCompleted) completer.completeError(error, stack);
       }
     }, (error, stack) {
-      if (_isRiverpodScopeRefresh(error, stack)) return;
       if (!completer.isCompleted) completer.completeError(error, stack);
     });
 
     return completer.future;
-  }
-
-  static bool _isRiverpodScopeRefresh(Object error, StackTrace stack) {
-    return error.toString().contains('called during build') &&
-        stack.toString().contains(
-              '_UncontrolledProviderScopeState.scheduleRefresh',
-            );
   }
 
   /// Taps something that may be below the fold.

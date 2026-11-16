@@ -1356,8 +1356,11 @@ the next.
 - `JourneyHarness` fakes all seventeen repositories and stores, and signs the
   customer in before the first pump.
 - Journeys use `journeyTest`, not `testWidgets`. It runs the body inside a
-  zone that filters exactly one framework assertion — riverpod refreshing its
-  scope during a build — and re-raises everything else. See `FINDINGS.md`.
+  zone that fails the test on **every** error, including the ones riverpod
+  hands to the zone rather than to `FlutterError.onError` — `takeException`
+  cannot see those, so without the guard a journey could trip a framework
+  assertion on every run and still report green. Nothing is filtered; task
+  11.3 removed the one exception when flutter_riverpod 3.5.0 fixed it.
 - The default viewport is 390dp wide (a real phone, where layout bugs live)
   over a tall surface, so cards below the fold are built and can be asserted
   on. The checkout is a `ListView`; at a real 844dp height its lower sections
