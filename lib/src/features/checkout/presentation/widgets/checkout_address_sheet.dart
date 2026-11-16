@@ -38,79 +38,86 @@ class CheckoutAddressSheet extends ConsumerWidget {
     final book = ref.watch(addressControllerProvider).value ?? const [];
     final selected = ref.watch(checkoutAddressProvider);
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+    // A **Material**, not a decorated box: the rows below are `ListTile`s, and
+    // a tile paints its ink on the nearest Material ancestor. With a coloured
+    // box in between, the ripple went on the sheet's backdrop and the box
+    // covered it, so tapping an address gave no feedback at all. Flutter 3.50
+    // asserts on the arrangement; before that it was silent.
+    return Material(
+      color: palette.card,
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(AppTokens.radiusSheet),
       ),
-      decoration: BoxDecoration(
-        color: palette.card,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppTokens.radiusSheet),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.8,
         ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppTokens.space16,
-                AppTokens.space12,
-                AppTokens.space8,
-                AppTokens.space8,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Deliver to',
-                      style: text.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTokens.space16,
+                  AppTokens.space12,
+                  AppTokens.space8,
+                  AppTokens.space8,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Deliver to',
+                        style: text.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.only(bottom: AppTokens.space8),
-                children: [
-                  for (final address in book)
-                    _AddressOption(
-                      address: address,
-                      selected: address.id != null &&
-                          address.id == selected?.id,
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.only(bottom: AppTokens.space8),
+                  children: [
+                    for (final address in book)
+                      _AddressOption(
+                        address: address,
+                        selected:
+                            address.id != null && address.id == selected?.id,
+                        onTap: () {
+                          final id = address.id;
+                          if (id != null) {
+                            ref
+                                .read(checkoutControllerProvider.notifier)
+                                .chooseAddress(id);
+                          }
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ListTile(
+                      leading: Icon(Icons.add_rounded, color: palette.brand),
+                      title: Text(
+                        'Add a new address',
+                        style: text.bodyLarge?.copyWith(color: palette.brand),
+                      ),
                       onTap: () {
-                        final id = address.id;
-                        if (id != null) {
-                          ref
-                              .read(checkoutControllerProvider.notifier)
-                              .chooseAddress(id);
-                        }
                         Navigator.of(context).pop();
+                        context.pushNamed(AddressFormScreen.newRouteName);
                       },
                     ),
-                  ListTile(
-                    leading: Icon(Icons.add_rounded, color: palette.brand),
-                    title: Text(
-                      'Add a new address',
-                      style: text.bodyLarge?.copyWith(color: palette.brand),
-                    ),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      context.pushNamed(AddressFormScreen.newRouteName);
-                    },
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

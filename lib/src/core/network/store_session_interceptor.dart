@@ -14,10 +14,9 @@ import 'store_session.dart';
 /// from its first write.
 class StoreSessionInterceptor extends Interceptor {
   StoreSessionInterceptor({
-    required Future<StoreSession> Function() read,
-    required void Function({String? nonce, String? cartToken}) write,
-  })  : _read = read,
-        _write = write;
+    required this._read,
+    required this._write,
+  });
 
   static const nonceHeader = 'Nonce';
   static const cartTokenHeader = 'Cart-Token';
