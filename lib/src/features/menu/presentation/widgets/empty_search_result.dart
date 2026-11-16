@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/store_api/models/menu_category.dart';
 import '../../../../core/theme/app_palette.dart';

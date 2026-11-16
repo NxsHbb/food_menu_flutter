@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/features/checkout/domain/checkout_field.dart';
 import 'package:food_menu/src/features/checkout/presentation/widgets/checkout_fields_section.dart';
