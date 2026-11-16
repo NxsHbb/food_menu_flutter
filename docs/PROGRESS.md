@@ -2,6 +2,49 @@
 
 Newest first. One entry per completed task.
 
+## Task 11.4 — material_ui, and the transition it nearly cost
+Branch `chore/material-ui`, PR #79. **App only.** 986 tests, one new.
+
+### The import swap was the easy half
+115 imports from `package:flutter/material.dart` to
+`package:material_ui/material_ui.dart`, and `analysis_options.yaml`'s
+`deprecated_member_use` suppression deleted with them — 11.3 put it there and
+this takes it out, so `flutter analyze` is honest again. Clean on the first
+pass.
+
+### What it nearly cost, silently
+**go_router picks its page type by looking for a `MaterialApp` by exact
+type**, and falls back to `NoTransitionPage` for every route when it cannot
+find one. All twenty routes here use `builder:`, so all twenty go through
+that lookup — and `material_ui`'s `MaterialApp` is not the SDK's class.
+
+Measured on the same journey:
+
+```
+go_router 17.5.0 → [NoTransitionPage<void>, NoTransitionPage<void>]
+go_router 18.1.4 → [MaterialPage<void>, MaterialPage<void>]
+```
+
+**The whole suite passed either way.** Every test navigates with
+`pumpAndSettle`, and a cut settles as well as a transition, so 985 tests were
+blind to the app losing every animation it has.
+
+go_router 18.0.0 migrated to `material_ui` itself and needs Flutter 3.44+,
+which 11.3 had just brought in — so the bump belongs with the swap, not after
+it.
+
+### The new test
+`test/journeys/route_transition_test.dart` reads the page types off the live
+`Navigator`s after a push and fails on `NoTransitionPage`. Checked both ways:
+it fails on go_router 17.5.0 and passes on 18.1.4, so it is pinning the thing
+it claims to.
+
+A first attempt asserted "two `Scaffold`s are alive mid-transition" and passed
+under **both** versions — the shell route has a `Scaffold` of its own, so the
+count was never one. Worth recording: a test that cannot fail is worse than no
+test, and the only way to know which one you wrote is to run it against the
+broken state.
+
 ## Task 11.3 — the riverpod assertion was riverpod's, and already fixed
 Branch `fix/riverpod-scope-refresh`, PR #78. **App only.** 985 tests, all
 passing with nothing filtered.

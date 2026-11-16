@@ -3051,6 +3051,46 @@ The general lesson: when a stack trace has **no app frame** in it, price the
 upgrade before designing the workaround. The workaround was estimated at a
 provider refactor; the fix was a version number.
 
+## A dependency can lose a feature for you, and say nothing
+Task 11.4 swapped 115 imports from `package:flutter/material.dart` to
+`package:material_ui/material_ui.dart`. The swap itself was mechanical and
+`flutter analyze` was clean on the first pass. The damage was somewhere else
+entirely.
+
+**go_router does not take the app's word for which page type to use.** It
+looks up the tree for a `MaterialApp` and the lookup is
+`findAncestorWidgetOfExactType<MaterialApp>()` — *exact* type. When it finds
+neither a Material nor a Cupertino app it falls back, for every route, to
+`NoTransitionPage`. Every one of this app's twenty routes is declared with
+`builder:` rather than `pageBuilder:`, so every one goes through that lookup.
+
+`material_ui`'s `MaterialApp` is a different class from the SDK's. So the
+import swap alone would have taken away every push and pop animation in the
+app. Measured on the same journey:
+
+```
+go_router 17.5.0 → NAV pages: [NoTransitionPage<void>, NoTransitionPage<void>]
+go_router 18.1.4 → NAV pages: [MaterialPage<void>, MaterialPage<void>]
+```
+
+**All 985 tests passed either way**, and that is the part worth keeping. Every
+test navigates with `pumpAndSettle`, and a cut settles exactly as well as a
+transition does — better, in fact. A suite built on `pumpAndSettle` is blind
+to the entire category of "the animation is gone", and nothing about the
+failure would have shown up until someone used the app.
+
+go_router 18.0.0 migrated to `material_ui` itself and requires Flutter 3.44+,
+which 11.3 had just brought in, so the bump goes **with** the swap, not after
+it. `route_transition_test.dart` now reads the page types off the live
+`Navigator`s and fails on `NoTransitionPage`.
+
+The general lesson: when a framework type is replaced wholesale, the things to
+check are not the call sites the compiler finds — it finds all of them — but
+the places where **someone else** matches on that type at runtime. A
+`findAncestorWidgetOfExactType`, an `is` check, a `runtimeType` comparison or
+a registry keyed by type will all compile perfectly and quietly do something
+else.
+
 ## An SDK upgrade is a feature, and it brings its own work
 Task 11.3's fix was a version number — flutter_riverpod 3.5.0 — but 3.4.1
 onwards needs Dart 3.12, so taking it meant moving the project from Flutter
