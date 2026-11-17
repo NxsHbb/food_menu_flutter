@@ -18,6 +18,7 @@ class MenuHeader extends StatelessWidget {
     required this.prompt,
     required this.onSearchTap,
     this.onAddressTap,
+    this.logoUrl = '',
     super.key,
   });
 
@@ -30,6 +31,11 @@ class MenuHeader extends StatelessWidget {
   /// Opens the branch picker. Null leaves the line inert, which is what a
   /// store with a single location wants.
   final VoidCallback? onAddressTap;
+
+  /// The store's own logo (task 14.3). Empty for a store that set none, and
+  /// the header simply does not draw one — a gap where a mark should be is
+  /// worse than no mark.
+  final String logoUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +62,10 @@ class MenuHeader extends StatelessWidget {
         children: [
           Row(
             children: [
+              if (logoUrl.isNotEmpty) ...[
+                _StoreLogo(url: logoUrl),
+                const SizedBox(width: AppTokens.space12),
+              ],
               Expanded(
                 child: InkWell(
                   onTap: onAddressTap,
@@ -181,6 +191,35 @@ class _SearchEntry extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The store's logo on the red header.
+///
+/// **It fails to nothing.** A store can point this at a url that has moved,
+/// or a device can be offline with an empty cache, and a broken-image glyph
+/// on the first screen of the app would be the store's own branding looking
+/// broken. The row simply closes up.
+class _StoreLogo extends StatelessWidget {
+  const _StoreLogo({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppTokens.radiusControl),
+      child: Image.network(
+        url,
+        width: 36,
+        height: 36,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+        // A logo is decoration on a screen that already says where you are
+        // ordering from, so it stays out of the reading order.
+        excludeFromSemantics: true,
       ),
     );
   }

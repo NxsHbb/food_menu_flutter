@@ -4,6 +4,7 @@ import '../../../core/network/api_exception.dart';
 
 import '../../branch/data/branch_controller.dart';
 import '../../cart/data/cart_controller.dart';
+import '../../store/data/store_config_repository.dart';
 import '../domain/order_types.dart';
 import '../domain/slots.dart';
 import 'fulfilment_repository.dart';
@@ -134,6 +135,16 @@ final orderTypesProvider = FutureProvider<OrderTypes>(
 /// customer the restaurant is closed because their train went into a tunnel is
 /// worse than showing them the error.
 final orderingDisabledProvider = Provider<bool>((ref) {
+  // **Asked plainly first** (task 14.3). `GET /app/config` is the one route
+  // that answers for a store it would otherwise refuse, so the app can say so
+  // on the first screen instead of waiting to be turned away. A store that
+  // has answered is believed either way.
+  final config = ref.watch(storeConfigProvider).value;
+  if (config != null) return !config.orderingEnabled;
+
+  // Older Pro, or the answer has not arrived: infer it from the refusal, the
+  // way this did before there was a route to ask. Task 8.7's 403 is still the
+  // floor under every other route, so the app cannot be wrong for long.
   final error = ref.watch(orderTypesProvider).error;
 
   return error is ApiException && error.code == 'fmp_ordering_disabled';

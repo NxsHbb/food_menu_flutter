@@ -10,9 +10,18 @@ import 'app_typography.dart';
 /// Note that the brand red is the same in both modes by the design's own
 /// declaration — it sits outside the theme map as a constant.
 abstract final class AppTheme {
-  static ThemeData light() => _build(Brightness.light, AppPalette.light());
+  /// [brand] is the store's own colour (task 14.3). Null keeps the app's.
+  static ThemeData light({Color? brand}) =>
+      _build(Brightness.light, _palette(AppPalette.light(), brand));
 
-  static ThemeData dark() => _build(Brightness.dark, AppPalette.dark());
+  static ThemeData dark({Color? brand}) =>
+      _build(Brightness.dark, _palette(AppPalette.dark(), brand));
+
+  /// The same store colour in both modes, as the app's own red is: the design
+  /// puts the brand outside the light/dark map on purpose, and a store that
+  /// chose one colour did not choose two.
+  static AppPalette _palette(AppPalette base, Color? brand) =>
+      brand == null ? base : base.branded(brand);
 
   static ThemeData _build(Brightness brightness, AppPalette palette) {
     final scheme = ColorScheme(

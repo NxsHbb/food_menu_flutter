@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../store/data/store_config_repository.dart';
 import '../../branch/data/branch_controller.dart';
 import '../../branch/presentation/widgets/branch_picker_sheet.dart';
 import '../../cart/presentation/widgets/cart_bar.dart';
@@ -78,6 +79,8 @@ class MenuScreen extends ConsumerWidget {
                 greeting: 'Welcome',
                 prompt: 'What are you craving?',
                 onSearchTap: () => context.goNamed(MenuListScreen.routeName),
+                // The store's own mark, when it has set one (task 14.3).
+                logoUrl: ref.watch(storeConfigProvider).value?.logoUrl ?? '',
                 // Inert for a store with one location: there is nothing to
                 // choose between, and a chevron that opens a list of one
                 // reads as a bug.
