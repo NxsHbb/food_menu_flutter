@@ -11,6 +11,9 @@ import 'package:food_menu/src/core/theme/brand_color.dart';
 import 'package:food_menu/src/features/store/data/store_config_repository.dart';
 import 'package:food_menu/src/features/store/domain/store_config.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:food_menu/src/features/account/presentation/widgets/account_row.dart';
+import 'package:food_menu/src/features/account/presentation/widgets/legal_card.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/menu_header.dart';
 
 import '../../core/network/fake_adapter.dart';
@@ -252,6 +255,85 @@ void main() {
 
       expect(fallback, isA<SizedBox>());
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group("the store's own pages (task 14.4)", () {
+    test('are read when the store published them', () {
+      final config = StoreConfig.fromJson(const {
+        'privacy_policy_url': 'https://example.com/privacy-policy/',
+        'terms_url': 'https://example.com/terms/',
+      });
+
+      expect(config.privacyPolicyUrl, 'https://example.com/privacy-policy/');
+      expect(config.termsUrl, 'https://example.com/terms/');
+    });
+
+    test('are empty when it has not', () {
+      // WordPress creates the privacy page as a draft, so this is the common
+      // case rather than the edge one.
+      final config = StoreConfig.fromJson(const {});
+
+      expect(config.privacyPolicyUrl, isEmpty);
+      expect(config.termsUrl, isEmpty);
+    });
+
+    Widget accountCardIn(StoreConfig store) {
+      return ProviderScope(
+        overrides: [storeConfigProvider.overrideWith((ref) async => store)],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const Scaffold(body: LegalCard()),
+        ),
+      );
+    }
+
+    StoreConfig storeWith({String privacy = '', String terms = ''}) =>
+        StoreConfig(
+          name: 'Food Menu Dev',
+          logoUrl: '',
+          primaryColor: null,
+          orderingEnabled: true,
+          currency: StoreCurrency.unknown,
+          privacyPolicyUrl: privacy,
+          termsUrl: terms,
+        );
+
+    testWidgets('a store with a policy gets a row', (tester) async {
+      await tester.pumpWidget(
+        accountCardIn(storeWith(privacy: 'https://example.com/privacy/')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Privacy policy'), findsOne);
+      expect(find.text('Terms & conditions'), findsNothing);
+    });
+
+    testWidgets('terms show only when the store has published them',
+        (tester) async {
+      await tester.pumpWidget(
+        accountCardIn(storeWith(
+          privacy: 'https://example.com/privacy/',
+          terms: 'https://example.com/terms/',
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Terms & conditions'), findsOne);
+    });
+
+    testWidgets('a store with neither draws nothing at all', (tester) async {
+      // Not an empty card, and no gap where one would be: this is the common
+      // store, so a stray space would show on more screens than the card.
+      await tester.pumpWidget(accountCardIn(storeWith()));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AccountRow), findsNothing);
+      expect(find.byType(AccountRowCard), findsNothing);
+      expect(
+        tester.getSize(find.byType(LegalCard)),
+        Size.zero,
+      );
     });
   });
 }

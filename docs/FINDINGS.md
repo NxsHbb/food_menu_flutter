@@ -3385,3 +3385,42 @@ and it is the more expensive and less predictable of the two. The decision
 belongs to whichever of foreground and background the design has already
 committed to — here, white.
 
+## WordPress ships a privacy policy page, as a draft, forever
+Every install has one: page 3 on the dev store, titled Privacy Policy, with
+`wp_page_for_privacy_policy` pointing at it — and status `draft`. Almost
+nobody publishes it.
+
+`get_privacy_policy_url()` returns an empty string for a draft, which is why
+task 14.4 reads that rather than the option. Reading the option and building a
+permalink would have produced a link to a page that 404s for logged-out
+visitors, shown on the account screen, which is the first place a store
+reviewer looks.
+
+**The consequence is a release dependency, not a code detail.** Both consoles
+require a reachable policy URL for an app that creates accounts. A store that
+never published the page has none, the app correctly shows no row, and the
+submission fails. `curl .../app/config` and look at `privacy_policy_url`
+before any upload.
+
+## An Android `<queries>` block decides whether a feature exists
+`url_launcher`'s `canLaunchUrl` answers **false** on API 30+ for a scheme the
+manifest has not declared in `<queries>`, because package visibility hides
+which activities handle the intent. A row gated on it simply disappears.
+
+The failure mode is the nasty one: it works on older devices and in most
+emulators, and vanishes on current phones — the opposite of the usual "new API
+breaks, old works" shape, and invisible to a widget test, which has no package
+manager at all. Anything that opens an external app from here needs its intent
+declared alongside the code that launches it.
+
+## The signed-out screen is a screen a reviewer will see
+Task 14.4's rows went on the account screen, which was correct and still
+wrong: that screen renders a signed-out state for anyone not logged in, and a
+store reviewer opens the app without making an account. The policy was
+unreachable for exactly the person it is there to satisfy.
+
+Worth generalising, because the app has several of these: **the signed-out
+state of a screen is not an empty version of it.** It is what a reviewer, and
+a first-time customer deciding whether to hand over their details, actually
+see. Anything required to be reachable has to be reachable there.
+

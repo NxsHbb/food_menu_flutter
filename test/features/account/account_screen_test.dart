@@ -14,6 +14,8 @@ import 'package:food_menu/src/features/auth/data/token_store.dart';
 import 'package:food_menu/src/features/auth/presentation/login_screen.dart';
 import 'package:food_menu/src/features/wishlist/data/wishlist_repository.dart';
 import 'package:food_menu/src/features/wishlist/presentation/wishlist_screen.dart';
+import 'package:food_menu/src/features/store/data/store_config_repository.dart';
+import 'package:food_menu/src/features/store/domain/store_config.dart';
 import 'package:go_router/go_router.dart';
 
 import '../auth/fake_auth_repository.dart';
@@ -21,6 +23,25 @@ import '../menu/fake_menu_repository.dart';
 import '../address/fake_address_repository.dart';
 import '../wishlist/fake_wishlist_repository.dart';
 import 'fake_profile_repository.dart';
+
+/// A store that has published neither policy nor terms — WordPress's default.
+const storeWithNothing = StoreConfig(
+  name: 'Food Menu Dev',
+  logoUrl: '',
+  primaryColor: null,
+  orderingEnabled: true,
+  currency: StoreCurrency.unknown,
+);
+
+/// A store that has published its privacy policy.
+const storeWithPolicy = StoreConfig(
+  name: 'Food Menu Dev',
+  logoUrl: '',
+  primaryColor: null,
+  orderingEnabled: true,
+  currency: StoreCurrency.unknown,
+  privacyPolicyUrl: 'https://example.com/privacy-policy/',
+);
 
 void main() {
   Future<ProviderContainer> pumpAccount(
@@ -30,6 +51,7 @@ void main() {
     FakeWishlistRepository? wishlist,
     FakeAddressRepository? addresses,
     ThemeData? theme,
+    StoreConfig? store,
   }) async {
     // The reported-device width. The account header is a row of avatar, two
     // lines of text and a button, which is exactly the shape that only
@@ -47,6 +69,10 @@ void main() {
         profileRepositoryProvider.overrideWithValue(FakeProfileRepository()),
         addressRepositoryProvider
             .overrideWithValue(addresses ?? FakeAddressRepository()),
+        // A store with nothing published, unless a test asks otherwise: that
+        // is the common store, and the one the rest of these assert against.
+        storeConfigProvider
+            .overrideWith((ref) async => store ?? storeWithNothing),
       ],
     );
     addTearDown(container.dispose);
@@ -274,6 +300,26 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(AccountRow), findsExactly(6));
+  });
+
+  testWidgets('the privacy policy is reachable without an account',
+      (tester) async {
+    // A store reviewer opens the app and does not make an account, and the
+    // policy is one of the first things they look for (task 14.4).
+    await pumpAccount(
+      tester,
+      repo: FakeAuthRepository(),
+      signedIn: false,
+      store: storeWithPolicy,
+    );
+
+    expect(find.text('Privacy policy'), findsOne);
+  });
+
+  testWidgets('a store with no published policy shows no row', (tester) async {
+    await pumpAccount(tester, repo: FakeAuthRepository(), signedIn: false);
+
+    expect(find.text('Privacy policy'), findsNothing);
   });
 
   testWidgets('the delete row opens the deletion screen', (tester) async {

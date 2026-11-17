@@ -47,5 +47,18 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Opening the store's privacy policy in a browser (task 14.4).
+             From API 30 an app cannot see which activities handle a VIEW
+             intent unless it declares the query, and url_launcher's
+             canLaunchUrl answers false without this - so the row would be
+             hidden on exactly the devices most customers are on. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
     </queries>
 </manifest>
