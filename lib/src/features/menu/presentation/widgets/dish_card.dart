@@ -8,6 +8,7 @@ import '../../../../core/widgets/dish_image_placeholder.dart';
 import '../../../cart/presentation/widgets/quick_add_button.dart';
 import '../../../wishlist/presentation/widgets/wishlist_heart.dart';
 import 'discount_badge.dart';
+import 'price_label_text.dart';
 
 /// The design's dish card: image, name, rating row, price and an add button,
 /// with the favourite heart over the top-right of the photo.
@@ -113,6 +114,15 @@ class DishCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // The store's own words in place of the whole
+                            // price block, range and struck price included
+                            // (task 14.6).
+                            if (product.hasPriceLabel)
+                              PriceLabelText(
+                                label: product.priceLabel,
+                                style: text.titleMedium,
+                              )
+                            else ...[
                             if (prices.hasRange)
                               Text(
                                 'from',
@@ -144,6 +154,7 @@ class DishCard extends StatelessWidget {
                                   ),
                               ],
                             ),
+                            ],
                           ],
                         ),
                       ),

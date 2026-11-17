@@ -3463,3 +3463,35 @@ and send it always. The same shape turns up on `tag`, where an empty list must
 not become `tag=`. Anything built from a query map needs to know which of its
 parameters are *omitted* rather than *empty*.
 
+## A price label and a real price are both true, and both have to show
+Price Label replaces the price on every listing surface, and `Add to cart`
+still says `$4.50`. That looks like a contradiction on the dish screen and is
+not one: the label is how the store describes its pricing, and the button is
+what this customer will be charged for what is in front of them.
+
+Hiding the real number would be the actual bug. A store using Price Label has
+still set a numeric `_regular_price` — WooCommerce needs one for the cart,
+sorting and tax, and the free plugin's own notes say so — so the money is real
+whatever the words say. **The rule: a label may replace a price wherever the
+customer is browsing, and never where they are committing.**
+
+Worth saying out loud because the natural next request is "hide the price on
+the button too", and that would mean a customer agreeing to a number the app
+never showed them.
+
+## A feature can ship bound to the post type nobody uses
+Free 6.0.9's Price Label registered its metabox for `food-menu` and guarded
+its getter on the same type. In `online_ordering` mode — the only mode this
+app supports — a store's menu is WooCommerce **products**, so the feature was
+invisible to every store that takes orders, and nobody noticed because it
+works perfectly on a display-only site.
+
+The tell was in the vendor's own spec: it asked the app to read
+`_tlp_fm_price_label` *on products*, which the plugin could not write there.
+**When a spec asks for a field on a type the feature was never registered
+for, the gap is in the plugin, not in the reading.**
+
+Worth checking the same way for anything else bound to `TLPFoodMenu()->post_type`
+— `PostMeta::save()` has the identical early return, which `AppProductStoreApi`
+already documents for `_ingredient_status`.
+

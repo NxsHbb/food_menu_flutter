@@ -5,6 +5,7 @@ import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/util/html_text.dart';
 import 'discount_badge.dart';
+import 'price_label_text.dart';
 import '../../../../core/widgets/dish_image_placeholder.dart';
 import '../../../cart/presentation/widgets/quick_add_button.dart';
 import '../../../wishlist/presentation/widgets/wishlist_heart.dart';
@@ -118,7 +119,15 @@ class DishRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Expanded(
-                          child: Wrap(
+                          child: product.hasPriceLabel
+                              // The store's words instead of the number, and
+                              // instead of the "options" hint too: a label
+                              // already says what the choices cost.
+                              ? PriceLabelText(
+                                  label: product.priceLabel,
+                                  style: text.titleSmall,
+                                )
+                              : Wrap(
                             spacing: AppTokens.space6,
                             crossAxisAlignment: WrapCrossAlignment.end,
                             children: [

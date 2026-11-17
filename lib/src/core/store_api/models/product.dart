@@ -258,6 +258,7 @@ class Product {
     required this.isInStock,
     required this.isPurchasable,
     required this.hasOptions,
+    required this.priceLabel,
     required this.requiresChoices,
     required this.timed,
     required this.sections,
@@ -307,6 +308,7 @@ class Product {
       // WooCommerce's own flag, which means a variable product and nothing
       // else. It knows nothing about add-ons — see [requiresChoices].
       hasOptions: json['has_options'] as bool? ?? false,
+      priceLabel: _text(json, 'price_label'),
       requiresChoices: _flag(json, 'requires_choices'),
       timed: TimedAvailability.fromExtension(json),
       sections: DishSections.fromExtension(json),
@@ -365,6 +367,21 @@ class Product {
   ///
   /// False on a site whose plugin predates the field, which leaves the old
   /// behaviour rather than hiding every quick add.
+  /// Text the store wants shown **instead of** the price (task 14.6).
+  ///
+  /// The free plugin's Price Label — "Small 5.95 | Large 6.50" — printed
+  /// exactly as typed, with no currency symbol added: the store wrote the
+  /// whole string, separators and all, and a dish priced in words is the
+  /// point of the feature.
+  ///
+  /// **Display only.** The cart, the totals and every sum in the app still
+  /// use [prices]; this replaces what the customer reads, never what they are
+  /// charged. Empty for the overwhelming majority of dishes.
+  final String priceLabel;
+
+  /// Whether a store has given this dish words in place of a price.
+  bool get hasPriceLabel => priceLabel.isNotEmpty;
+
   final bool requiresChoices;
 
   /// Whether the store serves this dish at the moment, and what it asked for
@@ -532,6 +549,22 @@ class Product {
     if (foodMenu is! Map) return false;
 
     return foodMenu[key] == true;
+  }
+
+  /// Reads one string out of the plugin's Store API extension block.
+  ///
+  /// Empty at every missing level, for the same reason as [_flag]: an older
+  /// plugin simply does not send it.
+  static String _text(Map<String, dynamic> json, String key) {
+    final extensions = json['extensions'];
+    if (extensions is! Map) return '';
+
+    final foodMenu = extensions['food-menu-pro'];
+    if (foodMenu is! Map) return '';
+
+    final value = foodMenu[key];
+
+    return value is String ? value.trim() : '';
   }
 
   /// Reads one list out of the plugin's Store API extension block.
