@@ -3289,3 +3289,50 @@ construction and status-code mapping are only exercised by
 that gap is found on a device or not at all. See the device recipe in this
 file; the run is cheap and it has now paid for itself twice.
 
+## Three for three: the hook axis finds what a feature audit cannot
+Task 14.2 makes the third rule the website enforces on a path the app does not
+travel — 8.3 for purchasability, 8.9 for slot validation, and now the Kitchen
+Monitor's pause, which is one `add_action` on `woocommerce_checkout_process`
+and no setting of its own on the screen that matters.
+
+All three were found the same way and none by walking the vendor's feature
+list. **The axis is `add_action`/`add_filter` on a WooCommerce checkout hook,
+diffed against what the Store API actually fires.** Run it once more before
+release rather than a fourth time after it.
+
+The shape of the fix is now settled too, and worth copying rather than
+re-deciding: the same
+`woocommerce_store_api_checkout_update_order_from_request` hook, which is
+handed the request and runs before payment; gated on `X-FMP-App`, because the
+website's own block checkout goes through that route and has the same hole,
+and closing it for everyone would change which orders live stores accept on a
+plugin update; and judged against **what the order asks for** rather than the
+clock, since the request time and the slot are not the same question.
+
+## A pause has two answers, and they are both right
+`order-types` reports whether the kitchen is taking orders **now**;
+`AppPauseGuard` judges the **chosen slot** when the order is placed. They can
+disagree, and that is the design rather than a race to paper over: a scheduled
+pause can cover a time the payload knew nothing about, and can equally have
+lifted by the time the customer is served.
+
+The rule that keeps it honest is which one is load-bearing. The payload exists
+so a customer is not asked to fill in a checkout they cannot submit; the guard
+is what the store relies on. Anything that treats the read-side answer as the
+rule — caching it, trusting it at submit, blocking the button on it alone —
+puts a judgement about one moment in charge of an order about another.
+
+## A required field below the fold looks exactly like a dead button
+The pause message would not appear on the device, through two attempts and
+three screenshots. The tap was landing and the ripple was drawing; nothing
+happened because the dev store has a **required checkout field** from task 8.2
+(`Apartment / buzzer *`) sitting below the fold, and `_placeOrder` validates
+the form before it reads `checkoutReadinessProvider`.
+
+That order is correct — a message beside the field beats the same complaint in
+a snackbar — and the screen does scroll a failed field into view. But from the
+bottom of a long checkout, with the button under your thumb, "validation
+failed somewhere up there" and "the button is broken" look identical. Worth
+remembering the next time a device run produces nothing at all: **scroll
+before concluding.**
+

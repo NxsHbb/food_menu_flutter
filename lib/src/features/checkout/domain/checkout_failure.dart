@@ -31,6 +31,12 @@ enum CheckoutFailureKind {
   /// The gateway refused, or the store stopped accepting it.
   payment,
 
+  /// The kitchen has stopped taking orders (task 14.2). Nothing the customer
+  /// can change fixes it, and the time is not the problem either — a paused
+  /// store refuses the next slot too — so this is neither a slot failure nor
+  /// a validation one.
+  paused,
+
   /// The session is no longer good. Signing in again is the only way on.
   auth,
 
@@ -87,6 +93,12 @@ class CheckoutFailure {
   /// Whether the slot list on screen is now known to be out of date.
   bool get staleSlot => kind == CheckoutFailureKind.slot;
 
+  /// Whether the store refused because it has stopped taking orders.
+  ///
+  /// The screen re-reads the store's state on this, so the checkout blocks
+  /// itself rather than leaving a live button that cannot work.
+  bool get storePaused => kind == CheckoutFailureKind.paused;
+
   static CheckoutFailureKind _kindOf(ApiException error) {
     if (error.failure == ApiFailure.network ||
         error.failure == ApiFailure.timeout) {
@@ -113,6 +125,10 @@ class CheckoutFailure {
         code.contains('cart_item')) {
       return CheckoutFailureKind.cart;
     }
+
+    // Before the payment arm, which `fmp_ordering_paused` does not match
+    // today but would if the code were ever renamed around a gateway.
+    if (code == 'fmp_ordering_paused') return CheckoutFailureKind.paused;
 
     if (code.contains('payment')) return CheckoutFailureKind.payment;
 

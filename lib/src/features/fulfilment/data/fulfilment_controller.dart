@@ -139,6 +139,29 @@ final orderingDisabledProvider = Provider<bool>((ref) {
   return error is ApiException && error.code == 'fmp_ordering_disabled';
 });
 
+/// The store's words when the kitchen has stopped taking orders, else null.
+///
+/// Staff pause ordering from the Kitchen Monitor, outright or for a window.
+/// Read from the same request as [orderingDisabledProvider] for the same
+/// reason: it is already made before the checkout is drawn.
+///
+/// **Null while loading and on every failure**, so an unreachable store is not
+/// reported as a closed one — the same rule as `orderingDisabledProvider`, and
+/// the same reason.
+///
+/// This is the answer for *now*. The chosen slot is re-judged by the server
+/// when the order is placed, which is what actually refuses it.
+final orderingPausedProvider = Provider<String?>((ref) {
+  final types = ref.watch(orderTypesProvider).value;
+
+  if (types == null || !types.paused) return null;
+
+  // The store may have switched the pause on and left the message empty.
+  return types.pauseMessage.isNotEmpty
+      ? types.pauseMessage
+      : 'This restaurant has stopped taking orders for now.';
+});
+
 /// The type actually in force: the customer's choice if the store still
 /// offers it, otherwise the store's default.
 ///

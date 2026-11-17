@@ -240,4 +240,40 @@ void main() {
       expect(failure.staleCart, isTrue);
     });
   });
+
+  group('a paused kitchen (task 14.2)', () {
+    test('is its own kind, not a slot or a payment failure', () {
+      final failure = failureFor(
+        status: 409,
+        code: 'fmp_ordering_paused',
+        message: 'Kitchen closed, back at six.',
+      );
+
+      expect(failure.kind, CheckoutFailureKind.paused);
+      expect(failure.storePaused, isTrue);
+      // The time is not the problem — a paused store refuses the next slot
+      // too — so the slot list must not be thrown away and re-read.
+      expect(failure.staleSlot, isFalse);
+      expect(failure.staleCart, isFalse);
+    });
+
+    test('offers no retry, because the identical order cannot work', () {
+      final failure = failureFor(
+        status: 409,
+        code: 'fmp_ordering_paused',
+      );
+
+      expect(failure.canRetry, isFalse);
+    });
+
+    test("shows the store's own words", () {
+      final failure = failureFor(
+        status: 409,
+        code: 'fmp_ordering_paused',
+        message: 'Kitchen closed, back at six.',
+      );
+
+      expect(failure.message, 'Kitchen closed, back at six.');
+    });
+  });
 }

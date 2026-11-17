@@ -262,4 +262,104 @@ void main() {
       expect(container.read(selectedSlotProvider), isNull);
     });
   });
+
+  group('a paused kitchen (task 14.2)', () {
+    OrderTypes paused({String message = 'Kitchen closed, back at six.'}) {
+      final base = orderTypesFromFixture('order_types');
+      return OrderTypes(
+        branch: base.branch,
+        timezone: base.timezone,
+        today: base.today,
+        preorderMaxDays: base.preorderMaxDays,
+        slotLimitsEnabled: base.slotLimitsEnabled,
+        types: base.types,
+        paused: true,
+        pauseMessage: message,
+      );
+    }
+
+    test('reports the store its own words', () async {
+      repo.types = paused();
+      final container = containerWith();
+      await container.read(orderTypesProvider.future);
+
+      expect(
+        container.read(orderingPausedProvider),
+        'Kitchen closed, back at six.',
+      );
+    });
+
+    test('says something when the store switched the pause on and left the '
+        'message empty', () async {
+      repo.types = paused(message: '');
+      final container = containerWith();
+      await container.read(orderTypesProvider.future);
+
+      expect(container.read(orderingPausedProvider), isNotEmpty);
+    });
+
+    test('an open store reports nothing', () async {
+      final container = containerWith();
+      await container.read(orderTypesProvider.future);
+
+      expect(container.read(orderingPausedProvider), isNull);
+    });
+
+    test('is null while the answer is still coming', () async {
+      repo = FakeFulfilmentRepository(
+        types: paused(),
+        delay: const Duration(milliseconds: 20),
+      );
+      final container = containerWith();
+      container.read(orderTypesProvider);
+
+      // Nothing has arrived yet: a store that has not answered is not a
+      // store that has closed.
+      expect(container.read(orderingPausedProvider), isNull);
+
+      await container.read(orderTypesProvider.future);
+      expect(container.read(orderingPausedProvider), isNotNull);
+    });
+
+    test('an unreachable store is not a closed one', () async {
+      repo.failNext = const ApiException(
+        failure: ApiFailure.network,
+        message: 'No connection.',
+      );
+      final container = containerWith();
+      await expectLater(
+        container.read(orderTypesProvider.future),
+        throwsA(isA<ApiException>()),
+      );
+
+      expect(container.read(orderingPausedProvider), isNull);
+    });
+
+    test('an older Pro, sending neither field, is open', () {
+      // C4: a missing field hides a feature, it does not close a restaurant.
+      final types = OrderTypes.fromJson(const {
+        'branch': 0,
+        'timezone': 'Europe/London',
+        'today': '2026-11-17',
+        'types': <Map<String, dynamic>>[],
+      });
+
+      expect(types.paused, isFalse);
+      expect(types.pauseMessage, isEmpty);
+    });
+
+    test('parses the pause off the payload', () {
+      final types = OrderTypes.fromJson(const {
+        'branch': 0,
+        'timezone': 'Europe/London',
+        'today': '2026-11-17',
+        'ordering_paused': true,
+        'pause_message': 'Kitchen closed.',
+        'types': <Map<String, dynamic>>[],
+      });
+
+      expect(types.paused, isTrue);
+      expect(types.pauseMessage, 'Kitchen closed.');
+    });
+  });
 }

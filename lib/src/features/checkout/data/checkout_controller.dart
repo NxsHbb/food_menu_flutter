@@ -238,6 +238,14 @@ final checkoutReadinessProvider = Provider<CheckoutReadiness>((ref) {
     return const CheckoutBlocked('Sign in to place your order.');
   }
 
+  // Before the order type, and before anything the customer has to fill in:
+  // a paused kitchen refuses every type and every slot, so asking them for a
+  // time and an address first would be collecting what cannot be used.
+  final paused = ref.watch(orderingPausedProvider);
+  if (paused != null) {
+    return CheckoutBlocked(paused);
+  }
+
   final type = ref.watch(resolvedOrderTypeProvider);
   if (type == null) {
     // Two different nulls. The store having switched ordering off is

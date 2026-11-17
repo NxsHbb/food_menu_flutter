@@ -43,6 +43,8 @@ class OrderTypes {
     required this.preorderMaxDays,
     required this.slotLimitsEnabled,
     required this.types,
+    this.paused = false,
+    this.pauseMessage = '',
   });
 
   factory OrderTypes.fromJson(Map<String, dynamic> json) {
@@ -54,6 +56,8 @@ class OrderTypes {
       today: json['today'] as String? ?? '',
       preorderMaxDays: (json['preorder_max_days'] as num?)?.toInt() ?? 0,
       slotLimitsEnabled: json['slot_limits_enabled'] == true,
+      paused: json['ordering_paused'] == true,
+      pauseMessage: json['pause_message'] as String? ?? '',
       types: raw is List
           ? raw
               .whereType<Map>()
@@ -63,6 +67,26 @@ class OrderTypes {
           : const [],
     );
   }
+
+  /// Whether the kitchen has stopped taking orders **right now** (task 14.2).
+  ///
+  /// Defaults to false, so a store on an older Pro — which sends neither field
+  /// — is open rather than shut. A missing endpoint hides a feature; it does
+  /// not close a restaurant.
+  ///
+  /// **This is the answer for now, not for the chosen slot.** A scheduled
+  /// pause can cover a time this knows nothing about, and can have lifted by
+  /// the time the customer is served, so the server re-judges the real slot
+  /// when the order is placed and can refuse with `fmp_ordering_paused`. This
+  /// field exists to stop a customer filling in a checkout they cannot
+  /// submit, not to be the rule.
+  final bool paused;
+
+  /// The store's own words for the pause, already translated.
+  ///
+  /// Empty when [paused] is false. Shown as it is: the store wrote it, and a
+  /// paraphrase would be the app inventing a reason.
+  final String pauseMessage;
 
   /// The branch this describes. **Check it** rather than assuming the branch
   /// asked for was honoured: a store not running branches answers store-wide

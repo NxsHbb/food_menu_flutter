@@ -176,6 +176,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ref.invalidate(slotsProvider);
     }
 
+    // The store paused while this screen was open, and the payload that said
+    // otherwise is in hand. Re-reading it is what turns the Place Order
+    // button off — otherwise the banner says the kitchen is closed above a
+    // button that still invites another attempt.
+    if (failure.storePaused) {
+      ref.invalidate(orderTypesProvider);
+    }
+
     if (!mounted) return;
 
     setState(() => _failure = failure);
