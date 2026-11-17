@@ -2,6 +2,93 @@
 
 Newest first. One entry per completed task.
 
+## Task 14.7 — the store is asked what it has before it is asked for it
+Branch `feat/capability-probe`, PR TBD. **App only**, and it needed no plugin
+change at all. 1110 tests, forty-three new.
+
+### The app assumed the Pro it was built against
+Every `app/*` route the app calls was added by some version of Pro, and a store
+runs whatever it has installed. On an older build the route answered 404 and the
+app reported a **failure** for a feature that store simply does not have —
+"That is no longer available." in front of a wishlist the plugin never shipped,
+an error page where Orders should be. Doc C4 asks for the opposite: a missing
+endpoint should hide a feature, not fail.
+
+This was a live cost rather than a hypothetical. Reading the demo site's REST
+index this morning settled how much: **five** of the twenty-seven routes the app
+calls. That store has since been updated and now serves all twenty-seven, which
+lifts the standing limit on what the iPhone can test — but it is why the task
+exists, and the five-route reading is kept as a fixture.
+
+### One request, to a route that predates everything
+`GET /wp-json/fmp/v1` — the plugin's REST **namespace index**, which WordPress
+registers for every namespace and which lists every route in it whatever
+version registered them. `CapabilityProbe` reads it once at launch,
+`storeCapabilitiesProvider` holds it, `capabilitiesProvider` is the plain value
+widgets read.
+
+The obvious alternative — a `capabilities` array on 14.3's `/app/config` —
+cannot work, and `FINDINGS.md` has why: a Pro too old to have the route is too
+old to publish the list, so the stores needing the answer are the ones unable
+to give it.
+
+### `PluginRoute` is the app's half of the contract
+One enum value per route the app calls, twenty-seven of them, each naming the
+route with its path parameters written `{}`. Both sides normalise to that: the
+index publishes `/fmp/v1/app/orders/(?P<id>\d+)/tracking`, a request carries
+`app/orders/42/tracking`. A test asserts the dev store has every one of them,
+so a typo in a template fails the suite instead of hiding a feature.
+
+**Features ask about features, not routes.** `StoreCapabilities` exposes
+`hasWishlist`, `canOrder`, `hasAddressBook` and a dozen more, because a feature
+is usually more than one route — the wishlist needs its collection *and* its
+item route, or the heart fills and cannot be emptied; the address book needs
+`app/me` *and* `app/address-fields`, or there is no form to draw.
+
+### Three states, and the third is the interesting one
+`fromIndex` is authoritative both ways. `absent` — the namespace itself is not
+registered — means no Food Menu plugin at all, the one case where hiding
+everything is honest. Anything else is `unknown`, which **assumes every feature
+is present**, so a dropped connection at launch cannot strip the app down to a
+menu. Same ruling `StoreConfig.unknown` makes about ordering.
+
+### The fallback keys on the code, not the status
+`CapabilityInterceptor` watches for `code: rest_no_route` on a plugin URL and
+records the route as missing. **Not the 404** — WordPress answers 404 both for
+an unregistered route and for a dish that has been deleted, and keying on the
+status would disable add-ons for the session because one product was removed.
+It changes no response: the request still fails and whoever made it still
+decides what to draw, because swallowing it would leave a screen waiting
+forever.
+
+### What hides, and what stays
+Account rows are drawn only where the route behind them exists, which is what
+closes those features — each of those screens is reachable from there and
+nowhere else. Sign-in disappears where there are no auth routes. Reviews stay
+**readable** where they cannot be written, since the list is the Store API's.
+`canOrder` wants order types, slots and gateways together: without them the
+checkout would refuse the order at the last step, so the app says so on the
+first screen instead.
+
+### What was verified, and how
+The fixtures are captured, not invented — read from the dev store and from the
+demo on 2026-11-17 and pasted verbatim, regex groups and all. A fake that
+agrees with the enum by construction proves nothing.
+
+**On the OnePlus, against the dev store** (all twenty-seven routes): the menu,
+the promotion carousel, the wishlist hearts and every tab draw exactly as
+before, and the signed-out Sign in button is live because the store has the
+auth routes. That is the regression half — a full store must not lose anything
+to this change. The legal rows are absent there because the dev store publishes
+neither policy URL, which is task 14.4's own behaviour and was checked against
+`/app/config` rather than assumed.
+
+**The hiding half is covered by tests, not by a device.** Both stores now serve
+every route, so there is no longer a real store that demonstrates it; the
+five-route fixture drives widget tests for the heart, the account rows, sign-in,
+order history and reorder instead. Worth re-checking on hardware the next time a
+store on an older Pro is in reach.
+
 ## Task 14.6 — Price Label, reachable at last
 Branch `feat/price-label`, PRs TBD. **Free + Pro + app**, the first task to
 touch all three. 1067 tests, nine new.

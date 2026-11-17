@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/capability/capability_probe.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -61,6 +62,10 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     final group = ref.watch(orderGroupProvider);
     final history = ref.watch(orderHistoryControllerProvider);
     final signedIn = ref.watch(isSignedInProvider);
+    // Task 14.7. The tab stays where it is — the shell's destinations are
+    // fixed and a tab that comes and goes is worse than one that explains
+    // itself — but there is nothing behind it on this store.
+    final hasHistory = ref.watch(capabilitiesProvider).hasOrderHistory;
 
     return Scaffold(
       backgroundColor: palette.bg,
@@ -80,7 +85,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('My orders', style: text.headlineSmall),
-                  if (signedIn) ...[
+                  if (signedIn && hasHistory) ...[
                     const SizedBox(height: AppTokens.space14),
                     _Tabs(
                       selected: group,
@@ -99,7 +104,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 ],
               ),
             ),
-            if (!signedIn)
+            if (!hasHistory)
+              const Expanded(child: _NoHistory())
+            else if (!signedIn)
               Expanded(
                 child: _SignedOut(
                   onSignIn: () => context.pushNamed(LoginScreen.routeName),
@@ -126,6 +133,43 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                   },
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// This store's plugin does not keep app order history (task 14.7).
+///
+/// **Before sign-in rather than after it.** Asking somebody to sign in to see
+/// a list that cannot exist would be the worse of the two lies, so this takes
+/// precedence over the signed-out invitation. No retry and no button: nothing
+/// the customer can do changes which plugin the restaurant runs.
+class _NoHistory extends StatelessWidget {
+  const _NoHistory();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final text = Theme.of(context).textTheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTokens.space24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.receipt_long_outlined, size: 48, color: palette.muted),
+            const SizedBox(height: AppTokens.space12),
+            Text('No order history here', style: text.titleMedium),
+            const SizedBox(height: AppTokens.space6),
+            Text(
+              'This restaurant does not list past orders in the app. Any '
+              'order you place still reaches them.',
+              textAlign: TextAlign.center,
+              style: text.bodyMedium?.copyWith(color: palette.muted),
+            ),
           ],
         ),
       ),

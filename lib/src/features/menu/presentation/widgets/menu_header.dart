@@ -32,6 +32,12 @@ class MenuHeader extends StatelessWidget {
   /// store with a single location wants.
   final VoidCallback? onAddressTap;
 
+  /// Whether there is a place worth naming. Empty on a store whose plugin has
+  /// no branches and no name to fall back on (task 14.7) — the location line
+  /// is dropped entirely there, because a pin above "Choose a branch" that
+  /// cannot be tapped describes a feature the store does not have.
+  bool get _hasAddress => address.trim().isNotEmpty;
+
   /// The store's own logo (task 14.3). Empty for a store that set none, and
   /// the header simply does not draw one — a gap where a mark should be is
   /// worse than no mark.
@@ -47,9 +53,7 @@ class MenuHeader extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color: palette.brand,
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(30),
-        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
       padding: EdgeInsets.only(
         top: padding.top + AppTokens.space16,
@@ -66,49 +70,54 @@ class MenuHeader extends StatelessWidget {
                 _StoreLogo(url: logoUrl),
                 const SizedBox(width: AppTokens.space12),
               ],
-              Expanded(
-                child: InkWell(
-                  onTap: onAddressTap,
-                  child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      addressLabel,
-                      style: text.bodySmall?.copyWith(
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: AppTokens.space2),
-                    Row(
+              // Nothing to say about where the order comes from, so the
+              // line is not drawn and the bell keeps its place.
+              if (!_hasAddress)
+                const Spacer()
+              else
+                Expanded(
+                  child: InkWell(
+                    onTap: onAddressTap,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.location_on_outlined,
-                          size: 16,
-                          color: Colors.white,
+                        Text(
+                          addressLabel,
+                          style: text.bodySmall?.copyWith(
+                            color: Colors.white70,
+                          ),
                         ),
-                        const SizedBox(width: AppTokens.space4),
-                        Flexible(
-                          child: Text(
-                            address,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: text.titleSmall?.copyWith(
+                        const SizedBox(height: AppTokens.space2),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              size: 16,
                               color: Colors.white,
                             ),
-                          ),
+                            const SizedBox(width: AppTokens.space4),
+                            Flexible(
+                              child: Text(
+                                address,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: text.titleSmall?.copyWith(
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            if (onAddressTap != null)
+                              const Icon(
+                                Icons.keyboard_arrow_down,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                          ],
                         ),
-                        if (onAddressTap != null)
-                          const Icon(
-                            Icons.keyboard_arrow_down,
-                            size: 18,
-                            color: Colors.white,
-                          ),
                       ],
                     ),
-                  ],
                   ),
                 ),
-              ),
               const _HeaderIconButton(icon: Icons.notifications_none),
             ],
           ),

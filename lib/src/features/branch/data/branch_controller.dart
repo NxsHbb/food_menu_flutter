@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/capability/capability_probe.dart';
 import '../domain/branch.dart';
 import 'branch_repository.dart';
 import 'branch_store.dart';
@@ -56,7 +57,17 @@ final activeBranchIdProvider = Provider<int?>((ref) {
 
 /// The branches this store offers.
 final branchesProvider = FutureProvider<BranchList>(
-  (ref) => ref.watch(branchRepositoryProvider).branches(),
+  (ref) {
+    // Task 14.7. Branches are a Pro feature on a route an older build does
+    // not have, and the picker is reached from the header on every screen —
+    // so a store without it gets no list, no request and no error, rather
+    // than "Try again" behind a chevron that should not be there.
+    if (!ref.watch(capabilitiesProvider).hasBranches) {
+      return Future.value(BranchList.none);
+    }
+
+    return ref.watch(branchRepositoryProvider).branches();
+  },
   // The picker offers "Try again"; a background retry would keep firing while
   // the customer reads the error.
   retry: (retryCount, error) => null,

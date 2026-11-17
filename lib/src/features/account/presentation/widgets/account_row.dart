@@ -103,6 +103,12 @@ class AccountRowCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
 
+    // **Nothing, not an empty card.** Rows are conditional now that each one
+    // depends on the store's plugin having the route behind it (task 14.7),
+    // and a card with no rows is a 12px white bar that reads as something
+    // that failed to load. Callers still own the spacing around it.
+    if (rows.isEmpty) return const SizedBox.shrink();
+
     return Material(
       color: palette.card,
       borderRadius: BorderRadius.circular(AppTokens.radiusSheet),

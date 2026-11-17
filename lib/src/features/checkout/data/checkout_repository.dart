@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/capability/capability_probe.dart';
 import '../../../core/network/api_client.dart';
 import '../../fulfilment/domain/order_types.dart';
 import '../domain/checkout_config.dart';
@@ -89,6 +90,14 @@ class CheckoutRepository {
 /// would be worse than one without it. A failure resolves to no fields, as
 /// the add-ons provider does.
 final checkoutConfigProvider = FutureProvider<CheckoutConfig>((ref) async {
+  // Task 14.7. A store whose plugin has no checkout-fields route asks for
+  // nothing extra, which is exactly what `empty` says — and the app keeps its
+  // own wording for the sections, as it already does for a plugin too old to
+  // send them.
+  if (!ref.watch(capabilitiesProvider).hasCheckoutFields) {
+    return CheckoutConfig.empty;
+  }
+
   try {
     return await ref.watch(checkoutRepositoryProvider).config();
   } on Object {

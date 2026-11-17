@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/capability/capability_probe.dart';
 import '../domain/product_addons.dart';
 
 /// Reads a dish's add-on groups from the plugin's own namespace.
@@ -35,6 +36,13 @@ final addonsRepositoryProvider = Provider<AddonsRepository>((ref) {
 /// them.
 final productAddonsProvider =
     FutureProvider.family<ProductAddons, int>((ref, productId) async {
+  // Asked up front rather than learned from the 404 below (task 14.7): the
+  // dish screen opens one of these per dish, and a store without the route
+  // would spend a failing request on every one of them.
+  if (!ref.watch(capabilitiesProvider).hasAddons) {
+    return ProductAddons.none(productId);
+  }
+
   try {
     return await ref.watch(addonsRepositoryProvider).forProduct(productId);
   } on Object {

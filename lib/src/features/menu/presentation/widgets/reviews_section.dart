@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/capability/capability_probe.dart';
 import '../../../../core/store_api/models/product.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
@@ -31,7 +32,12 @@ class ReviewsSection extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
     final palette = AppPalette.of(context);
     final state = ref.watch(reviewsControllerProvider(product.id));
-    final canWrite = product.reviewPolicy.enabled;
+    // The store's policy, and whether its plugin has the route that takes a
+    // review at all (task 14.7). **Reading is the Store API's**, so a store
+    // without the write route still shows every review it has — it just does
+    // not offer to add one, which is the honest half to drop.
+    final canWrite = product.reviewPolicy.enabled &&
+        ref.watch(capabilitiesProvider).canWriteReviews;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

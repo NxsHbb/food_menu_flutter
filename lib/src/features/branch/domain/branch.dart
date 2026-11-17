@@ -13,6 +13,14 @@ class BranchList {
     required this.branches,
   });
 
+  /// A store the app cannot ask about branches at all — its plugin has no
+  /// `app/branches` route (task 14.7).
+  ///
+  /// **Not the same as a store with one location**, which answers with a
+  /// single `id: 0` entry built from the shop address. This has nothing in
+  /// it, so [resolve] answers null and the header has no place to name.
+  static const none = BranchList(multiLocation: false, branches: []);
+
   factory BranchList.fromJson(Map<String, dynamic> json) {
     final raw = json['branches'];
 

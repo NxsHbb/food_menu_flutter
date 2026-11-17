@@ -1,10 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:food_menu/src/core/capability/capability_probe.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/dish_card.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/discount_badge.dart';
 
+import '../../core/capability/capability_scope.dart';
 import 'fake_menu_repository.dart';
 
 /// `DishCard` was the one surface that drew a dish name raw, so an apostrophe
@@ -14,6 +16,9 @@ void main() {
   Future<void> pump(WidgetTester tester, {required String name}) async {
     await tester.pumpWidget(
       ProviderScope(
+        // The card's wishlist heart asks what this store can do (task 14.7).
+        // Pinned so the test makes no request.
+        overrides: [capabilitiesProvider.overrideWithValue(anyStore)],
         child: MaterialApp(
           theme: AppTheme.light(),
           home: Scaffold(

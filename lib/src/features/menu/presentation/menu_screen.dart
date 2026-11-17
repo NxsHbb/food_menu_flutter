@@ -75,7 +75,17 @@ class MenuScreen extends ConsumerWidget {
                 // The branch's own name once one is settled. Until the list
                 // arrives the design's own placeholder stands, rather than a
                 // blank line that shifts when it loads.
-                address: branch?.name ?? 'Choose a branch',
+                //
+                // **An empty list is a store with no branch route at all**
+                // (task 14.7), which is not the same as one with a single
+                // location: there is nothing to choose and nothing to
+                // choose it from, so the store's own name stands in — and
+                // where even that is unknown the header drops the line
+                // rather than offering "Choose a branch" inertly.
+                address: branch?.name ??
+                    (branches != null && branches.isEmpty
+                        ? ref.watch(storeConfigProvider).value?.name ?? ''
+                        : 'Choose a branch'),
                 greeting: 'Welcome',
                 prompt: 'What are you craving?',
                 onSearchTap: () => context.goNamed(MenuListScreen.routeName),

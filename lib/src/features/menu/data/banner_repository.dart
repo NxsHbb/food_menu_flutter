@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/capability/capability_probe.dart';
 import '../../../core/network/api_client.dart';
 import '../../branch/data/branch_controller.dart';
 import '../domain/promo_banner.dart';
@@ -79,6 +80,9 @@ final bannerRepositoryProvider = Provider<BannerRepository>((ref) {
 /// one more: a store running an **older plugin** has no such route, and a 404
 /// there must not cost it the carousel it already had.
 final specialMenuProvider = FutureProvider<SpecialMenu>((ref) async {
+  // Task 14.7: no route, no promotion, and no request to find that out.
+  if (!ref.watch(capabilitiesProvider).hasSpecialMenu) return SpecialMenu.none;
+
   try {
     return await ref.watch(bannerRepositoryProvider).specialMenu(
           branch: ref.watch(activeBranchIdProvider) ?? 0,

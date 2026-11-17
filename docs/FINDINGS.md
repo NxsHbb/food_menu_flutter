@@ -3495,3 +3495,95 @@ Worth checking the same way for anything else bound to `TLPFoodMenu()->post_type
 — `PostMeta::save()` has the identical early return, which `AppProductStoreApi`
 already documents for `_ingredient_status`.
 
+
+## A capability list cannot be published by the plugin that lacks the capability
+
+The obvious design for task 14.7 was a `capabilities` array on task 14.3's
+`GET /app/config`: the store says what it supports, the app reads it. It is
+also useless for **exactly the stores this task exists for**. A Pro old enough
+to be missing `app/wishlist` is old enough to be missing the code that would
+have listed `app/wishlist` — so the stores that need the answer are the ones
+that cannot give it, and a store too old for `/app/config` itself answers 404
+to the question "what do you have".
+
+What works is a route WordPress has registered since REST shipped:
+`GET /wp-json/fmp/v1`, the **namespace index**, which lists every route in the
+namespace whatever version registered them. One request at launch, no plugin
+support needed, and it is accurate about builds that predate the app entirely.
+Roughly 18 KB on the dev store; only the keys are read.
+
+The index publishes a route as `/fmp/v1/app/orders/(?P<id>\d+)/tracking`. That
+is normalised **per segment** — a segment containing `(?P<` is a parameter —
+rather than with one regex over the whole key, because the patterns themselves
+contain brackets, braces and nested groups that a single expression gets wrong.
+A request path is normalised the same way from the other end: every parameter
+in this namespace is numeric, so a digits-only segment is a parameter and
+nothing else is, and the app never has to parse a regex it was handed.
+
+## WordPress answers 404 for two unrelated things, and the app wanted only one
+
+`CapabilityInterceptor` keys on `code: rest_no_route`, not on the status. Both
+cases were checked against the dev store:
+
+```
+GET /fmp/v1/app/wishlist      404  {"code":"rest_no_route"}
+GET /fmp/v1/app/products/999/addons  404  {"code":"fmp_app_product_not_found"}
+```
+
+The first means nothing is registered at that path: the store does not have the
+feature and will not until it is updated. The second means the route is there
+and the *thing* is not — a deleted dish, somebody else's order. Keying on the
+404 alone would **disable add-ons for the rest of the session because one dish
+had been removed**; keying on nothing would go on showing "That is no longer
+available." for a feature the store never shipped.
+
+The interceptor also checks the request was inside the plugin's own base, so a
+404 from the Store API or from WordPress core is none of its business, and it
+trims by the base's **path length** — which is what makes a site in a
+subdirectory (`/demos/food-menu/wp-json/fmp/v1`) read the same as one at the
+root.
+
+## The store this task is for was measurable this morning and is already gone
+
+Read off `radiustheme.net/demos/food-menu` earlier on 2026-11-17 and kept
+verbatim as the `releasedPro` fixture: **five** `app/*` routes — `auth/login`,
+`register`, `refresh`, `logout` and `app/me` — out of the twenty-seven the app
+calls. Opening Orders against that store produced an error for a feature it
+never had, which is the whole of what this task is about.
+
+**By the time 14.7 was finished the same site served all twenty-seven.** The
+demo has been updated to a build carrying the app work — `/app/config` answers
+there now, with 14.3's colour and 14.4's policy URLs — so it is no longer an
+example of an older store, and the standing constraint that the iPhone cannot
+exercise anything newer than the released plugin has lifted with it.
+
+The fixture stays regardless, because **a store with five routes** is the case
+worth testing whether or not any URL currently serves it. That is also why both
+fixtures are *captured rather than written*: a hand-written route list would
+agree with `PluginRoute` by construction and prove nothing, so these were pasted
+from two real stores, regex groups and all. One test asserts the dev store has
+every route the enum names, so a typo in a template fails the suite instead of
+quietly hiding a feature from every store.
+## A probe that cannot be made must not be read as a store with nothing
+
+`StoreCapabilities` has three states and the third is the one that matters.
+`fromIndex` is authoritative both ways, and `absent` — a `rest_no_route` on the
+index itself — means there is no Food Menu plugin here, which is the one time
+switching everything off is the honest answer.
+
+Anything else is `unknown`, and **`unknown` assumes every feature is present**.
+A dropped connection at launch is not a store without a wishlist, and the
+alternative strips the app to a bare menu for a customer on a bad tunnel. It is
+the same ruling `StoreConfig.unknown` already makes about ordering. The
+per-request fallback then learns the truth from refusals, so the cost of
+guessing generously is one failed request per absent feature, once.
+
+`capabilitiesProvider` resolves to `unknown` **while the probe is still in
+flight** for the same reason read the other way round: assuming absent until it
+lands would make the wishlist heart, the branch picker and the account rows pop
+into existence on every launch of every store, to spare an older store a
+flicker. Hiding late is rarer and cheaper than appearing late.
+
+A refusal is held on the controller rather than only in the state, so a
+re-probe cannot un-learn it: the index says what *exists*, but a route that
+answered `rest_no_route` is a fact about the store in front of the app.

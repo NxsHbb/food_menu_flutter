@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/capability/capability_probe.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/store_api/models/product.dart';
 import '../../../../core/theme/app_palette.dart';
@@ -93,6 +94,15 @@ class WishlistHeart extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // **No wishlist on this store, no heart anywhere** (task 14.7). It is
+    // drawn on every dish card, every row and the dish screen, so leaving it
+    // would be the most-seen broken thing in the app — and the one place
+    // hiding a control is unambiguously right, since there is nothing behind
+    // it to save to.
+    if (!ref.watch(capabilitiesProvider).hasWishlist) {
+      return const SizedBox.shrink();
+    }
+
     final palette = AppPalette.of(context);
     final saved = ref.watch(wishlistIdsProvider).contains(product.id);
 
