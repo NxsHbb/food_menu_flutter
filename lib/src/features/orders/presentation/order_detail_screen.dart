@@ -48,9 +48,22 @@ class OrderDetailScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: palette.bg,
       body: switch (order) {
-        AsyncLoading() => const Center(child: CircularProgressIndicator()),
-        AsyncError(:final error) => _DetailError(error: error, id: orderId),
-        AsyncData(:final value) => _Detail(
+        // **The value is matched first, so a pull does not blank the
+        // screen** (task 14.8). Refreshing puts the provider back into
+        // `AsyncLoading` while it still holds the order it had, and
+        // matching the state before the value would swap the whole screen
+        // for a spinner under the customer's own thumb — the opposite of
+        // what the pull asked for. The same reading keeps the order up when
+        // a refresh *fails*: the snack bar reports that, rather than the
+        // error page throwing away an order that is still perfectly good.
+        AsyncValue(:final value?) => _Detail(
+            // **The routed id, not `order.id`.** They are the same on a
+            // store that numbers its orders by post id and are not on one
+            // that does not, and a refresh keyed on the wrong one reloads a
+            // provider nobody is watching: the indicator turns, a request
+            // goes out for somebody else's order, and the screen never
+            // changes. Caught by the test below rather than by a customer.
+            orderId: orderId,
             order: value,
             // Null while it loads and after it fails. The card draws the
             // estimate from the order either way and says so for the rest.
@@ -62,6 +75,8 @@ class OrderDetailScreen extends ConsumerWidget {
                 ? ref.watch(orderTrackingProvider(orderId)).value
                 : null,
           ),
+        AsyncError(:final error) => _DetailError(error: error, id: orderId),
+        _ => const Center(child: CircularProgressIndicator()),
       },
     );
   }
@@ -79,9 +94,53 @@ void closeOrder(BuildContext context) {
   }
 }
 
-class _Detail extends ConsumerWidget {
-  const _Detail({required this.order, required this.tracking});
+/// Re-reads one order, and its progress where the store publishes it.
+///
+/// **Both, because the screen draws both.** The order carries the status pill
+/// and the totals; `/app/orders/{id}/tracking` carries the timeline, and task
+/// 7.3 kept them as two requests precisely so one can fail without the other.
+/// The tracking is asked for **only where the store has the route** (task
+/// 14.7): a pull must not make the request the screen itself declines to.
+///
+/// A failed refresh is **reported**, because the pull was an explicit ask and
+/// an indicator that retracts leaving the same numbers reads as "nothing has
+/// changed" rather than "that did not work". A failed *tracking* refresh is
+/// not: it costs the timeline alone, which is task 7.3's whole reason for
+/// splitting them, and the order on screen is still correct.
+Future<void> _refresh(BuildContext context, WidgetRef ref, int orderId) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final hasTracking = ref.read(capabilitiesProvider).hasOrderTracking;
 
+  ref.invalidate(orderProvider(orderId));
+  if (hasTracking) ref.invalidate(orderTrackingProvider(orderId));
+
+  try {
+    await ref.read(orderProvider(orderId).future);
+  } on ApiException catch (error) {
+    messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    return;
+  }
+
+  if (!hasTracking) return;
+
+  try {
+    await ref.read(orderTrackingProvider(orderId).future);
+  } on Object {
+    // Deliberately silent; see above.
+  }
+}
+
+class _Detail extends ConsumerWidget {
+  const _Detail({
+    required this.orderId,
+    required this.order,
+    required this.tracking,
+  });
+
+  /// The id the screen was routed to, which is what the providers are keyed
+  /// on. Not necessarily [CustomerOrder.id]; see the note where this is
+  /// passed in.
+  final int orderId;
   final CustomerOrder order;
   final OrderTracking? tracking;
 
@@ -134,24 +193,35 @@ class _Detail extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppTokens.space16,
-              AppTokens.space14,
-              AppTokens.space16,
-              AppTokens.space24,
-            ),
-            children: [
-              OrderTrackingCard(order: order, tracking: tracking),
-              const SizedBox(height: AppTokens.space12),
-              _ItemsCard(order: order),
-              const SizedBox(height: AppTokens.space12),
-              _DetailsCard(order: order),
-              if (order.customerNote.trim().isNotEmpty) ...[
+          // **The screen a customer sits on while the food is coming**, so
+          // it is the one place a pull is worth most (task 14.8). The order
+          // itself rarely moves; its status and its tracking do, and the
+          // alternative was leaving the screen and coming back.
+          child: RefreshIndicator(
+            onRefresh: () => _refresh(context, ref, orderId),
+            child: ListView(
+              // So a short order — one dish, no note — can still be pulled.
+              // Without this the list does not overscroll and the gesture
+              // never reaches the indicator.
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                AppTokens.space16,
+                AppTokens.space14,
+                AppTokens.space16,
+                AppTokens.space24,
+              ),
+              children: [
+                OrderTrackingCard(order: order, tracking: tracking),
                 const SizedBox(height: AppTokens.space12),
-                _NoteCard(note: order.customerNote),
+                _ItemsCard(order: order),
+                const SizedBox(height: AppTokens.space12),
+                _DetailsCard(order: order),
+                if (order.customerNote.trim().isNotEmpty) ...[
+                  const SizedBox(height: AppTokens.space12),
+                  _NoteCard(note: order.customerNote),
+                ],
               ],
-            ],
+            ),
           ),
         ),
         // Only once the order is over. Reordering something still being

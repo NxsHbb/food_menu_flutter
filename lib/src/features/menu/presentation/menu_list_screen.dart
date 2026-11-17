@@ -160,71 +160,124 @@ class _Results extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
     final search = ref.watch(menuQueryProvider).search;
 
-    return switch (listing) {
-      AsyncLoading() => const Center(child: CircularProgressIndicator()),
-      AsyncError(:final error) => _Failure(error: error),
-      AsyncData(:final value) when value.products.isEmpty =>
-        search.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppTokens.space24),
-                  child: Text(
-                    'Nothing on the menu here yet.',
-                    textAlign: TextAlign.center,
-                    style: text.bodyLarge?.copyWith(color: palette.muted),
+    return RefreshIndicator(
+      onRefresh: () => _refresh(ref),
+      child: switch (listing) {
+        // **The value is matched before the state** (task 14.8), so a pull
+        // refreshes the list the customer is looking at instead of replacing
+        // it with a spinner. Matching `AsyncLoading` first would blank the
+        // menu on every pull, since a refreshing provider is loading *and*
+        // still holds its last value.
+        //
+        // An error is matched before the value for the opposite reason: a
+        // menu that could not be reloaded should say so, and `_Failure`
+        // already carries the retry that task 11.1 added.
+        AsyncError(:final error) => _scrollable(_Failure(error: error)),
+        AsyncValue(:final value?) when value.products.isEmpty => _scrollable(
+            search.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(AppTokens.space24),
+                    child: Text(
+                      'Nothing on the menu here yet.',
+                      textAlign: TextAlign.center,
+                      style: text.bodyLarge?.copyWith(color: palette.muted),
+                    ),
+                  )
+                : EmptySearchResult(
+                    query: search,
+                    // Matched against the categories already loaded for the
+                    // chip row, so a dead-end search costs no extra request.
+                    suggestions: switch (ref.watch(menuCategoriesProvider)) {
+                      AsyncData(:final value) =>
+                        suggestCategories(value, search),
+                      _ => const [],
+                    },
+                    onBrowseCategory: (category) =>
+                        onBrowseCategory(category.id),
                   ),
-                ),
-              )
-            : EmptySearchResult(
-                query: search,
-                // Matched against the categories already loaded for the chip
-                // row, so a dead-end search costs no extra request.
-                suggestions: switch (ref.watch(menuCategoriesProvider)) {
-                  AsyncData(:final value) =>
-                    suggestCategories(value, search),
-                  _ => const [],
-                },
-                onBrowseCategory: (category) =>
-                    onBrowseCategory(category.id),
-              ),
-      AsyncData(:final value) => ListView.separated(
-          controller: scroll,
-          padding: EdgeInsets.fromLTRB(
-            AppTokens.space16,
-            AppTokens.space12,
-            AppTokens.space16,
-            AppTokens.space24 + ref.watch(cartBarInsetProvider),
           ),
-          // One header row, the dishes, then a footer when more can load.
-          itemCount: value.products.length + (value.hasMore ? 2 : 1),
-          separatorBuilder: (_, _) => const SizedBox(height: AppTokens.space10),
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppTokens.space2),
-                child: Text(
-                  // The server's total, not the number loaded so far.
-                  value.total == 1 ? '1 dish' : '${value.total} dishes',
-                  style: text.bodySmall?.copyWith(color: palette.muted),
+        AsyncValue(:final value?) => ListView.separated(
+            controller: scroll,
+            // A menu shorter than the screen still has to be pullable.
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(
+              AppTokens.space16,
+              AppTokens.space12,
+              AppTokens.space16,
+              AppTokens.space24 + ref.watch(cartBarInsetProvider),
+            ),
+            // One header row, the dishes, then a footer when more can load.
+            itemCount: value.products.length + (value.hasMore ? 2 : 1),
+            separatorBuilder: (_, _) =>
+                const SizedBox(height: AppTokens.space10),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppTokens.space2),
+                  child: Text(
+                    // The server's total, not the number loaded so far.
+                    value.total == 1 ? '1 dish' : '${value.total} dishes',
+                    style: text.bodySmall?.copyWith(color: palette.muted),
+                  ),
+                );
+              }
+              final itemIndex = index - 1;
+              if (itemIndex >= value.products.length) {
+                return const _LoadMoreFooter();
+              }
+              final product = value.products[itemIndex];
+              return DishRow(
+                product: product,
+                onTap: () => context.pushNamed(
+                  ProductDetailScreen.routeName,
+                  pathParameters: {'id': '${product.id}'},
                 ),
               );
-            }
-            final itemIndex = index - 1;
-            if (itemIndex >= value.products.length) {
-              return const _LoadMoreFooter();
-            }
-            final product = value.products[itemIndex];
-            return DishRow(
-              product: product,
-              onTap: () => context.pushNamed(
-                ProductDetailScreen.routeName,
-                pathParameters: {'id': '${product.id}'},
-              ),
-            );
-          },
-        ),
-    };
+            },
+          ),
+        // The very first load, with nothing yet to pull on.
+        _ => const Center(child: CircularProgressIndicator()),
+      },
+    );
   }
+}
+
+/// Reloads the menu behind a pull (task 14.8).
+///
+/// **The chips as well as the dishes.** A store that has just added a
+/// category is the commonest reason to pull at all, and a refreshed list
+/// under a stale chip row is a worse answer than either on its own.
+///
+/// The query itself is left alone: a pull means "ask again", not "start
+/// over", and clearing a customer's search or tag would discard what they
+/// asked for. `MenuListController` rebuilds from whatever the query holds.
+Future<void> _refresh(WidgetRef ref) async {
+  ref
+    ..invalidate(menuListControllerProvider)
+    ..invalidate(menuCategoriesProvider);
+
+  // Only the list is awaited. The chips are decoration beside it, and
+  // holding the indicator open for a second request makes the pull feel
+  // slower than the screen actually is.
+  await ref.read(menuListControllerProvider.future);
+}
+
+/// Lets a screenful of nothing be pulled anyway.
+///
+/// A `RefreshIndicator` needs a scrollable child, and the empty, dead-end and
+/// failed states are each a centred box. Without this the gesture works on a
+/// full menu and does nothing on the three screens where a customer is most
+/// likely to try it.
+Widget _scrollable(Widget child) {
+  return LayoutBuilder(
+    builder: (context, constraints) => SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+        child: Center(child: child),
+      ),
+    ),
+  );
 }
 
 /// Footer shown while another page loads, or offering a retry if one failed.
