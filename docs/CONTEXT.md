@@ -990,6 +990,28 @@ a store running exactly one method.
 - No client-side validation that a gateway is enabled: **the Store API already
   refuses one**, by name, and that message is what the customer is shown.
 
+### A paused kitchen (task 14.2)
+Staff can stop the store taking orders from the Kitchen Monitor, outright or
+for a scheduled window. **Two answers, and both are needed:**
+
+- `GET /app/order-types` carries `ordering_paused` and the store's own
+  `pause_message`, judged for **now**. Read through `orderingPausedProvider`,
+  and `checkoutReadinessProvider` blocks on it **before** the order type, the
+  slot and the address — a customer at a closed restaurant should not be asked
+  for a time and an address first.
+- `AppPauseGuard` (Pro) refuses the order at
+  `woocommerce_store_api_checkout_update_order_from_request`, priority 4,
+  judged against the **order's own slot**. This is the one that counts.
+
+They can disagree, and that is deliberate: a scheduled pause can cover a time
+the payload knew nothing about, and can have lifted by the time the customer
+is served. **Never treat the payload as the rule** — see `FINDINGS.md`.
+
+Both fields default to open, so a store on an older Pro keeps taking orders.
+A refusal arrives as `fmp_ordering_paused` (409), which is its own
+`CheckoutFailureKind`: no retry, and the screen re-reads `orderTypesProvider`
+so the button goes dead behind the banner.
+
 ### Placing the order (task 6.2)
 `POST wc/store/v1/checkout`, the Store API's own route — the order, its
 totals, stock and the gateway are WooCommerce's business, and the plugin only

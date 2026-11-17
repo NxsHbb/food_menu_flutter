@@ -2,6 +2,85 @@
 
 Newest first. One entry per completed task.
 
+## Task 14.2 — the pause the app could not see
+Branch `feat/pause-guard`, PR TBD. **Pro + app.** 1011 tests, thirteen new.
+
+### The third rule the website guards on a path the app does not travel
+Staff stop the store taking orders from the Kitchen Monitor, outright or for a
+scheduled window. The website honours it in exactly one place —
+`KitchenMonitorController::block_checkout_if_paused()` on
+**`woocommerce_checkout_process`**, reading `$_POST['fmp_order_time_type']` and
+the classic checkout's date and time fields. The Store API fires neither, so a
+paused store **took app orders**, and its pause message never reached the
+customer either.
+
+After 8.3 (purchasability) and 8.9 (slot validation), this is the third of the
+same shape, found by the axis `FINDINGS.md` already names: `add_action` on a
+WooCommerce checkout hook, diffed against what the Store API fires.
+
+`AppPauseGuard` follows 8.9 exactly — same hook, handed the request and
+running before payment, gated on `X-FMP-App` so the website's own block
+checkout keeps the hole it has, which is not this project's call to close.
+Priority **4**, one ahead of the slot guard: "the kitchen has stopped taking
+orders" is the truer answer than "that time has gone", because a paused store
+would refuse the next slot too.
+
+### The window is judged against the order's slot, not the clock
+A scheduled pause says when the kitchen will be shut. So an order placed now
+for a time outside the window is fine, and one placed now for a time inside it
+is not — which is what the website does with its own posted date and time, and
+the only part of this that is not a straight read. An order with no time is as
+soon as possible, so it is for now.
+
+Two deliberate differences from the website's copy. It **does not clear** an
+expired schedule, because a read path that rewrites store settings is a
+surprise and an expired window refuses nothing either way; the website still
+clears it. And the decision is duplicated rather than extracted into something
+both call, because extracting it would change the path live stores already
+check out through — the same call, and the same reason, as
+`AccountSecurityApi::validate_password()`.
+
+### Saying so before the customer fills anything in
+`ordering_paused` and the store's own `pause_message` ride on
+`GET /app/order-types`, which is already fetched before the checkout is drawn,
+so the answer costs no extra round trip. `checkoutReadinessProvider` blocks on
+it **before** the order type, the slot and the address — asking a customer to
+pick a time and add an address at a restaurant that is closed would be
+collecting what cannot be used.
+
+Both defaults are open: a store on an older Pro sends neither field and is
+treated as taking orders. A missing endpoint hides a feature; it does not
+close a restaurant.
+
+The read side answers for **now**; the guard answers for the **chosen slot**.
+That difference is the design, not a gap — a scheduled pause can cover a time
+the payload knows nothing about, and can have lifted by the time the customer
+is served.
+
+### A pause that starts mid-checkout
+`fmp_ordering_paused` is its own `CheckoutFailureKind`, not a slot failure and
+not a payment one: nothing the customer can change fixes it, and the time is
+not the problem. It offers no retry, and the screen re-reads the store on it —
+otherwise the banner says the kitchen is closed above a button that still
+invites another attempt.
+
+### Verified on the dev store, then on the OnePlus
+Fifteen assertions on the decision itself: global pause, a pause feature
+switched off lifting a stale pause, a window judged from inside, after and
+before, an expired window, an unreadable one, the default wording, and the
+`order-types` payload agreeing with all of it. Seven more on the guard: on the
+right hook at the right priority, refusing an app order, **leaving a non-app
+request alone**, and the window judged against the slot.
+
+Then on the phone, against the dev site: the store paused, the app
+force-stopped to drop the cached payload, and Place order answered with the
+store's own sentence — *"Our kitchen is closed right now. Please order after
+6pm."* — before anything was sent. Worth recording that the first two attempts
+showed nothing at all, and the reason was the dev store's **required checkout
+field** from task 8.2 sitting below the fold: the form validates before
+readiness is consulted, which is the right order and looks like a dead button
+until you scroll.
+
 ## Task 14.1 — account deletion, and the token that never arrived
 Branch `feat/delete-account`, PR TBD. **Pro + app.** 998 tests, twelve new.
 

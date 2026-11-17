@@ -38,6 +38,10 @@ class CheckoutErrorBanner extends StatelessWidget {
           'The times below have been refreshed and one is now selected for '
               'you. Check it and place the order again.',
         CheckoutFailureKind.payment => 'Choose another way to pay.',
+        // No advice to give: the store has said when it will be back, or has
+        // not, and either way nothing on this screen changes the answer.
+        CheckoutFailureKind.paused =>
+          'Your order was not placed. Nothing has been charged.',
         CheckoutFailureKind.auth => 'Sign in again to place this order.',
         CheckoutFailureKind.unknown =>
           'Your order was not placed. Nothing has been charged.',

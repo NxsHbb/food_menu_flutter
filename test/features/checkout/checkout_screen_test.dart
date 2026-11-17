@@ -903,4 +903,88 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Order summary'), findsOneWidget);
   });
+
+  group('a paused kitchen (task 14.2)', () {
+    /// A store whose Kitchen Monitor has stopped taking orders.
+    FakeFulfilmentRepository pausedStore({
+      String message = 'Kitchen closed, back at six.',
+    }) {
+      final repo = FakeFulfilmentRepository();
+      final base = repo.types;
+      repo.types = OrderTypes(
+        branch: base.branch,
+        timezone: base.timezone,
+        today: base.today,
+        preorderMaxDays: base.preorderMaxDays,
+        slotLimitsEnabled: base.slotLimitsEnabled,
+        types: base.types,
+        paused: true,
+        pauseMessage: message,
+      );
+      return repo;
+    }
+
+    testWidgets('refuses the order in the store\'s own words', (tester) async {
+      final harness = CheckoutHarness(fulfilment: pausedStore());
+      await harness.pump(tester);
+
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kitchen closed, back at six.'), findsOneWidget);
+      // Nothing was sent: the app knew before it asked.
+      expect(harness.checkout.drafts, isEmpty);
+    });
+
+    testWidgets('does not ask for a time or an address it cannot use',
+        (tester) async {
+      // The pause is read before the slot and the address, so a customer is
+      // never told to pick a time at a restaurant that is closed.
+      final harness = CheckoutHarness(
+        fulfilment: pausedStore(),
+        addresses: FakeAddressRepository(book: const []),
+      );
+      await harness.pump(tester);
+
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kitchen closed, back at six.'), findsOneWidget);
+      expect(find.text('Add an address to your account first.'), findsNothing);
+      expect(find.text('Choose a time for your order.'), findsNothing);
+    });
+
+    testWidgets('a pause that starts mid-checkout blocks the button behind it',
+        (tester) async {
+      // The screen opened on an open store and the kitchen paused while the
+      // customer was filling it in. The refusal has to re-read the store, or
+      // the banner sits above a button that still invites another attempt.
+      final harness = CheckoutHarness();
+      await harness.pump(tester);
+      await tester.enterText(find.byType(TextFormField).at(1), '01711 000111');
+
+      harness.checkout.failNext = const ApiException(
+        failure: ApiFailure.http,
+        message: 'Kitchen closed, back at six.',
+        statusCode: 409,
+        code: 'fmp_ordering_paused',
+      );
+      harness.fulfilment.types = pausedStore().types;
+
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kitchen closed, back at six.'), findsWidgets);
+      expect(find.text('Try again'), findsNothing);
+
+      // The store has been re-read, so a second attempt never reaches it.
+      final sent = harness.checkout.drafts.length;
+      await tester.tap(find.text('Place order'));
+      await tester.pumpAndSettle();
+
+      expect(harness.checkout.drafts, hasLength(sent));
+    });
+  });
 }
