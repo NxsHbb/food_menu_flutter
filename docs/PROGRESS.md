@@ -2,6 +2,72 @@
 
 Newest first. One entry per completed task.
 
+## Task 14.3 — the store, in one request, and the red that is not quite AA
+Branch `feat/store-config`, PR TBD. **Pro + app.** 1035 tests, twenty-four new.
+
+### `GET /app/config`
+The app learned the store a piece at a time and had no answer at all to the
+questions that come before any of it: whose restaurant is this, what does it
+look like, can it take an order. One public route now says so at launch.
+
+**It is the one route that answers for a store it would otherwise refuse.**
+Every other `app/*` route returns 403 on a display-only store (task 8.7),
+which is the right floor and tells the customer nothing until they are already
+inside. `orderingDisabledProvider` now asks plainly and believes the answer,
+falling back to inferring it from the 403 when the store's Pro is too old to
+have the route — which is task 14.7's rule, arriving early because this is the
+first endpoint that can 404 on a working store.
+
+**The pause is deliberately not in it.** Task 14.2's `ordering_paused` stays on
+`/order-types`, which the checkout re-reads. This payload is fetched once at
+launch, so a pause that starts twenty minutes later would not be in it. A
+launch-time read is the wrong home for an answer that must be fresh at
+checkout: one fact, one place.
+
+### The appearance ruling, and what it cost
+Ruled: the app takes the store's **logo and primary colour** and owns
+everything else. The plugins have **48 colour settings** between them — button
+hover borders, category backgrounds, add-to-cart states — and every one of
+them describes a WordPress layout this app does not have. Two fields are the
+store's identity; forty-six are its stylesheet.
+
+The colour moves `brand`, `brandPressed` and `tint` together, because all
+three *are* the brand — leaving `tint` on the app's red while `brand` went blue
+would put two unrelated colours on one screen — and it is the same in both
+modes, as the design's own red is.
+
+**The app draws white on the brand everywhere**, so honouring a pale colour had
+two possible answers: flip every foreground, or keep white and darken the
+colour. Flipping meant a derived `onBrand` threaded through some twenty-five
+call sites and an app that looks nothing like the design for anyone who picked
+a light hue. `BrandColor` takes the second: the hue is the store's, the
+legibility is ours.
+
+### The threshold had to be measured, not assumed
+The obvious bar is WCAG AA at 4.5:1. Written that way, the first test failed —
+and the colour that failed it was **the app's own red**. `#fc202e` comes to
+**3.9:1** against white, so a 4.5 bar would have quietly darkened the design's
+own colour on every screen, inside a task about honouring somebody else's.
+
+The bar is 3.0, which is AA for large text and UI components, and that is what
+the brand is: a background for button labels, header text and badges. A store
+colour between 3.0 and 4.5 now reads exactly as well as the app's own does
+today, which is the honest promise. **Whether the design's red should move at
+all is task 14.9's question**, and it is now on the record as a measured number
+rather than an assumption.
+
+### Verified on the OnePlus
+The dev store set to `#1a73e8` with a logo, and the whole app came up in the
+store's blue — header, banners, the selected chip, "See all", the cart bar and
+the tab badge — with the logo on the header and every white still legible.
+Settings put back afterwards; the payload reads `#fc202e` and an empty logo
+again.
+
+One thing the screenshots nearly cost an hour: a red badge over the chips row
+that was **a Messenger chat bubble floating above the app**, not the app. It
+gave itself away by staying in the same place while the content behind it
+changed.
+
 ## Task 14.2 — the pause the app could not see
 Branch `feat/pause-guard`, PR TBD. **Pro + app.** 1011 tests, thirteen new.
 

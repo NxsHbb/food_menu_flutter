@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'app_tokens.dart';
+import 'brand_color.dart';
 
 /// Semantic colour roles, resolved per brightness.
 ///
@@ -197,6 +198,26 @@ class AppPalette extends ThemeExtension<AppPalette> {
         tab: r[20],
         star: r[21],
       );
+
+  /// This palette with the store's own brand colour in place of the app's
+  /// (task 14.3).
+  ///
+  /// Three roles move together, because all three *are* the brand: the colour
+  /// itself, its pressed state and the soft wash behind lettered tiles and
+  /// selected chips. Leaving `tint` on the app's red while `brand` became the
+  /// store's would put two unrelated reds on one screen.
+  ///
+  /// The colour is resolved through [BrandColor] first — see there for why
+  /// the app darkens a pale brand rather than flipping its foregrounds.
+  AppPalette branded(Color brand) {
+    final resolved = BrandColor.resolve(brand);
+
+    return copyWith(
+      brand: resolved,
+      brandPressed: BrandColor.pressed(resolved),
+      tint: BrandColor.tint(resolved, card),
+    );
+  }
 
   @override
   AppPalette copyWith({

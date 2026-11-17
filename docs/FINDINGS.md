@@ -3336,3 +3336,52 @@ failed somewhere up there" and "the button is broken" look identical. Worth
 remembering the next time a device run produces nothing at all: **scroll
 before concluding.**
 
+## The app's own brand red does not meet AA for body text
+`#fc202e` against white is **3.9:1**. WCAG AA asks 4.5:1 for normal text and
+3:1 for large text and UI components.
+
+Found by writing task 14.3's contrast floor at the obvious 4.5 and watching the
+first test fail — on the app's own colour, not a store's. A 4.5 bar there would
+have darkened the design's red on every screen, inside a task whose whole point
+was honouring somebody else's.
+
+The brand is used as a **background** for button labels, header text and
+badges, which is the large-text and UI-component case, so 3.0 is the bar that
+matches how it is drawn, and it leaves the design untouched. That is a defence
+of the threshold, not of the colour: anything that puts small body text on the
+brand is below AA today. **Task 14.9 should decide whether the red itself
+moves**, now that the number is measured rather than assumed.
+
+## A launch payload must not answer a question that goes stale
+`GET /app/config` was specified to carry the ordering-paused state, and it does
+not. It is read once, at launch; a kitchen that pauses twenty minutes later
+would still be "open" in it for the whole session.
+
+The rule that came out of it is worth keeping: **what belongs in a launch
+payload is what cannot change while the app is open** — the store's name, its
+logo, its colour, whether it is a shop at all. Anything that has to be true at
+the moment it is used belongs on the request that uses it. The pause rides on
+`/order-types`, which the checkout re-reads; the config route carries identity.
+
+The same test applies to the next field anyone is tempted to add there: if a
+screen would be wrong for acting on a twenty-minute-old copy of it, it is not
+configuration.
+
+## Honouring a brand colour is a foreground decision, not a background one
+The app draws white on the brand everywhere — the design says so and some
+twenty-five widgets say so in their own comments. So "use the store's colour"
+has two answers when the store's colour is pale, and they are not equivalent:
+
+- derive an `onBrand` and thread it through every one of those call sites,
+  which is faithful to the hue and leaves a store that picked pale yellow with
+  an app that looks nothing like the design — dark text here, light there,
+  decided per widget;
+- keep white and darken the colour until white works, which keeps one rule for
+  the whole app and tells the store, honestly, that the hue is theirs and the
+  legibility is ours.
+
+Task 14.3 took the second. Worth recording because the first is the instinct,
+and it is the more expensive and less predictable of the two. The decision
+belongs to whichever of foreground and background the design has already
+committed to — here, white.
+

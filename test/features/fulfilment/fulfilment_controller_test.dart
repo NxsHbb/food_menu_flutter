@@ -6,6 +6,9 @@ import 'package:food_menu/src/features/cart/data/cart_repository.dart';
 import 'package:food_menu/src/features/fulfilment/data/fulfilment_controller.dart';
 import 'package:food_menu/src/features/fulfilment/data/fulfilment_repository.dart';
 
+import 'package:food_menu/src/features/store/data/store_config_repository.dart';
+import 'package:food_menu/src/features/store/domain/store_config.dart';
+
 import '../cart/fake_cart_repository.dart';
 import 'fake_fulfilment_repository.dart';
 
@@ -360,6 +363,76 @@ void main() {
 
       expect(types.paused, isTrue);
       expect(types.pauseMessage, 'Kitchen closed.');
+    });
+  });
+
+  group('whether this store takes orders at all (task 14.3)', () {
+    ProviderContainer withStore(StoreConfig? store) {
+      final container = ProviderContainer(
+        overrides: [
+          fulfilmentRepositoryProvider.overrideWithValue(repo),
+          cartRepositoryProvider.overrideWithValue(cartRepo),
+          if (store != null)
+            storeConfigProvider.overrideWith((ref) async => store),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    StoreConfig store({required bool ordering}) => StoreConfig(
+          name: 'Food Menu Dev',
+          logoUrl: '',
+          primaryColor: null,
+          orderingEnabled: ordering,
+          currency: StoreCurrency.unknown,
+        );
+
+    test('the store is asked plainly, not inferred from a refusal', () async {
+      final container = withStore(store(ordering: false));
+      await container.read(storeConfigProvider.future);
+
+      // No request to order-types has failed; the store simply said so.
+      expect(container.read(orderingDisabledProvider), isTrue);
+    });
+
+    test('a store that takes orders is believed', () async {
+      final container = withStore(store(ordering: true));
+      await container.read(storeConfigProvider.future);
+
+      expect(container.read(orderingDisabledProvider), isFalse);
+    });
+
+    test('an older Pro falls back to the refusal it used to infer from',
+        () async {
+      // No `/app/config` to ask, so task 8.7's 403 is still the answer.
+      repo.failNext = const ApiException(
+        failure: ApiFailure.http,
+        message: 'This restaurant is not taking online orders.',
+        statusCode: 403,
+        code: 'fmp_ordering_disabled',
+      );
+      final container = withStore(null);
+      await expectLater(
+        container.read(orderTypesProvider.future),
+        throwsA(isA<ApiException>()),
+      );
+
+      expect(container.read(orderingDisabledProvider), isTrue);
+    });
+
+    test('an unreachable store is not a closed one, either way', () async {
+      repo.failNext = const ApiException(
+        failure: ApiFailure.network,
+        message: 'No connection.',
+      );
+      final container = withStore(null);
+      await expectLater(
+        container.read(orderTypesProvider.future),
+        throwsA(isA<ApiException>()),
+      );
+
+      expect(container.read(orderingDisabledProvider), isFalse);
     });
   });
 }

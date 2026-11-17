@@ -990,6 +990,30 @@ a store running exactly one method.
 - No client-side validation that a gateway is enabled: **the Store API already
   refuses one**, by name, and that message is what the customer is shown.
 
+### The store itself (task 14.3)
+`GET fmp/v1/app/config`, public, read once at launch through
+`storeConfigProvider`. Carries the store's name, logo, primary colour, whether
+it takes orders at all, and its currency and time formats.
+
+- **It answers for a store it would otherwise refuse.** Every other `app/*`
+  route 403s on a display-only store (task 8.7); this one says
+  `ordering_enabled: false` instead, so the app can explain itself on the first
+  screen. `orderingDisabledProvider` reads it and falls back to inferring from
+  the 403 when the route 404s on an older Pro.
+- **Nothing that goes stale belongs in it.** It is fetched once, so the
+  kitchen's pause stays on `/order-types` — see `FINDINGS.md`. The test for a
+  new field: if a screen would be wrong for acting on a twenty-minute-old copy,
+  it is not configuration.
+- **A 404 is not a failure.** `StoreConfig.unknown` is an open store with no
+  branding; any other status throws.
+- **Appearance is two fields.** The logo and `primary_color`, ruled 2026-11-17.
+  The colour goes through `AppPalette.branded()`, which moves `brand`,
+  `brandPressed` and `tint` together and is the same in both modes.
+  `BrandColor.resolve()` darkens a pale colour until white text clears 3:1 —
+  the app draws white on the brand everywhere, so the background moves rather
+  than the foreground. The app's own red is 3.9:1, which is why the bar is 3
+  and not 4.5.
+
 ### A paused kitchen (task 14.2)
 Staff can stop the store taking orders from the Kitchen Monitor, outright or
 for a scheduled window. **Two answers, and both are needed:**
