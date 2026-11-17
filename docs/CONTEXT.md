@@ -156,13 +156,19 @@ domain/data/presentation split.
   is a plain `Interceptor`, not a `QueuedInterceptor`: a queued one deadlocks,
   because the retry re-enters the chain and waits on the queue slot the error
   handler still holds. A failed refresh signs out; a network blip does not.
-- **`AuthInterceptor` adds the bearer header to everything except
-  `fmp/v1/app/auth/*`.** It is blanket rather than opt-in because the plugin
-  resolves the token into the real WordPress current user, so the same token
-  authenticates the Store API cart and checkout calls too. It only ever adds a
-  header — refreshing and signing out on a 401 are task 3.4, kept out because a
-  refresh has to be serialised across the whole app, which an interceptor
-  cannot do alone.
+- **`AuthInterceptor` adds the bearer header to everything except six named
+  routes.** It is blanket rather than opt-in because the plugin resolves the
+  token into the real WordPress current user, so the same token authenticates
+  the Store API cart and checkout calls too. The exceptions are
+  `auth/{login,register,refresh,logout,forgot-password,reset-password}` —
+  **named one by one, never by the `auth/` prefix.** `change-password`,
+  `change-email` and `delete-account` live under that prefix and every one of
+  them requires the token; excluding the prefix broke all three, invisibly,
+  for a month (`FINDINGS.md`). **Adding a route under `app/auth/` means
+  deciding which list it is on.** The interceptor only ever adds a header —
+  refreshing and signing out on a 401 are task 3.4, kept out because a refresh
+  has to be serialised across the whole app, which an interceptor cannot do
+  alone.
 - **`AuthValidation` mirrors the server, and is not the gate.** It exists to
   save a round trip and to put the message next to the field. Where the two
   could drift the server wins. It is pure Dart with no Flutter imports, so it
@@ -172,7 +178,8 @@ domain/data/presentation split.
 
 ### Account security
 `POST fmp/v1/app/auth/{forgot-password,reset-password,change-password,change-email}`
-(task 3.10). The Flutter side is task 3.11.
+(task 3.10) and `delete-account` (task 14.1). The Flutter side is task 3.11
+and 14.1.
 
 - Reset is a **6-digit code emailed to the customer**, not a link to a web
   page: `forgot-password` sends it, `reset-password` takes
@@ -195,6 +202,19 @@ domain/data/presentation split.
   already understands.
 - **Changing the email sends no confirmation to the new address**, so the form
   asks for it twice (task 3.11).
+- **`delete-account` is the one route that does not return a session** — there
+  is no account left to hold one. It takes the current password, refuses an
+  account that can run the store (`fmp_app_delete_privileged`, 403), and on
+  success the app signs out *locally*: calling `logout` afterwards would
+  authenticate an account that no longer exists.
+- **It runs WordPress's registered erasers**, so the store's
+  `woocommerce_erasure_request_removes_order_data` setting decides whether past
+  orders keep the customer's details. **Orders are never deleted** — they are
+  the store's records. The response carries a `message` composed by the server
+  because only it has read that setting; show it as it is, the way a gateway's
+  title is shown, and never paraphrase it.
+- A store can refuse a deletion with `fmp_app_can_delete_account` — e.g. while
+  one of its orders is still out for delivery.
 
 The Flutter side is `auth/presentation/{forgot,reset}_password_screen.dart`
 and `account/presentation/change_{password,email}_screen.dart`, reached from a

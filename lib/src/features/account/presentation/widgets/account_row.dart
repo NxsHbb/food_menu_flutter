@@ -14,6 +14,7 @@ class AccountRow extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.value,
+    this.danger = false,
     super.key,
   });
 
@@ -26,6 +27,13 @@ class AccountRow extends StatelessWidget {
   final String? value;
 
   final VoidCallback onTap;
+
+  /// Puts the label in the brand red, for a row that destroys something.
+  ///
+  /// The label only: the lettered tile is already brand-on-tint on every row,
+  /// so colouring it changes nothing, and a red row in a list of black ones
+  /// reads as the warning whether or not its tile agrees.
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +68,9 @@ class AccountRow extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: text.bodyLarge,
+                style: danger
+                    ? text.bodyLarge?.copyWith(color: palette.brand)
+                    : text.bodyLarge,
               ),
             ),
             if (value case final value? when value.isNotEmpty) ...[

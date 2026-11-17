@@ -224,36 +224,77 @@ being placed**. Last of the parity work for that reason.
 | 11.4 | **`package:flutter/material.dart` is deprecated.** Flutter 3.50 moved Material into the `material_ui` package; 115 imports swapped, and `analysis_options.yaml`'s suppression deleted with them. The import swap was the easy half. **The risk was a dependency, and it was silent**: go_router picks its page type by looking up the tree for a `MaterialApp` **by exact type**, and falls back to `NoTransitionPage` for every route when it cannot find one — and all twenty routes here are declared with `builder:`, so every one went through that lookup. `material_ui`'s `MaterialApp` is not the SDK's, so on go_router 17.5.0 the app lost every push and pop animation **with the whole suite green**, because every test `pumpAndSettle`s and a cut settles as well as a transition. go_router 18.0.0 migrated to `material_ui` itself and needs the SDK 11.3 brought in, so the bump belongs with the swap rather than after it. Measured both ways and **pinned by a new test** that reads the page types the router actually built | app | done |
 
 ## Phase 12 — Payment methods
-Cash on delivery is all task 6.3 left v1 with. This phase adds the rest, in
-order of what each costs, and **sits between hardening and release on
-purpose**: 12.3 changes platform dependencies and permissions, which 13.1 and
-13.2 then audit and sign.
+Cash on delivery is all task 6.3 left v1 with. This phase adds the rest.
 
-Most of the machinery is already in place and unused:
+**Scoped by a ruling, 2026-11-17.** The website developer will run
+**WooCommerce's built-in gateways only** — no gateway plugin, first-party or
+otherwise. That empties most of this phase rather than reordering it:
 
-- **Declaring a gateway** — `PaymentMethodsApi::APP_SUPPORTED` and the
-  `fmp_app_supported_gateways` filter (6.3). A gateway the app can finish is
+- The store's whole payment set is `cod`, `bacs`, `cheque` and, if it is ever
+  switched on, legacy PayPal Standard. **Surveyed on the dev store** (WooCommerce
+  11.2.1): those are the only gateway classes core ships, `cod` is the only one
+  enabled, and PayPal Standard is not even registered — see 12.2.
+- **No native card, and no regional processors.** Stripe, WooPayments, bKash,
+  SSLCommerz, Razorpay and Paystack are all out by the store's own choice, which
+  deletes the old task 12.3 and most of 12.2's reach.
+- **`payment_data` stays unused in v1.** `POST /checkout` takes it as
+  `{key, value}` pairs and `OrderDraft.toJson` is the one place that would send
+  it, but every gateway left in scope has `has_fields` false and collects
+  nothing at checkout. The field was the reason card work was per-gateway; with
+  card gone, nothing in this phase needs it.
+- Phase 12 no longer touches platform dependencies or permissions, so it no
+  longer has to precede 13.1 and 13.2 for their sake. **Phase 14 does** — see
+  that phase.
+
+What is already in place and unused:
+
+- **Declaring a gateway** — `PaymentMethodsApi::APP_SUPPORTED` (`['cod']`) and
+  the `fmp_app_supported_gateways` filter (6.3). A gateway the app can finish is
   one line.
-- **Sending gateway data** — `POST /checkout` takes `payment_data` as
-  `{key, value}` pairs. Nothing sends it yet; `OrderDraft.toJson` is the one
-  place that would. **Each gateway defines its own keys**, which is why 12.3 is
-  per-gateway work rather than one card flow.
 - **Coming back** — `payment_result.redirect_url` is already parsed onto
-  `PlacedOrder`, and the order-received screen already re-reads the order.
+  `PlacedOrder` and read by nothing, and the order-received screen already
+  re-reads the order.
 - **Failing** — task 6.5's paths. A declined payment is a declined order, and
   an abandoned redirect is one more case of the same thing.
 
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 12.1 | Offline gateways — bank transfer and cheque. They collect nothing at checkout (`has_fields` is false), so the only missing piece is the gateway's **payment instructions**: return them from `GET /app/orders/{id}` and show them on the order received screen, or a customer is never told where to send the money. Then add the ids to the supported list | pro + app | todo |
-| 12.2 | Redirect gateways — open `payment_result.redirect_url`, handle the return, the cancel and the abandon, and reconcile by re-reading the order. One flow covers **PayPal and every regional processor** (bKash, SSLCommerz, Razorpay, Paystack…), with no per-gateway Dart | app | todo |
-| 12.3 | Native card — Stripe via `flutter_stripe` and `payment_data`, which brings Apple Pay and Google Pay with it. **The one task here that can be dropped without blocking release**: it needs platform SDKs, a merchant setup per store, and it is per-gateway work | app + pro | todo |
+| 12.2 | **The redirect flow, now worth one gateway.** Open `payment_result.redirect_url`, handle the return, the cancel and the abandon, and reconcile by re-reading the order. With the ruling above, the only core gateway that redirects is **legacy PayPal Standard** — and WooCommerce hides it: `WC_Gateway_Paypal::should_load()` registers it only on a store that already had it enabled or has PayPal orders, which is why the dev store does not list it at all. **Conditional on the store enabling it** (see Open dependencies); if they do not, this task is dead code and should be dropped rather than built | app | todo |
+| ~~12.3~~ | ~~Native card — Stripe via `flutter_stripe` and `payment_data`~~ **Deleted by the 2026-11-17 ruling**, not deferred: the store will not run a card gateway, so there is nothing for the app to complete. It was always the droppable task here; what dropped it was the store's answer rather than our cost estimate. Apple Pay and Google Pay go with it, since both arrive through a card gateway | — | dropped |
 
 ## Phase 13 — Release
 | # | Task | Repo | Status |
 |---|---|---|---|
 | 13.1 | App icon, splash, display name, permissions audit on both platforms | app | todo |
 | 13.2 | Release builds, signing, and store metadata | app | todo |
+
+## Phase 14 — The vendor's own feature list
+`tlp-food-menu/docs/app-feature.md`, new in free 6.0.9, is a spec for this app
+written from the plugin side: Parts A (customer), B (staff) and C (app-wide),
+every row marked free or Pro, backend-ready or not, and P1/P2/P3. It was
+written against roughly pre-Phase-8 state, so much of what it asks for is
+already merged — customer orders, tips, review writing, checkout extra fields,
+slot limits, ingredients, nutrition, reorder and the status timeline all sit at
+not-ready there and are done here. What follows is only what it asks for that
+this plan did not have.
+
+**This phase runs before Phase 13.** 14.1 and 14.4 are store-submission
+blockers, 14.2 is a live correctness defect, and 13.1's audit covers what 14.4
+adds.
+
+| # | Task | Repo | Status |
+|---|---|---|---|
+| 14.1 | **There is no way to delete an account, and both stores require one.** Doc A2.8, P1. Phase 3 built register, login, profile, addresses and the whole security group and never this; Apple's 5.1.1(v) and Play's data-deletion policy both require in-app deletion for an app that creates accounts, so 13.2 as planned would have submitted a rejection. `POST /app/auth/delete-account` takes the current password, refuses an account that **runs the store**, then runs **WordPress's own registered erasers** rather than a deletion policy of its own — which is what makes the store's `woocommerce_erasure_request_removes_order_data` setting decide whether an order keeps the customer's details, and what makes the sentence the app shows the server's to compose. Orders are never deleted: they are the store's records. Two things fell out of it — **WooCommerce hides product reviews from core's comment eraser**, so a deleted customer's dish review kept their name until this added a pass of its own, and an eraser that erases shrinks the set it pages through, so advancing the page steps over records. App side: a password screen behind a confirmation dialog, reached from a destructive row of its own below Log out. **Running it on a device turned up a third defect that was none of this task's doing**: `AuthInterceptor` stripped the token from every path under `app/auth/`, so `change-password` and `change-email` had been answering "You must be signed in to do that." since task 3.11 | pro + app | done |
+| 14.2 | **A paused store still takes app orders.** Doc A6.12, P1, and confirmed in the plugin: Kitchen Monitor's pause is enforced by `KitchenMonitorController::block_checkout_if_paused()` on **`woocommerce_checkout_process`**, reading `$_POST['fmp_order_time_type']` and the classic checkout's date and time fields. `POST /wc/store/v1/checkout` fires neither hook nor those fields, so the app walks straight past a pause — global or scheduled — and the store's own pause message never reaches the customer. **The same shape as 8.9 and 8.3**: the website guards a rule on a path the app does not travel. Needs the guard on the Store API path, judged against the order's own slot rather than the request time, and the state surfaced before a customer fills in a checkout | pro + app | todo |
+| 14.3 | **`GET /app/config` — one launch payload.** Doc A1.1, A1.2, A1.3 and A5.8. The app has no store-level call at all: it learns the store a piece at a time from `/order-types`, `/branches`, `/checkout-fields` and `/address-fields`, and at launch has no answer to *is this store in online-ordering mode*, *is Pro active*, *is ordering paused*, *what currency and time format*, *what logo and colour*, *what does the empty cart say*. Task 8.7 made every `app/*` route refuse a display-only store, which is the right floor but tells the customer nothing until they are already inside one. This is also where the appearance decision lands — see Open dependencies | pro + app | todo |
+| 14.4 | **The store-review surface.** Doc C7: a privacy policy link on the account screen, the deletion entry point 14.1 adds, and the data-use answers both consoles ask for before an upload. 13.1 audits the permissions; this is the content half of the same submission | app | todo |
+| 14.5 | **The menu cannot be filtered or sorted.** Doc A3.5, P2. Phase 2 built search and the category filter and stopped there. The Store API already takes `tag` and `orderby=price\|popularity\|date`, and the plugin's food tags have been on the dish screen since 2.4 — nothing offers either on a list | app | todo |
+| 14.6 | **Price Label, which cannot be set on a store the app serves.** Doc A3.6, P2, asks for `_tlp_fm_price_label` on products — free 6.0.9's new feature, text like `Small 5.95 \| Large 6.50` printed verbatim instead of the price. As built it is bound to the **`food-menu` post type**: the metabox registers for that type alone and `Fns::get_price_label()` returns `''` for anything else, while an `online_ordering` store's items are WooCommerce `product`s. So the **free plugin has to grow the field on a product** before there is anything for the app to read, and per the standing rule that is a plugin fix rather than a Dart workaround | free + app | todo |
+| 14.7 | **A missing endpoint should hide a feature, not fail.** Doc C4. The app assumes the Pro it was built against; an older Pro 404s a route and the app reports an error for a feature the store simply does not have. **This already costs us**: the live demo site runs the *released* plugin, so every endpoint newer than it 404s there and the iPhone cannot test them (`FINDINGS.md`). A capability probe at launch — 14.3's payload, plus a 404 that disables a feature instead of raising | app | todo |
+| 14.8 | **Pull-to-refresh and a cached last menu.** Doc A3.11, P2. Task 11.1 declined a connectivity package deliberately and that still holds; caching the last loaded menu is the other half of that row and was never decided either way | app | todo |
+| 14.9 | **Accessibility was never audited.** Doc C8. Dark mode landed in 1.3; dynamic text size and screen-reader labels have never been looked at, and 11.2's font work is a measure of how much of this layout is sized by text | app | todo |
+| 14.10 | **Notification settings, and the offer push.** Doc A8.3 and A8.4. Both sit on top of 10.4: the Account screen's Notifications row is still a stub, and the Special Menu task 9.5 built has no push or in-app popup half | pro + app | todo |
 
 ## Planned or built the wrong way
 From the same audit. These are **planning** mistakes rather than missing
@@ -324,10 +365,13 @@ Deferred to **v2**:
 - **Coupons** — the cart's code field and the discount line in totals.
 - **Upsells** — the cart's cross-sell carousel, i.e. the Order Bumps feature.
 
-**No longer deferred:** card and PayPal payment were v2 on the assumption that
-both needed a native SDK. PayPal does not — it is a redirect gateway, which
-task 12.2 covers along with every regional processor. Card still does, and is
-task 12.3.
+**Card payment is out for good, by the store's choice.** It was v2 on the
+assumption that it needed a native SDK, then became task 12.3; the 2026-11-17
+ruling — WooCommerce's built-in gateways only, no gateway plugin — deletes it
+instead, and Apple Pay and Google Pay with it. PayPal survives only as legacy
+PayPal Standard, if the store ever switches it on. Worth separating the two
+reasons: the estimate said card was expensive, and the store said it was
+unwanted. Only the second one settles anything.
 
 **No longer out of scope:** tips. They were listed here as server-side cart
 behaviour, which they are not — see "Planned or built the wrong way" — and
@@ -336,6 +380,16 @@ they are now task 9.4.
 Automatic discounts *are* server-side arithmetic, and do appear in the totals
 the Store API returns whether or not the app asks for them. What the app still
 has to do is say so before the cart, which is Phase 9.
+
+**The vendor's feature list schedules all of it.** `app-feature.md` puts the
+staff app — its whole Part B, orders through kitchen monitor, inventory,
+reports and POS printing — plus reservations, dine-in tables and QR table
+ordering at P2/P3 rather than out of scope, and order bumps at P2 rather than
+v2. Most of Part B is marked backend-ready, because the web dashboard is
+already a React app on REST routes; the cost is the app half, plus its own
+B1.4 — app-token auth on routes that currently expect a cookie and a `wp_rest`
+nonce. **Reconciling that is a ruling, not a task.** Phase 14 takes only the
+rows that fit the v1 already agreed; see Open dependencies.
 
 ## Open dependencies
 - ~~**Do the checkout's `show_*` toggles apply to the app at all?**~~
@@ -359,12 +413,18 @@ has to do is say so before the cart, which is Phase 9.
   stating because the vendor's own feature list leads with how much is free —
   reservations, tips, discounts and the special menu among it — and none of
   that changes this. Not a decision to make, a fact to put on the listing.
-- **Payment gateways** — card and PayPal are deferred, so v1 needs cash on
-  delivery enabled on the WooCommerce site. **Enabled on the dev store** in
-  task 6.2; with no gateway at all the Store API refuses every order. Task 6.3
-  made the app say so rather than fail silently, but a production store still
-  needs one the app can complete. Phase 12 widens that to bank transfer,
-  cheque and the redirect gateways. To be confirmed.
+- ~~**Payment gateways** — card and PayPal are deferred, so v1 needs cash on
+  delivery enabled on the WooCommerce site.~~ **Settled 2026-11-17**: the
+  website developer will run WooCommerce's built-in gateways only. v1's payment
+  set is therefore `cod` (enabled on the dev store in task 6.2), plus `bacs` and
+  `cheque` once task 12.1 lands. With no gateway at all the Store API refuses
+  every order, and task 6.3 made the app say so rather than fail silently — so a
+  production store still needs at least one of those three switched on.
+- **Will the store enable legacy PayPal Standard?** It is the only built-in
+  gateway that redirects, and the only thing left for task 12.2 to carry.
+  WooCommerce hides it on any store that has not used it — `should_load()` — and
+  no longer promotes it, so the honest default is **no**, which drops 12.2. Ask
+  the website developer once; do not block 12.1 on the answer. To be confirmed.
 - ~~**Banner tap targets**~~ **Resolved** in task 9.5. A Special Menu banner
   carries its dish and opens it; a banner built from a WordPress post still
   opens the full menu, which is the most a post can honestly promise.
@@ -412,3 +472,29 @@ has to do is say so before the cart, which is Phase 9.
   colour *and* an icon per status; `AppOrdersApi::status_color()` and
   `AppTrackingApi` publish only the colour. One payload field and one widget,
   if it is wanted. To be confirmed.
+- **Is `app-feature.md` the scope now, or the wish list?** It arrived in the
+  free plugin with 6.0.9 and schedules work this plan excludes from v1 — the
+  staff app, reservations, dine-in, QR ordering — and defers to v2 — coupons,
+  order bumps. Phase 14 took only the rows that fit the agreed v1 and left the
+  rest here deliberately. Whether the rest moves in, and whether v1 ships
+  before it does, is a ruling. To be confirmed.
+- **The appearance question has an answer from the plugin side now.** A1.1 and
+  A1.2 ask the app to take the store's **company logo and primary colour** for
+  the splash and the shell — which is the open question above ("The app owns
+  its appearance, and that was never decided") answered in the *opposite*
+  direction to where the app stands today. Task 14.3 carries the fields either
+  way; what the app does with them is still the decision. To be confirmed.
+- **Localization is P2 there, not "English by choice".** A1.6 and Part C ask
+  for the app's own string set, following the device or site locale. The open
+  question above stands unchanged, but the plugin side has now put a priority
+  on it. To be confirmed.
+- **Coupons are P1 and backend-ready in the doc, v2 here.** A5.4 is one field
+  on the cart and a totals line the app already renders — `cart/apply-coupon`
+  needs no plugin work at all. The cheapest row in the whole document, which
+  is the reason it is worth re-asking rather than inheriting. To be confirmed.
+- **White-label builds.** C9 wants the store name, icon, splash and colours per
+  client build. Nothing in this plan contemplates more than one build, and
+  13.1 and 13.2 are written for one. To be confirmed.
+- **Three P3 rows are neither scheduled nor refused** — social login (A2.9),
+  share a dish (A4.10) and guest order tracking by id and email (A7.7). Each
+  is small on its own; none is in Phase 14. To be confirmed.

@@ -13,6 +13,7 @@ import '../../orders/presentation/orders_screen.dart';
 import '../../wishlist/data/wishlist_controller.dart';
 import '../../wishlist/presentation/wishlist_screen.dart';
 import 'change_email_screen.dart';
+import 'delete_account_screen.dart';
 import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
 import 'widgets/account_header.dart';
@@ -128,7 +129,22 @@ class _SignedIn extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: AppTokens.space16),
+                // Its own card, below the log-out button rather than above
+                // it, because the two read as a pair and the harmless one
+                // should be the one under the thumb.
                 const _LogOutButton(),
+                const SizedBox(height: AppTokens.space16),
+                AccountRowCard(
+                  rows: [
+                    AccountRow(
+                      mono: 'DEL',
+                      label: 'Delete account',
+                      danger: true,
+                      onTap: () =>
+                          context.pushNamed(DeleteAccountScreen.routeName),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

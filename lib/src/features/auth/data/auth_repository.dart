@@ -7,8 +7,8 @@ import '../domain/auth_user.dart';
 
 /// Talks to `fmp/v1/app/auth/*`.
 ///
-/// These four routes are the only ones in the app that are deliberately
-/// unauthenticated, and the only ones that carry a password, so they are kept
+/// The unauthenticated routes are the only ones in the app that are
+/// deliberately so, and every route here carries a password, so they are kept
 /// apart from every other repository.
 class AuthRepository {
   const AuthRepository(this._client);
@@ -150,6 +150,24 @@ class AuthRepository {
       },
     );
     return _session(raw);
+  }
+
+  /// Deletes the account for good, and returns the server's own sentence
+  /// about what happened to the customer's past orders.
+  ///
+  /// **The wording is not composed here.** Whether an order keeps the
+  /// customer's details is the store's setting, and only the server has read
+  /// it, so the server writes the sentence and this returns it verbatim —
+  /// already translated, like a gateway's title.
+  ///
+  /// Succeeds exactly once: the token used to make the call dies with the
+  /// account, so a retry is answered with a 401.
+  Future<String> deleteAccount({required String password}) async {
+    final raw = await _client.post<Map<String, dynamic>>(
+      _url('delete-account'),
+      body: {'password': password},
+    );
+    return raw['message'] as String? ?? '';
   }
 
   AuthSession _session(Map<String, dynamic> raw) {

@@ -2,6 +2,98 @@
 
 Newest first. One entry per completed task.
 
+## Task 14.1 — account deletion, and the token that never arrived
+Branch `feat/delete-account`, PR TBD. **Pro + app.** 998 tests, twelve new.
+
+### The route runs WordPress's erasers instead of inventing a policy
+`POST fmp/v1/app/auth/delete-account` joins task 3.10's group: current
+password on top of a valid token, rate limited per account, and a refusal for
+any account with `edit_posts`, `manage_woocommerce`, `manage_options` or super
+admin — deleting the shop's own manager from a phone on a password alone is
+not what the stores are asking for.
+
+What it then does is call `wp_privacy_personal_data_erasers`, the same set the
+admin's erasure request walks. Two things come free with that and neither
+would have if this had written its own deletion:
+
+- the store's **`woocommerce_erasure_request_removes_order_data`** setting
+  decides whether an order keeps the customer's name and address, exactly as
+  it does on the website;
+- an extension that registered an eraser runs without this route knowing it
+  exists.
+
+**Orders are never deleted** either way — they are the store's accounting
+records, and the customer's name is the only part of one that was ever theirs.
+`wp_delete_user()` needs `wp-admin/includes/user.php`, which a REST request
+never loads; on multisite the account can belong to other stores, so it is
+removed from this blog rather than the network.
+
+### The sentence is the server's, because only the server knows
+Whether past orders keep their details is a store setting, and a customer
+deleting their account is entitled to hear which way it went. So the route
+composes the sentence and the app prints it verbatim — the same rule the
+payment section already follows for a gateway's title. Three outcomes: no
+orders, orders kept whole, orders stripped.
+
+An earlier version derived that sentence from the erasers' own
+`items_removed` / `items_retained` flags, and the device probe caught it
+lying: the *downloads* eraser retains by default, which flipped the whole
+message to "your orders stay with the store" on a store that had just
+anonymised them. The flags are an aggregate over every eraser and say nothing
+about orders specifically. It now counts the customer's orders before erasing
+— afterwards they no longer answer to the customer, which is the point — and
+reads the setting.
+
+### Two defects found on the way
+**A deleted customer's dish review kept their name.** WooCommerce hides
+product reviews from every comment query that does not ask for them by name,
+and core's comment eraser asks with `author_email` and nothing else. So the
+registered erasers never saw them. There is now a pass that queries with
+`post_type => 'product'` — the documented opt-in — and anonymises the same
+fields core does, through core's own `wp_anonymize_comment` filter. It covers
+reviews found by email *and* by user id, since a customer who changed their
+address after reviewing is still the author. See `FINDINGS.md`; it affects the
+website's own erasure request in exactly the same way.
+
+**An eraser that erases shrinks what it pages through.** WooCommerce finds
+orders *by this customer*, and an anonymised order is no longer one, so the
+records behind the page just handled move up into it and asking for page 2
+steps straight over them. The loop only advances the page when a pass removed
+nothing.
+
+### Verified on the dev store, then on the OnePlus
+A probe seeded a customer with an order, a review and an issued token, and ran
+the route both ways round the order-data setting: 20 assertions, including the
+wrong password refused, the shop manager refused, the order surviving, the
+details anonymised or kept to match the setting, the review anonymised in both
+cases, and the tokens gone. It restores the setting and removes everything it
+seeded.
+
+### Then the phone found the bug all of that could not
+Ten green tests, a clean analyze and twenty passing probe assertions, and the
+feature did not work on a device: the first real tap answered **"You must be
+signed in to do that."**
+
+`AuthInterceptor` stripped the `Authorization` header from **every** path
+under `/fmp/v1/app/auth/`. True of the four routes there when it was written;
+task 3.10 added four more and three of them need the token. So
+`change-password` and `change-email` **have been broken since task 3.11**, and
+`delete-account` was born that way. Confirmed on the device by running change
+password, which failed identically.
+
+The rule is now a named list of the routes that take no customer, and the
+interceptor's test walks the other three demanding the header — the old test
+asserted only the exclusions, so it could never fail when a route was added to
+the prefix. See `FINDINGS.md`.
+
+With that fixed, the whole flow ran on the OnePlus against the dev site: wrong
+password refused on its own field, confirmation dialog, deletion, pop back to
+a signed-out Account screen and the server's own sentence in the snackbar.
+Server side afterwards: user gone, order surviving and detached, review
+anonymised, tokens gone — nine assertions. The seeded order, review and
+customer were removed afterwards and the store is back to the 2 users and 11
+orders it started with.
+
 ## Task 11.4 — material_ui, and the transition it nearly cost
 Branch `chore/material-ui`, PR #79. **App only.** 986 tests, one new.
 
