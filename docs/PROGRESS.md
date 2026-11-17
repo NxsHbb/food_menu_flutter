@@ -2,6 +2,58 @@
 
 Newest first. One entry per completed task.
 
+## Task 14.5 — sort and filter, and a button behind the cart bar
+Branch `feat/menu-filters`, PR TBD. **App only.** 1058 tests, sixteen new.
+
+### What the server already did
+Nothing here needed the plugin. `GET /wc/store/v1/products` takes `tag` as
+comma-separated ids and `orderby` from a fixed set, and the dev store answered
+all of it before a line was written: `tag=22` gave 5 dishes, `tag=22,24` gave
+7, and `orderby=nonsense` gave **400**.
+
+That last one shapes the design. `MenuSort.storeOrder` sends **no** `orderby`
+rather than an empty one, and the enum is the only place a WooCommerce sort
+name is spelled, with a test asserting every value names a real one — a typo
+there is a screen that cannot load, not a list in the wrong order.
+
+### One state change, one request
+The sheet holds a draft and commits on Apply. Four taps on the way to one
+filter would otherwise be four refetches, which on a slow connection is the
+difference between a filter and a stutter.
+
+`tagAndSort()` builds the parameters in one function because **`loadMore` has
+to ask the same question as page one**. A `loadMore` that forgets the filter
+fetches page two of a different list, and what arrives looks like duplicated
+or missing dishes rather than a missing parameter — so there is a test that
+walks every page past the first and demands the tags on each.
+
+### The server ORs the tags, and everything says so
+Two tags **widen** the list. The sheet says "Dishes with any of these", the
+`MenuQuery` field says it, and the fake repository ORs them too — a fake that
+ANDed them would make a passing test of a filter that behaves the opposite way
+against the real server.
+
+`MenuQuery` also had to compare by value, not identity: the controller
+rebuilds on every query change, so a `Set` compared by reference would refetch
+the same list on every tap.
+
+### The phone found the layout bug the tests cannot
+The sheet looked right in tests and came up on the device with **the Show
+dishes button completely hidden behind the floating cart bar**. The shell
+paints that bar in a `Stack` above its own navigator, so a sheet from the
+inner navigator opens underneath it.
+
+`BranchPickerSheet` had already hit this and solved it with
+`useRootNavigator: true`; this now does the same, pointing at that precedent.
+A widget test pumps the list screen without the shell, so the bar is not there
+to collide with — which is exactly why this class of bug only ever shows up on
+a device.
+
+### Verified against the live store
+28 dishes unfiltered, **5** with Vegetarian — the number the API probe
+predicted — priced $4.50, $6.25, $8.50 in that order under "Price: low to
+high", with the filter button carrying its dot.
+
 ## Task 14.4 — the policy a draft page hides
 Branch `feat/review-surface`, PR TBD. **Pro + app.** 1042 tests, seven new.
 

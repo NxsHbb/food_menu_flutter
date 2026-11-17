@@ -3,6 +3,7 @@ export 'package:food_menu/src/core/store_api/models/product.dart';
 import 'package:food_menu/src/core/network/paged.dart';
 import 'package:food_menu/src/core/store_api/models/menu_category.dart';
 import 'package:food_menu/src/core/store_api/models/product.dart';
+import 'package:food_menu/src/features/menu/data/menu_list_controller.dart';
 import 'package:food_menu/src/features/menu/data/menu_repository.dart';
 
 /// A [MenuRepository] that answers from memory, so widget tests never touch
@@ -49,20 +50,49 @@ class FakeMenuRepository implements MenuRepository {
     return match;
   }
 
-  /// Every page request the controller made, as (categoryId, search, page).
-  final List<({int? categoryId, String? search, int page})> pageRequests = [];
+  /// Every page request the controller made.
+  final List<
+      ({
+        int? categoryId,
+        String? search,
+        Set<int> tagIds,
+        MenuSort sort,
+        int page,
+      })> pageRequests = [];
 
   /// Products per page, so pagination can be exercised with a short list.
   int pageSize = 20;
+
+  /// The tags the filter sheet will offer. Empty by default, so a test that
+  /// does not care about filtering gets a sheet with no tag section.
+  List<ProductTag> tagList = const [];
+
+  /// Thrown by [tags] when set.
+  Object? tagsError;
+
+  @override
+  Future<List<ProductTag>> tags() async {
+    if (delay > Duration.zero) await Future<void>.delayed(delay);
+    if (tagsError != null) throw tagsError!;
+    return tagList;
+  }
 
   @override
   Future<Paged<Product>> productPage({
     int? categoryId,
     String? search,
+    Set<int> tagIds = const {},
+    MenuSort sort = MenuSort.storeOrder,
     int page = 1,
     int perPage = 20,
   }) async {
-    pageRequests.add((categoryId: categoryId, search: search, page: page));
+    pageRequests.add((
+      categoryId: categoryId,
+      search: search,
+      tagIds: tagIds,
+      sort: sort,
+      page: page,
+    ));
     if (delay > Duration.zero) await Future<void>.delayed(delay);
     if (productsError != null) throw productsError!;
 
@@ -77,6 +107,24 @@ class FakeMenuRepository implements MenuRepository {
       matches =
           matches.where((p) => p.name.toLowerCase().contains(needle)).toList();
     }
+    if (tagIds.isNotEmpty) {
+      // **OR, as the Store API does it**: a dish matching any chosen tag is
+      // in. A fake that ANDed them would make a passing test of a filter that
+      // behaves differently against the real server.
+      matches = matches
+          .where((p) => p.tags.any((t) => tagIds.contains(t.id)))
+          .toList();
+    }
+    matches = switch (sort) {
+      MenuSort.storeOrder => matches,
+      MenuSort.priceLowHigh => matches.toList()
+        ..sort((a, b) => a.prices.price.compareTo(b.prices.price)),
+      MenuSort.priceHighLow => matches.toList()
+        ..sort((a, b) => b.prices.price.compareTo(a.prices.price)),
+      // Nothing in a fixture to order these by; the server does it, and the
+      // test that matters is that the parameter is sent.
+      MenuSort.popularity || MenuSort.newest => matches,
+    };
 
     final start = (page - 1) * pageSize;
     final slice = start >= matches.length
@@ -126,6 +174,7 @@ Product buildProduct({
   bool requiresChoices = false,
   bool inStock = true,
   List<Map<String, dynamic>> categories = const [],
+  List<Map<String, dynamic>> tags = const [],
   bool? timedAvailable,
   String timedBehavior = 'disable',
   String timedNote = '',
@@ -154,6 +203,7 @@ Product buildProduct({
       'currency_thousand_separator': ',',
     },
     'categories': categories,
+    'tags': tags,
     'images': const <dynamic>[],
     'is_in_stock': inStock,
     'is_purchasable': true,
@@ -177,4 +227,17 @@ MenuCategory buildCategory({
     'count': count,
     'parent': 0,
   });
+}
+
+/// A food tag as the Store API sends it, for [buildProduct] and the filter
+/// sheet's own list.
+Map<String, dynamic> buildTagJson({
+  int id = 22,
+  String name = 'Vegetarian',
+}) {
+  return {'id': id, 'name': name, 'slug': name.toLowerCase()};
+}
+
+ProductTag buildTag({int id = 22, String name = 'Vegetarian'}) {
+  return ProductTag.fromJson(buildTagJson(id: id, name: name));
 }

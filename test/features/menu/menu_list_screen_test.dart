@@ -380,4 +380,183 @@ void main() {
     expect(find.byType(DishRow), findsAtLeast(1));
     expect(find.text('Try again'), findsNothing);
   });
+
+  group('sort and filter (task 14.5)', () {
+    FakeMenuRepository storeWithTags() {
+      return FakeMenuRepository(
+        productList: [
+          buildProduct(
+            id: 1,
+            name: 'Margherita',
+            price: '900',
+            tags: [buildTagJson(id: 22, name: 'Vegetarian')],
+          ),
+          buildProduct(
+            id: 2,
+            name: 'Chicken Wings',
+            price: '700',
+            tags: [buildTagJson(id: 24, name: 'Spicy')],
+          ),
+          buildProduct(id: 3, name: 'Still Water', price: '200'),
+        ],
+      )..tagList = [
+          buildTag(id: 22, name: 'Vegetarian'),
+          buildTag(id: 24, name: 'Spicy'),
+        ];
+    }
+
+    Future<void> openSheet(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.tune));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the sheet offers the store\'s own tags', (tester) async {
+      await pump(tester, repository: storeWithTags());
+      await openSheet(tester);
+
+      expect(find.text('Vegetarian'), findsOne);
+      expect(find.text('Spicy'), findsOne);
+      expect(find.text("The store's order"), findsOne);
+    });
+
+    testWidgets('a store with no tags gets no tag section', (tester) async {
+      // Most stores have none, and a heading over nothing reads as a bug.
+      await pump(tester, repository: FakeMenuRepository());
+      await openSheet(tester);
+
+      expect(find.text('Food tags'), findsNothing);
+      expect(find.text("The store's order"), findsOne);
+    });
+
+    testWidgets('nothing is asked for until the sheet is applied',
+        (tester) async {
+      // Every tap could refetch; on a slow connection that is four requests
+      // on the way to one filter.
+      final repo = storeWithTags();
+      await pump(tester, repository: repo);
+      final before = repo.pageRequests.length;
+
+      await openSheet(tester);
+      await tester.tap(find.text('Vegetarian'));
+      await tester.tap(find.text('Price: low to high'));
+      await tester.pumpAndSettle();
+
+      expect(repo.pageRequests, hasLength(before));
+
+      await tester.tap(find.text('Show dishes'));
+      await tester.pumpAndSettle();
+
+      expect(repo.pageRequests.length, before + 1);
+      expect(repo.pageRequests.last.tagIds, {22});
+      expect(repo.pageRequests.last.sort, MenuSort.priceLowHigh);
+    });
+
+    testWidgets('two tags widen the list, because the server ORs them',
+        (tester) async {
+      final repo = storeWithTags();
+      await pump(tester, repository: repo);
+
+      await openSheet(tester);
+      await tester.tap(find.text('Vegetarian'));
+      await tester.tap(find.text('Spicy'));
+      await tester.tap(find.text('Show dishes'));
+      await tester.pumpAndSettle();
+
+      expect(repo.pageRequests.last.tagIds, {22, 24});
+      expect(rowText('Margherita'), findsOne);
+      expect(rowText('Chicken Wings'), findsOne);
+      expect(rowText('Still Water'), findsNothing);
+    });
+
+    testWidgets('the sort reaches the list', (tester) async {
+      final repo = storeWithTags();
+      await pump(tester, repository: repo);
+
+      await openSheet(tester);
+      await tester.tap(find.text('Price: low to high'));
+      await tester.tap(find.text('Show dishes'));
+      await tester.pumpAndSettle();
+
+      final names = tester
+          .widgetList<DishRow>(find.byType(DishRow))
+          .map((row) => row.product.name)
+          .toList();
+
+      expect(names, ['Still Water', 'Chicken Wings', 'Margherita']);
+    });
+
+    testWidgets('the button says when a filter is in force', (tester) async {
+      // A filtered list looks like a short menu. Without the dot there is no
+      // way to tell "nothing matches" from "the store sells nothing".
+      final repo = storeWithTags();
+      await pump(tester, repository: repo);
+
+      expect(
+        find.bySemanticsLabel('Sort and filter'),
+        findsOne,
+      );
+
+      await openSheet(tester);
+      await tester.tap(find.text('Spicy'));
+      await tester.tap(find.text('Show dishes'));
+      await tester.pumpAndSettle();
+
+      expect(find.bySemanticsLabel('Sort and filter, active'), findsOne);
+    });
+
+    testWidgets('Clear puts the sheet back to the store\'s own list',
+        (tester) async {
+      final repo = storeWithTags();
+      await pump(tester, repository: repo);
+
+      await openSheet(tester);
+      await tester.tap(find.text('Spicy'));
+      await tester.tap(find.text('Show dishes'));
+      await tester.pumpAndSettle();
+
+      await openSheet(tester);
+      await tester.tap(find.text('Clear'));
+      await tester.tap(find.text('Show dishes'));
+      await tester.pumpAndSettle();
+
+      expect(repo.pageRequests.last.tagIds, isEmpty);
+      expect(repo.pageRequests.last.sort, MenuSort.storeOrder);
+      expect(find.bySemanticsLabel('Sort and filter'), findsOne);
+    });
+
+    testWidgets('a later page carries the same filter', (tester) async {
+      // Page two of a *different* list reads as duplicated or missing dishes,
+      // not as a missing parameter.
+      final repo = FakeMenuRepository(
+        productList: [
+          for (var i = 1; i <= 25; i++)
+            buildProduct(
+              id: i,
+              name: 'Dish $i',
+              price: '${100 * i}',
+              tags: [buildTagJson(id: 22, name: 'Vegetarian')],
+            ),
+        ],
+      )
+        ..pageSize = 10
+        ..tagList = [buildTag(id: 22, name: 'Vegetarian')];
+      await pump(tester, repository: repo);
+
+      await openSheet(tester);
+      await tester.tap(find.text('Vegetarian'));
+      await tester.tap(find.text('Show dishes'));
+      await tester.pumpAndSettle();
+
+      // The next page is scroll-driven, as the other pagination tests do it.
+      await tester.fling(find.byType(ListView), const Offset(0, -4000), 1000);
+      await tester.pumpAndSettle();
+
+      final later = repo.pageRequests.where((r) => r.page > 1).toList();
+
+      expect(later, isNotEmpty, reason: 'no later page was fetched');
+      for (final request in later) {
+        expect(request.tagIds, {22}, reason: 'page ${request.page}');
+      }
+    });
+  });
 }

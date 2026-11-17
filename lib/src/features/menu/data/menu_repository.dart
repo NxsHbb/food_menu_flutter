@@ -4,6 +4,7 @@ import '../../../core/network/api_client.dart';
 import '../../branch/data/branch_controller.dart';
 import '../../../core/network/paged.dart';
 import '../../../core/store_api/models/menu_category.dart';
+import 'menu_list_controller.dart';
 import '../../../core/store_api/models/product.dart';
 
 /// Reads the menu from the WooCommerce Store API.
@@ -41,10 +42,30 @@ class MenuRepository {
     return Product.fromJson(raw);
   }
 
+  /// The store's food tags, for the filter sheet (task 14.5).
+  ///
+  /// `hide_empty` so the sheet never offers a tag that narrows the menu to
+  /// nothing — a filter that returns an empty list reads as a broken screen,
+  /// and the store's unused tags are the commonest way to get one.
+  Future<List<ProductTag>> tags() async {
+    final raw = await _client.get<List<dynamic>>(
+      _client.storeApi('products/tags'),
+      query: const {'per_page': 100, 'hide_empty': true, 'orderby': 'name'},
+    );
+
+    return raw
+        .whereType<Map>()
+        .map((e) => ProductTag.fromJson(e.cast<String, dynamic>()))
+        .where((tag) => tag.id > 0 && tag.name.isNotEmpty)
+        .toList(growable: false);
+  }
+
   /// A page of dishes with its totals, for the paginated list screen.
   Future<Paged<Product>> productPage({
     int? categoryId,
     String? search,
+    Set<int> tagIds = const {},
+    MenuSort sort = MenuSort.storeOrder,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -56,6 +77,7 @@ class MenuRepository {
         'catalog_visibility': 'catalog',
         'category': ?categoryId,
         if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+        ...tagAndSort(tagIds, sort),
       },
     );
 
@@ -103,8 +125,37 @@ class MenuRepository {
   }
 }
 
+/// The `tag` and `orderby` parameters for a filtered list (task 14.5).
+///
+/// Its own function so the two callers cannot drift: a `loadMore` that
+/// forgets them asks page two of a **different list**, and the result looks
+/// like duplicated or missing dishes rather than a missing parameter.
+///
+/// Omitted entirely when there is nothing to say — `MenuSort.storeOrder`
+/// means "leave the store's own order alone", and an empty `orderby` is a
+/// 400 from the Store API rather than a default.
+Map<String, Object> tagAndSort(Set<int> tagIds, MenuSort sort) {
+  return {
+    // Comma-separated ids, which the Store API **ORs**: two tags widen the
+    // list. Sorted so an unordered set cannot produce two different URLs for
+    // one filter and defeat any cache between here and the server.
+    if (tagIds.isNotEmpty) 'tag': (tagIds.toList()..sort()).join(','),
+    if (sort.orderby != null) 'orderby': sort.orderby!,
+    if (sort.order != null) 'order': sort.order!,
+  };
+}
+
 final menuRepositoryProvider = Provider<MenuRepository>((ref) {
   return MenuRepository(ref.watch(apiClientProvider));
+});
+
+/// The food tags the filter sheet offers.
+///
+/// Read once and kept: a store's tags change about as often as its menu
+/// structure, and re-reading them every time the sheet opens would put a
+/// spinner in front of a list of six words.
+final foodTagsProvider = FutureProvider<List<ProductTag>>((ref) {
+  return ref.watch(menuRepositoryProvider).tags();
 });
 
 /// The category chips on the menu landing screen.
