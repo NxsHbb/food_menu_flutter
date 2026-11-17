@@ -2,6 +2,72 @@
 
 Newest first. One entry per completed task.
 
+## Task 14.8 — pull to refresh, and a cache deliberately not built
+Branch `feat/refresh-gaps`, PR TBD. **App only.** 1121 tests, eleven new.
+
+### Half of this task was already done
+Doc A3.11 asks for pull-to-refresh and a cached last menu. The refresh half
+was mostly built: the landing menu, the cart, the orders list, the wishlist
+and the address book have had a `RefreshIndicator` since their own tasks. The
+two screens missing one were **the order detail** — the screen a customer sits
+on while the food is coming, and so the one where a pull is worth most — and
+**the menu list**, which is where most of the menu is actually browsed. Forms
+have none and should not.
+
+### The cache was declined, and that is the decision rather than an omission
+Ruled 2026-11-17. The app carries **no persistence package at all**, so
+caching the menu is not a code change but a new dependency plus staleness
+rules, invalidation on branch and store-config change, and a second source of
+truth for what a dish costs. On an app whose purpose is taking orders a stale
+price is not a stale pixel. `FINDINGS.md` has the reasoning and the rule for
+anyone who revisits it: a cache may paint the screen, never price an order.
+
+### Adding the indicator alone would have shipped a bug
+Both screens matched `AsyncLoading()` before the value. Invalidating a
+provider puts it back into `AsyncLoading` **while it still holds its previous
+value**, so the first arm matched and the screen a customer had just pulled on
+was replaced by a full-screen spinner — the list vanishing out from under the
+thumb that asked for it to be reloaded.
+
+Matching the value first fixes it, and the two screens order the arms
+differently on purpose. The menu puts **error before value**, because a menu
+that could not be reloaded should say so and `_Failure` already carries task
+11.1's retry. The order detail puts **value before error**, because an order
+already drawn is still correct and worth more than an error page; a failed
+refresh there is reported with a snack bar instead, since an indicator that
+retracts in silence reads as "nothing has changed" rather than "that did not
+work". A failed *tracking* refresh stays silent — task 7.3 split those two
+requests precisely so one can fail without the other.
+
+### A test caught a refresh that refreshed nothing
+`_refresh` was first keyed on `order.id`, the id of the order already loaded,
+while the screen watches `orderProvider(orderId)` keyed on the id it was
+**routed to**. On the dev store those differ. The indicator turned, the
+request went out, it succeeded, and the screen never changed, because what was
+invalidated is a provider nobody watches — no error, nothing to notice. The
+first test run saw `[64, 62]` where it wanted `[64, 64]`.
+
+### Empty screens are the ones people pull on
+A `RefreshIndicator` needs a scrollable child, and the menu list's empty,
+dead-end-search and failed states were each a centred box — so the gesture did
+nothing on exactly the three screens where somebody is most likely to try it.
+`_scrollable` wraps them in a scroll view held to the viewport height, so they
+still centre and still pull. The dish list needed
+`AlwaysScrollableScrollPhysics` for the same reason: three dishes do not
+overscroll on their own.
+
+### Verified on the OnePlus, both screens
+Against the dev store, signed in as the seeded customer. Pulling the menu list
+turns the indicator **with the dishes still on screen**; pulling an order
+turns it with the header, timeline, items and totals all still drawn. That is
+the whole of the fix above, and it is the half a widget test can only
+approximate.
+
+The tests cover what the device could not: that the server is asked again,
+that the customer's search survives a pull, that the empty and failed states
+are pullable, that a store without the tracking route is not asked for it, and
+that a failed refresh says so.
+
 ## Task 14.7 — the store is asked what it has before it is asked for it
 Branch `feat/capability-probe`, PR TBD. **App only**, and it needed no plugin
 change at all. 1110 tests, forty-three new.

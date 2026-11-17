@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:food_menu/src/core/capability/capability_probe.dart';
+import 'package:food_menu/src/core/capability/store_capabilities.dart';
 import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/core/util/relative_date.dart';
@@ -12,6 +14,7 @@ import 'package:food_menu/src/features/orders/presentation/widgets/reorder_butto
 import 'package:food_menu/src/features/orders/presentation/widgets/order_status_pill.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/capability/capability_scope.dart';
 import 'fake_orders_repository.dart';
 
 void main() {
@@ -19,7 +22,15 @@ void main() {
 
   setUp(() => repo = FakeOrdersRepository());
 
-  Future<void> pump(WidgetTester tester, {int id = 64}) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    int id = 64,
+    // Task 14.8's tests need a slow repository and a named store; both are
+    // optional so every test written before them reads exactly as it did.
+    FakeOrdersRepository? repository,
+    StoreCapabilities? store,
+  }) async {
+    if (repository != null) repo = repository;
     final router = GoRouter(
       initialLocation: '/order/$id',
       routes: [
@@ -41,13 +52,26 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [ordersRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          ordersRepositoryProvider.overrideWithValue(repo),
+          if (store != null) capabilitiesProvider.overrideWithValue(store),
+        ],
         child: MaterialApp.router(
           theme: AppTheme.light(),
           routerConfig: router,
         ),
       ),
     );
+    await tester.pumpAndSettle();
+  }
+
+  /// The pull itself. Two pumps rather than a settle before the end: the
+  /// indicator has to be let out and the request let run, and a settle alone
+  /// would skip straight past the part a refresh test is about.
+  Future<void> pull(WidgetTester tester) async {
+    await tester.fling(find.byType(ListView).first, const Offset(0, 320), 1000);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle();
   }
 
@@ -415,6 +439,106 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Unknown'), findsOneWidget);
+    });
+  });
+
+  group('pulling to refresh (task 14.8)', () {
+    testWidgets('asks the server for the order again', (tester) async {
+      await pump(tester, id: 64);
+      expect(repo.requested, [64]);
+
+      await pull(tester);
+
+      expect(repo.requested, [64, 64]);
+    });
+
+    testWidgets('asks for the progress too, where the store publishes it',
+        (tester) async {
+      await pump(tester, store: newProStore);
+      expect(repo.trackingRequested, [64]);
+
+      await pull(tester);
+
+      // Both, because the screen draws both and the status is the half most
+      // likely to have moved while the customer waited.
+      expect(repo.requested, [64, 64]);
+      expect(repo.trackingRequested, [64, 64]);
+    });
+
+    testWidgets('leaves the progress alone on a store without that route',
+        (tester) async {
+      await pump(tester, store: releasedProStore);
+      expect(repo.trackingRequested, isEmpty);
+
+      await pull(tester);
+
+      // The order still refreshes; the tracking is never asked for, because
+      // the screen itself does not ask for it on this store (task 14.7).
+      // A pull must not reach for a route the screen declines to.
+      expect(repo.requested, [64, 64]);
+      expect(repo.trackingRequested, isEmpty);
+    });
+
+    testWidgets('keeps the order on screen while it reloads', (tester) async {
+      await pump(
+        tester,
+        repository: FakeOrdersRepository(
+          delay: const Duration(milliseconds: 200),
+        ),
+      );
+      final heading = 'Order #${repo.answer.number}';
+      expect(find.text(heading), findsOneWidget);
+
+      await tester.fling(
+        find.byType(ListView).first,
+        const Offset(0, 320),
+        1000,
+      );
+      await tester.pump();
+      // Mid-flight: the request is out and has not come back.
+      await tester.pump(const Duration(milliseconds: 60));
+
+      // **The point of the task.** Before this the provider went back to
+      // `AsyncLoading` and the screen matched the state before the value,
+      // so a pull replaced the order with a full-screen spinner.
+      expect(find.text(heading), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(find.text(heading), findsOneWidget);
+    });
+
+    testWidgets('says so when the refresh fails, and keeps the order up',
+        (tester) async {
+      await pump(tester);
+      repo.failNext = const ApiException(
+        failure: ApiFailure.network,
+        message: 'Could not reach the server.',
+      );
+
+      await pull(tester);
+
+      // Reported rather than swallowed: the pull was an explicit ask, and an
+      // indicator that retracts leaving the same numbers reads as "nothing
+      // has changed" rather than "that did not work".
+      expect(find.text('Could not reach the server.'), findsOneWidget);
+      // And the order it already had is still perfectly good.
+      expect(find.text('Order #${repo.answer.number}'), findsOneWidget);
+    });
+
+    testWidgets('a failed progress refresh costs the timeline and no more',
+        (tester) async {
+      await pump(tester, store: newProStore);
+      repo.failNextTracking = const ApiException(
+        failure: ApiFailure.network,
+        message: 'no tracking',
+      );
+
+      await pull(tester);
+
+      // Task 7.3 split these two requests precisely so one can fail without
+      // the other. Nothing is said about it, and the order stays up.
+      expect(find.text('no tracking'), findsNothing);
+      expect(find.text('Order #${repo.answer.number}'), findsOneWidget);
     });
   });
 

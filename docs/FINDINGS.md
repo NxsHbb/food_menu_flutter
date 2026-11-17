@@ -3587,3 +3587,111 @@ flicker. Hiding late is rarer and cheaper than appearing late.
 A refusal is held on the controller rather than only in the state, so a
 re-probe cannot un-learn it: the index says what *exists*, but a route that
 answered `rest_no_route` is a fact about the store in front of the app.
+
+## No cached menu, and that is a decision rather than an omission
+
+Doc A3.11 pairs pull-to-refresh with "a cached last menu", and task 14.8
+shipped the first without the second. Ruled 2026-11-17.
+
+The app carries **no persistence package at all** — no `shared_preferences`,
+no `hive`, no `sqflite` — so caching the menu is not a code change but a new
+dependency plus staleness rules, invalidation on branch switch and on store
+config change, and a second source of truth for what a dish costs. On an app
+whose whole purpose is taking orders, a cached price is not a stale pixel: it
+is a customer told one number and charged another.
+
+Pull-to-refresh is the half that carries the user-visible benefit, and it
+carries none of that risk. The same reasoning task 11.1 used to decline
+`connectivity_plus`: per-screen truth beats a stored claim. Worth revisiting
+if a store asks for offline browsing, not worth adding unasked this close to
+release — and if it is ever added, the rule is that the cache may paint the
+screen but must never price an order.
+
+## A refreshing provider is loading *and* still holds its last value
+
+Both screens this task touched matched `AsyncLoading()` before the value:
+
+```dart
+AsyncLoading() => const Center(child: CircularProgressIndicator()),
+AsyncError(:final error) => _Failure(error: error),
+AsyncData(:final value) => theList(value),
+```
+
+That reads correctly and is wrong under a pull. Invalidating a provider puts
+it back into `AsyncLoading`, but Riverpod carries the previous value along, so
+the first arm matches and **the screen a customer just pulled on is replaced
+by a full-screen spinner** — the list vanishing out from under the thumb that
+asked for it to be reloaded. Adding the `RefreshIndicator` alone would have
+shipped exactly that.
+
+Matching the value first fixes it:
+
+```dart
+AsyncError(:final error) => failure(error),   // nothing to keep showing
+AsyncValue(:final value?) => theList(value),  // refreshing, but has data
+_ => const Center(child: CircularProgressIndicator()),  // first load only
+```
+
+Order matters between the two screens and differs on purpose. The menu puts
+**error before value**, because a menu that could not be reloaded should say
+so and `_Failure` carries task 11.1's retry. The order detail puts **value
+before error**, because an order already on screen is still correct and worth
+more than an error page; a failed refresh there is reported with a snack bar
+instead. An indicator that retracts in silence reads as "nothing has changed"
+rather than "that did not work".
+
+## A provider family keyed on the wrong id refreshes nothing, silently
+
+`_refresh` was first written against `order.id` — the id on the order the
+screen had already loaded. The screen watches `orderProvider(orderId)`, keyed
+on the id it was **routed to**. On the dev store those differ: the fixture
+order's own id is 62 while the screen was opened on 64.
+
+The failure is quiet in the worst way. The indicator turns, a request really
+does go out, it succeeds, and the screen never changes — because what was
+invalidated is a provider nobody is watching. No error, no log, nothing to
+notice except that pulling does not work.
+
+A test caught it on the first run (`expect(repo.requested, [64, 64])` saw
+`[64, 62]`), which is the argument for asserting *what the fake was asked
+for* rather than only what the screen ended up showing. A screen that never
+changes passes any assertion written about its contents.
+
+## `RefreshIndicator` needs a scrollable child, and empty states are not one
+
+The menu list's empty, dead-end-search and failed states were each a centred
+box. A `RefreshIndicator` wrapped round them does nothing at all: there is no
+scrollable to overscroll, so the gesture is never recognised — and those are
+the three screens a customer is **most** likely to pull on, since an empty or
+broken list is exactly when somebody tries again.
+
+`_scrollable` wraps them in a `SingleChildScrollView` with
+`AlwaysScrollableScrollPhysics` and a `ConstrainedBox` holding it to at least
+the viewport height, so the box still centres and the pull still works. The
+dish list needs the same physics for the same reason: a menu of three dishes
+does not overscroll on its own.
+
+## The two backends have different customers, and the docs mean the one they name
+
+Half an hour went into a login that was never going to work:
+`claude.devicetest@foodmenu.test` is the **demo site's** test customer, and
+task 14.8 was being verified against the **local dev store**, where that
+account does not exist. It authenticates against
+`radiustheme.net/demos/food-menu` exactly as `LOCAL_DEV.md` says. The local
+store's customer is `customer@foodmenu.test` / `Customer@2020##`, the
+credential in the same file's curl example, and it owns six active orders —
+which is what the order-detail pull was actually checked on.
+
+The table naming the device-test account sits under **"Live site — the iOS
+testing target"**. Read the heading before copying the row.
+
+Two mechanical traps found on the way, both worth keeping:
+
+* **`adb shell input text` drops a `#`.** Send `KEYCODE_POUND` (18) as a
+  separate `input keyevent` instead. A password that is silently one
+  character short looks exactly like a wrong password.
+* **The Latin keyboard capitalises the first letter of an email field.**
+  WordPress forgives it — `get_user_by('email')` compares under a
+  case-insensitive collation — so it is a red herring rather than a cause,
+  and chasing it wastes a login attempt against a rate limit that is real
+  and keyed on your IP.

@@ -1537,3 +1537,27 @@ time.
 - Branches: `feat/…`, `fix/…`, `chore/…`. Never commit to `main`; it only
   advances through merged PRs.
 - Commit messages: imperative subject, no AI attribution (enforced by hook).
+
+### Refreshing a screen (task 14.8)
+Every list screen pulls to refresh: the landing menu, the menu list, the cart,
+orders, the order detail, the wishlist and the address book. Forms do not.
+
+Two rules, because the obvious way of writing it is broken in a way that
+passes review:
+
+- **Match the value before the state.** A provider being refreshed is
+  `AsyncLoading` *and* still holds its previous value, so `AsyncLoading() =>
+  spinner` as the first arm replaces the screen the customer just pulled on.
+  Write `AsyncValue(:final value?) => …` first and leave the bare `_ =>
+  spinner` for the genuine first load. Where an error should win over stale
+  data — the menu, which carries its own retry — put the `AsyncError` arm
+  above the value arm, and say so in a comment.
+- **A `RefreshIndicator` needs a scrollable child.** Empty, dead-end and
+  failed states are usually a centred box, and the gesture silently does
+  nothing on them — which are the screens people pull on most. Wrap them
+  (`_scrollable` in `menu_list_screen.dart` is the pattern) and give short
+  lists `AlwaysScrollableScrollPhysics`.
+
+Refresh a **family** provider on the key the screen was routed with, not one
+read off the loaded object; they are not always the same number, and the wrong
+one reloads something nobody is watching without raising anything.

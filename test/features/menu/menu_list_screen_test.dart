@@ -559,4 +559,102 @@ void main() {
       }
     });
   });
+
+  group('pulling to refresh (task 14.8)', () {
+    /// The pull. The scrollable differs by state — a list of dishes, or the
+    /// box `_scrollable` wraps an empty or failed screen in — so the finder
+    /// is the caller's.
+    Future<void> pull(WidgetTester tester, Finder target) async {
+      await tester.fling(target, const Offset(0, 320), 1000);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('asks the server for the menu again', (tester) async {
+      final repo = await pump(tester, repository: FakeMenuRepository(
+        productList: manyDishes(3),
+      ));
+      repo.pageRequests.clear();
+
+      await pull(tester, find.byType(ListView));
+
+      expect(repo.pageRequests.map((r) => r.page), [1]);
+    });
+
+    testWidgets('keeps the dishes on screen while they reload',
+        (tester) async {
+      await pump(
+        tester,
+        repository: FakeMenuRepository(
+          productList: manyDishes(3),
+          delay: const Duration(milliseconds: 200),
+        ),
+      );
+      expect(rowText('Dish 1'), findsOneWidget);
+
+      await tester.fling(find.byType(ListView), const Offset(0, 320), 1000);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+
+      // A refreshing provider is loading *and* still holds its last value.
+      // Matching the state first blanked the menu on every pull.
+      expect(rowText('Dish 1'), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(rowText('Dish 1'), findsOneWidget);
+    });
+
+    testWidgets('keeps the search the customer typed', (tester) async {
+      final repo = await pump(tester, repository: FakeMenuRepository(
+        productList: manyDishes(3),
+      ));
+      await tester.enterText(find.byType(TextField), 'Dish 1');
+      await tester.pump(searchDebounce);
+      await tester.pumpAndSettle();
+      repo.pageRequests.clear();
+
+      await pull(tester, find.byType(ListView));
+
+      // A pull means "ask again", not "start over". Clearing the query would
+      // throw away what the customer asked for.
+      expect(repo.pageRequests.single.search, 'Dish 1');
+      expect(find.text('Dish 1'), findsWidgets);
+    });
+
+    testWidgets('an empty menu can be pulled too', (tester) async {
+      final repo = await pump(
+        tester,
+        repository: FakeMenuRepository(productList: const []),
+      );
+      expect(find.text('Nothing on the menu here yet.'), findsOneWidget);
+      repo.pageRequests.clear();
+
+      // **The state most likely to be pulled on**, and the one a plain
+      // `Center` would have swallowed the gesture in: `RefreshIndicator`
+      // needs a scrollable child, so the empty screen is wrapped in one.
+      await pull(tester, find.byType(SingleChildScrollView));
+
+      expect(repo.pageRequests.map((r) => r.page), [1]);
+    });
+
+    testWidgets('so can a menu that failed to load', (tester) async {
+      final repo = FakeMenuRepository(productList: manyDishes(2))
+        ..productsError = const ApiException(
+          failure: ApiFailure.network,
+          message: 'Could not reach the server.',
+        );
+      await pump(tester, repository: repo);
+      expect(find.text('Could not reach the server.'), findsOneWidget);
+
+      // The store comes back between the failure and the pull.
+      repo.productsError = null;
+      repo.pageRequests.clear();
+
+      await pull(tester, find.byType(SingleChildScrollView));
+
+      expect(repo.pageRequests.map((r) => r.page), [1]);
+      expect(rowText('Dish 1'), findsOneWidget);
+    });
+  });
 }
