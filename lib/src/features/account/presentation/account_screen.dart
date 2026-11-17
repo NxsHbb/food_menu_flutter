@@ -14,6 +14,7 @@ import '../../wishlist/data/wishlist_controller.dart';
 import '../../wishlist/presentation/wishlist_screen.dart';
 import 'change_email_screen.dart';
 import 'delete_account_screen.dart';
+import 'widgets/legal_card.dart';
 import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
 import 'widgets/account_header.dart';
@@ -129,6 +130,10 @@ class _SignedIn extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: AppTokens.space16),
+                // The store's own pages, above the destructive pair: a
+                // customer looking for the privacy policy should not have to
+                // scroll past Delete account to find it (task 14.4).
+                const LegalCard(),
                 // Its own card, below the log-out button rather than above
                 // it, because the two read as a pair and the harmless one
                 // should be the one under the thumb.
@@ -205,6 +210,14 @@ class _SignedOut extends StatelessWidget {
                   child: const Text('Sign in'),
                 ),
               ),
+              // **Here too, not only once signed in** (task 14.4). A store
+              // reviewer opens the app and does not make an account, and the
+              // privacy policy is one of the things they go looking for. It
+              // is also the honest place for it: somebody deciding whether to
+              // hand over their details should be able to read the policy
+              // first.
+              const SizedBox(height: AppTokens.space20),
+              const LegalCard(),
             ],
           ),
         ),

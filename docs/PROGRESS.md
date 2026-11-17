@@ -2,6 +2,54 @@
 
 Newest first. One entry per completed task.
 
+## Task 14.4 — the policy a draft page hides
+Branch `feat/review-surface`, PR TBD. **Pro + app.** 1042 tests, seven new.
+
+### The page WordPress ships, and never publishes
+`GET /app/config` gained `privacy_policy_url` and `terms_url`. The policy
+comes from `get_privacy_policy_url()` rather than the option behind it,
+because **WordPress creates that page as a draft on every install** and the
+function reports nothing until somebody publishes it. The dev store proved
+it: page 3, titled Privacy Policy, status `draft`, and the option set.
+
+That is the behaviour the app wants — a store with no published policy gets no
+row, which beats a link to a 404 in the one place a store reviewer will try.
+It also makes a release dependency that was not written down anywhere:
+**both consoles require a reachable policy URL**, so a store shipping this app
+has to publish one. It is in the plan's open dependencies and in
+`STORE-SUBMISSION.md` now.
+
+### The first external link the app has ever opened
+`url_launcher`, and an Android `<queries>` block for `http`/`https` VIEW
+intents. Without the block, API 30+ hides which activities handle the intent,
+`canLaunchUrl` answers false, and the row would have disappeared on exactly
+the devices most customers are on — while working perfectly on the older ones
+a developer might happen to test.
+
+### Reachable without an account, which is the point
+The first build put the rows on the account screen, which renders the
+signed-out state for anyone not logged in — so a reviewer who never makes an
+account could not find the policy at all. Caught by opening the app on the
+phone and looking at it. They are now on both states, and the signed-out one
+has a test of its own.
+
+The card draws **nothing** when the store has published nothing, and owns the
+spacing below it for the same reason: that is the common store, so a stray gap
+where a card is not would show on more screens than the card itself.
+
+### The answers, written down
+`docs/STORE-SUBMISSION.md` is the App Privacy and Data safety form, filled in
+from the code rather than from memory: what the app collects, what it does not
+(no analytics, no crash reporting, no advertising, no third-party collector —
+`pubspec.yaml` is the evidence), the deletion flow 14.1 built, and the two
+permissions the app declares. Two open questions go with it, both for whoever
+submits: who the data controller is when the customer's data lives on the
+restaurant's own site, and whether there is one listing or one per store.
+
+Verified on the OnePlus: the dev store's policy published, the row appearing
+on the signed-out account screen, and the tap opening the page in Chrome. The
+page was put back to draft afterwards.
+
 ## Task 14.3 — the store, in one request, and the red that is not quite AA
 Branch `feat/store-config`, PR TBD. **Pro + app.** 1035 tests, twenty-four new.
 

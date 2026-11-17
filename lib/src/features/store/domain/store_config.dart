@@ -14,6 +14,8 @@ class StoreConfig {
     required this.primaryColor,
     required this.orderingEnabled,
     required this.currency,
+    this.privacyPolicyUrl = '',
+    this.termsUrl = '',
   });
 
   /// The answer for a store whose Pro is too old to have this route.
@@ -43,6 +45,8 @@ class StoreConfig {
       currency: currency is Map
           ? StoreCurrency.fromJson(currency.cast<String, dynamic>())
           : StoreCurrency.unknown,
+      privacyPolicyUrl: json['privacy_policy_url'] as String? ?? '',
+      termsUrl: json['terms_url'] as String? ?? '',
     );
   }
 
@@ -66,6 +70,19 @@ class StoreConfig {
   /// How the store writes money, for the screens that must say a price before
   /// a cart or a product has been fetched.
   final StoreCurrency currency;
+
+  /// The store's published privacy policy (task 14.4).
+  ///
+  /// **Empty is the common case on a fresh store**, because WordPress creates
+  /// that page as a draft and `get_privacy_policy_url()` reports nothing until
+  /// it is published. The app shows no row rather than a link to a 404 — and
+  /// a store that means to ship this app has to publish one, because both
+  /// consoles require it.
+  final String privacyPolicyUrl;
+
+  /// The store's terms, when WooCommerce has a published page for them.
+  /// Optional, and usually empty.
+  final String termsUrl;
 
   /// `#rrggbb` or `#rgb`, and nothing else.
   static Color? _colorOf(String? raw) {

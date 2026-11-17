@@ -1014,6 +1014,23 @@ it takes orders at all, and its currency and time formats.
   than the foreground. The app's own red is 3.9:1, which is why the bar is 3
   and not 4.5.
 
+### The store's own pages (task 14.4)
+`privacy_policy_url` and `terms_url` on `/app/config`, rendered by `LegalCard`
+on the account screen **and on its signed-out state**.
+
+- **Published pages only.** The plugin reads `get_privacy_policy_url()`, which
+  is empty for the draft WordPress creates on every install. Empty means no
+  row, never a link to a 404.
+- **Both consoles require a reachable policy** for an app with accounts, so a
+  production store has to publish one — see the plan's open dependencies and
+  `docs/STORE-SUBMISSION.md`.
+- Opening it is `url_launcher` in `LaunchMode.externalApplication`, and the
+  Android manifest declares `http`/`https` VIEW intents in `<queries>`.
+  **Without that block the row vanishes on API 30+**, because `canLaunchUrl`
+  answers false. Any future external link needs the same.
+- A tap that cannot open says so. Silence reads as a broken app, and this is
+  the row a reviewer is most likely to try.
+
 ### A paused kitchen (task 14.2)
 Staff can stop the store taking orders from the Kitchen Monitor, outright or
 for a scheduled window. **Two answers, and both are needed:**
