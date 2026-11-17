@@ -79,22 +79,34 @@ class _BackButton extends StatelessWidget {
       side: BorderSide(color: palette.line),
     );
 
-    return Material(
-      color: palette.card,
-      shape: shape,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          if (context.canPop()) {
-            context.pop();
-          } else {
-            onBack?.call();
-          }
-        },
-        child: SizedBox(
-          width: 42,
-          height: 42,
-          child: Icon(Icons.chevron_left_rounded, size: 24, color: palette.ink),
+    return Semantics(
+      button: true,
+      // **Shared by every pushed screen in the app** (task 14.9), so one
+      // missing label was the way off the wishlist, the address book and
+      // everything else that uses this header — announced as an unnamed
+      // tappable with nothing to say it was a button at all.
+      label: 'Back',
+      child: Material(
+        color: palette.card,
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              onBack?.call();
+            }
+          },
+          child: SizedBox(
+            width: 42,
+            height: 42,
+            child: Icon(
+              Icons.chevron_left_rounded,
+              size: 24,
+              color: palette.ink,
+            ),
+          ),
         ),
       ),
     );

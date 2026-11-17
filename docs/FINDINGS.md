@@ -3695,3 +3695,84 @@ Two mechanical traps found on the way, both worth keeping:
   case-insensitive collation — so it is a red herring rather than a cause,
   and chasing it wastes a login attempt against a rate limit that is real
   and keyed on your IP.
+
+## The only thing in the app that broke at large text was the add-to-cart button
+
+Task 14.9 drew every screen at 1.0, 1.5 and 2.0 — Android's accessibility
+slider reaches 2.0 and iOS goes past it — by walking the shipped router and
+collecting overflow errors. The sweep found **one** overflow in the whole app,
+and it was on the control the app exists to offer.
+
+The dish screen's add bar puts the label and the running total in one `Row`
+inside the button. At the system size they fit with room to spare; at **1.5**
+they were half a pixel over, and at 2.0 fifty-eight. That matters more than it
+sounds: in a debug build an overflow is a striped bar, but in **release it is
+just the end of a word quietly cut off**, so which the customer gets depends
+only on the build they installed.
+
+The label is now `Flexible` and ellipsizes; the price is not and does not.
+Task 14.6 made the same ruling for the Price Label — a store may choose the
+words, never whether the figure the customer is about to be charged is
+legible.
+
+**That the rest survived 2.0 is the useful half of the result.** The layouts
+are mostly sized from text already, and the one that was not had been written
+as a plain `Row` of two `Text`s.
+
+### Two traps in writing that sweep
+
+The journey harness pumps at a **2400dp-tall viewport** so cards below the
+fold are built and tappable. That is right for a journey and useless for this:
+nothing overflows vertically on a screen that tall, so the first version of
+the sweep passed by construction. It pumps at 390×844 now.
+
+`tester.pageBack()` insists on a `CupertinoNavigationBarBackButton`. This app
+draws its own back controls, so the sweep pops the navigator directly.
+
+## A screen reader was told "button" six times over
+
+The same sweep, asked a different question: walk the semantics tree for nodes
+that take a tap and carry no name. That is the question TalkBack and VoiceOver
+actually ask, and unlike a grep for `Semantics(` it can only find what is
+really there rather than what somebody already thought about.
+
+Six controls had no name: the quick-add `+` on **every dish card**, both
+stepper buttons on the dish screen, and **three separate back buttons** —
+`ScreenHeader`'s, the dish screen's floating circle and the order detail's own.
+The back buttons are the point: the app draws its own rather than using an
+`AppBar`, so none of them inherited the name a `BackButton` would have carried,
+and the only way off half the screens announced as an unnamed tappable.
+
+`QuickAddButton`'s label says **what the tap will do**, which that widget is
+the one place that knows: a dish needing choices opens the dish screen instead
+of adding, and promising "add" there would be a lie told only to the customer
+who cannot see that a screen opened instead.
+
+**A tooltip counts as a name.** The address card's `⋮` has an empty label and
+`tooltip: 'Address options'`, which screen readers announce — the first run of
+the audit reported it as a fault, and it is not one. The check reads both.
+
+## Every tap target in the app is under the minimum, and that is a design question
+
+Measured across every screen, all of them below Material's 48dp and Apple's
+44pt:
+
+| Control | Size |
+|---|---|
+| Wishlist heart on a dish card | 30×30 |
+| Quick-add `+` on a dish card | 34×34 |
+| Dish back, stepper `−`/`+`, dish-screen heart | 38×38 |
+| Address options `⋮` | 40×40 |
+| `ScreenHeader` and order-detail back | 42×42 |
+| Order tabs, category chips, add-on option rows | 38–40 tall |
+
+**Not fixed, and deliberately.** These sizes come from the design rather than
+from an oversight, so changing them is a design decision rather than a bug
+fix: raising the squares to 48 makes dish cards taller and the `+` noticeably
+heavier against the card art, and expanding only the *touch* area trades a
+small-target problem for a wrong-target one where the heart and the `+` sit
+close together. Ruled 2026-11-17 to record the measurements and leave the
+sizes to whoever owns the design.
+
+The two fixes that needed no such decision — the overflow and the labels —
+shipped in the same task.

@@ -2,6 +2,78 @@
 
 Newest first. One entry per completed task.
 
+## Task 14.9 — the accessibility audit, run rather than reviewed
+Branch `feat/accessibility-pass`, PR TBD. **App only.** 1126 tests, five new
+across two suites of their own.
+
+### The audit is a test, not a checklist
+`test/a11y/` walks the **shipped router** and asks two questions a customer's
+phone asks: does anything fall off the edge at the text size they chose, and
+does everything they can tap have a name. Both run on every build from now on,
+which is the difference between an audit and a note saying one happened.
+
+Walking the router rather than pumping screens one at a time is what made it
+useful: the add-to-cart bar belongs to no screen's own test — the shell paints
+it over the dish screen — and that is exactly where the one real defect was.
+
+### Large text: one overflow in the whole app, on the one control that matters
+Drawn at 1.0, 1.5 and 2.0 (Android's slider reaches 2.0; iOS goes further).
+The dish screen's add bar put its label and running total in one `Row`: half a
+pixel over at **1.5**, fifty-eight at 2.0. In debug that is a striped bar; in
+**release it is the end of a word quietly cut off**, so which the customer got
+depended only on the build they installed.
+
+The label is now `Flexible` and ellipsizes. **The price is not and does not** —
+task 14.6's ruling, that a store may choose the words but never whether the
+figure the customer is about to be charged is legible.
+
+Everything else survived 2.0, which is the useful half of the answer: these
+layouts are already sized from their text, and the one that was not had been
+written as a plain `Row` of two `Text`s.
+
+### Screen readers were told "button" six times
+The semantics tree, walked for nodes that take a tap and carry no name — the
+question TalkBack actually asks, and one a grep for `Semantics(` cannot answer
+because it only finds what somebody already thought about.
+
+Six: the quick-add `+` on **every dish card**, both stepper buttons, and
+**three separate back buttons**. The back buttons are the lesson — this app
+draws its own rather than using an `AppBar`, so none inherited the name a
+`BackButton` carries, and the only way off half the screens was an unnamed
+tappable.
+
+`QuickAddButton` says what the tap will *do*: a dish needing choices opens the
+dish screen rather than adding, and promising "add" there would be a lie told
+only to the customer who cannot see that a screen opened instead.
+
+A **tooltip counts as a name** — the address card's `⋮` was reported as a
+fault on the first run and is not one.
+
+### Tap targets: measured, recorded, deliberately not changed
+Every interactive control in the app is under Material's 48dp and Apple's
+44pt — the wishlist heart at 30×30, the quick-add `+` at 34, the steppers and
+back buttons at 38–42, the chips and add-on rows 38–40 tall. The full table is
+in `FINDINGS.md`.
+
+Ruled 2026-11-17 to leave them. These sizes come from the design rather than
+from an oversight, so changing them is a design decision: raising the squares
+to 48 makes dish cards taller and the `+` heavier against the card art, and
+expanding only the touch area trades a small-target problem for a wrong-target
+one where the heart and the `+` sit close together. The two fixes needing no
+such decision shipped here; this one is written down for whoever owns the
+design.
+
+### Verified as far as the device allowed
+The dish screen was checked on the OnePlus at the default text size — the add
+bar, the stepper and the back control all draw as before, so the fix cost the
+layout nothing.
+
+**The 2.0 case could not be checked on hardware**: this phone refuses
+`settings put system font_scale` to adb (`WRITE_SETTINGS` is not grantable to
+the shell on ColorOS), so the large-text evidence is the sweep across three
+scales rather than a screenshot. Worth a manual pass through Display settings
+next time somebody has the phone in hand.
+
 ## Task 14.8 — pull to refresh, and a cache deliberately not built
 Branch `feat/refresh-gaps`, PR TBD. **App only.** 1121 tests, eleven new.
 
