@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/capability/capability_probe.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -80,17 +81,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
       footer: Column(
         children: [
-          TextButton(
-            onPressed: _busy
-                ? null
-                : () => context.pushNamed(
-                      ForgotPasswordScreen.routeName,
-                      // Carried over so a customer who has already typed
-                      // their address does not type it again.
-                      queryParameters: {'email': _username.text.trim()},
-                    ),
-            child: const Text('Forgot your password?'),
-          ),
+          // **Only where the store can actually reset one** (task 14.7). The
+          // reset is two plugin routes — one to send the email, one to take
+          // the code — and on a Pro without them this button led to a form
+          // that could only fail. A customer on such a store still has the
+          // website's own reset, which is where the email points anyway.
+          if (ref.watch(capabilitiesProvider).canResetPassword)
+            TextButton(
+              onPressed: _busy
+                  ? null
+                  : () => context.pushNamed(
+                        ForgotPasswordScreen.routeName,
+                        // Carried over so a customer who has already typed
+                        // their address does not type it again.
+                        queryParameters: {'email': _username.text.trim()},
+                      ),
+              child: const Text('Forgot your password?'),
+            ),
           Wrap(
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,

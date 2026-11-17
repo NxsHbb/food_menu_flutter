@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/capability/capability_probe.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -53,7 +54,13 @@ class OrderDetailScreen extends ConsumerWidget {
             order: value,
             // Null while it loads and after it fails. The card draws the
             // estimate from the order either way and says so for the rest.
-            tracking: ref.watch(orderTrackingProvider(orderId)).value,
+            //
+            // **Not even asked for on a store without the route** (task
+            // 14.7). The provider is left unwatched rather than watched and
+            // ignored, which is what keeps the request from being made.
+            tracking: ref.watch(capabilitiesProvider).hasOrderTracking
+                ? ref.watch(orderTrackingProvider(orderId)).value
+                : null,
           ),
       },
     );
@@ -72,14 +79,14 @@ void closeOrder(BuildContext context) {
   }
 }
 
-class _Detail extends StatelessWidget {
+class _Detail extends ConsumerWidget {
   const _Detail({required this.order, required this.tracking});
 
   final CustomerOrder order;
   final OrderTracking? tracking;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
 
@@ -149,7 +156,11 @@ class _Detail extends StatelessWidget {
         ),
         // Only once the order is over. Reordering something still being
         // cooked is how a customer ends up with two dinners.
-        if (!order.isActive)
+        //
+        // The whole bar goes on a store whose plugin cannot reorder (task
+        // 14.7): an empty footer with its own card colour and safe-area
+        // padding would read as something that failed to load.
+        if (!order.isActive && ref.watch(capabilitiesProvider).hasReorder)
           Container(
             color: palette.card,
             child: SafeArea(

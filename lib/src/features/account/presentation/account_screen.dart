@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/capability/capability_probe.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../auth/data/auth_controller.dart';
@@ -46,10 +47,16 @@ class AccountScreen extends ConsumerWidget {
           // prompt here would flash "Sign in" at somebody who already is.
           ? const Center(child: CircularProgressIndicator())
           : auth.value == null
-              ? _SignedOut(
-                  onSignIn: () => context.pushNamed(LoginScreen.routeName),
-                )
-              : _SignedIn(user: auth.value!.user),
+          ? _SignedOut(
+              // Null where the store's plugin has no auth routes at all
+              // (task 14.7): there is nothing to sign in to, and a button
+              // that opens a form the server will refuse is the worst of the
+              // answers available. The legal rows below stay either way.
+              onSignIn: ref.watch(capabilitiesProvider).canSignIn
+                  ? () => context.pushNamed(LoginScreen.routeName)
+                  : null,
+            )
+          : _SignedIn(user: auth.value!.user),
     );
   }
 }
@@ -63,6 +70,10 @@ class _SignedIn extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final wishlistCount = ref.watch(wishlistCountProvider);
     final addressCount = ref.watch(addressCountProvider);
+    // Task 14.7: a row is drawn only where the store's plugin has the route
+    // behind it. Each of these screens is reachable from here and nowhere
+    // else, so hiding the row is what closes the feature.
+    final can = ref.watch(capabilitiesProvider);
 
     return ListView(
       padding: const EdgeInsets.only(bottom: AppTokens.space24),
@@ -78,58 +89,66 @@ class _SignedIn extends ConsumerWidget {
         Transform.translate(
           offset: const Offset(0, -AccountHeader.overlap),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTokens.space16,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppTokens.space16),
             child: Column(
               children: [
-                AccountRowCard(
-                  rows: [
-                    AccountRow(
-                      mono: 'OR',
-                      label: 'My orders',
-                      // No count: the orders endpoint is task 7.1, and a
-                      // zero here would read as "you have never ordered".
-                      onTap: () =>
-                          context.goNamed(OrdersScreen.routeName),
-                    ),
-                    AccountRow(
-                      mono: 'WL',
-                      label: 'Wishlist',
-                      value: '$wishlistCount',
-                      onTap: () =>
-                          context.pushNamed(WishlistScreen.routeName),
-                    ),
-                    AccountRow(
-                      mono: 'AD',
-                      label: 'Saved addresses',
-                      value: '$addressCount',
-                      onTap: () =>
-                          context.pushNamed(AddressBookScreen.routeName),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppTokens.space16),
+                if (can.hasOrderHistory ||
+                    can.hasWishlist ||
+                    can.hasAddressBook) ...[
+                  AccountRowCard(
+                    rows: [
+                      if (can.hasOrderHistory)
+                        AccountRow(
+                          mono: 'OR',
+                          label: 'My orders',
+                          // No count: the orders endpoint is task 7.1, and a
+                          // zero here would read as "you have never ordered".
+                          onTap: () => context.goNamed(OrdersScreen.routeName),
+                        ),
+                      if (can.hasWishlist)
+                        AccountRow(
+                          mono: 'WL',
+                          label: 'Wishlist',
+                          value: '$wishlistCount',
+                          onTap: () =>
+                              context.pushNamed(WishlistScreen.routeName),
+                        ),
+                      if (can.hasAddressBook)
+                        AccountRow(
+                          mono: 'AD',
+                          label: 'Saved addresses',
+                          value: '$addressCount',
+                          onTap: () =>
+                              context.pushNamed(AddressBookScreen.routeName),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTokens.space16),
+                ],
                 // Its own card, because these two change credentials rather
                 // than navigate to a list, and sitting them among the others
                 // invites a mis-tap.
-                AccountRowCard(
-                  rows: [
-                    AccountRow(
-                      mono: 'PW',
-                      label: 'Change password',
-                      onTap: () =>
-                          context.pushNamed(ChangePasswordScreen.routeName),
-                    ),
-                    AccountRow(
-                      mono: 'EM',
-                      label: 'Change email',
-                      onTap: () =>
-                          context.pushNamed(ChangeEmailScreen.routeName),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppTokens.space16),
+                if (can.canChangePassword || can.canChangeEmail) ...[
+                  AccountRowCard(
+                    rows: [
+                      if (can.canChangePassword)
+                        AccountRow(
+                          mono: 'PW',
+                          label: 'Change password',
+                          onTap: () =>
+                              context.pushNamed(ChangePasswordScreen.routeName),
+                        ),
+                      if (can.canChangeEmail)
+                        AccountRow(
+                          mono: 'EM',
+                          label: 'Change email',
+                          onTap: () =>
+                              context.pushNamed(ChangeEmailScreen.routeName),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTokens.space16),
+                ],
                 // The store's own pages, above the destructive pair: a
                 // customer looking for the privacy policy should not have to
                 // scroll past Delete account to find it (task 14.4).
@@ -139,17 +158,22 @@ class _SignedIn extends ConsumerWidget {
                 // should be the one under the thumb.
                 const _LogOutButton(),
                 const SizedBox(height: AppTokens.space16),
-                AccountRowCard(
-                  rows: [
-                    AccountRow(
-                      mono: 'DEL',
-                      label: 'Delete account',
-                      danger: true,
-                      onTap: () =>
-                          context.pushNamed(DeleteAccountScreen.routeName),
-                    ),
-                  ],
-                ),
+                // **Hidden on a Pro too old to have the route** (task 14.7),
+                // which is a store that cannot ship this app: both consoles
+                // require in-app deletion of an account the app can create.
+                // See `docs/STORE-SUBMISSION.md`.
+                if (can.canDeleteAccount)
+                  AccountRowCard(
+                    rows: [
+                      AccountRow(
+                        mono: 'DEL',
+                        label: 'Delete account',
+                        danger: true,
+                        onTap: () =>
+                            context.pushNamed(DeleteAccountScreen.routeName),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -178,7 +202,8 @@ class _LogOutButton extends ConsumerWidget {
 class _SignedOut extends StatelessWidget {
   const _SignedOut({required this.onSignIn});
 
-  final VoidCallback onSignIn;
+  /// Null on a store with no accounts. See the call site.
+  final VoidCallback? onSignIn;
 
   @override
   Widget build(BuildContext context) {
@@ -197,19 +222,25 @@ class _SignedOut extends StatelessWidget {
               Text('Your account', style: theme.textTheme.titleMedium),
               const SizedBox(height: AppTokens.space6),
               Text(
-                'Sign in to place an order, track it and keep your favourites.',
+                onSignIn == null
+                    ? 'This restaurant does not use accounts in the app.'
+                    : 'Sign in to place an order, track it and keep your '
+                          'favourites.',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: palette.muted),
-              ),
-              const SizedBox(height: AppTokens.space20),
-              SizedBox(
-                height: AppTokens.buttonHeight,
-                child: FilledButton(
-                  onPressed: onSignIn,
-                  child: const Text('Sign in'),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: palette.muted,
                 ),
               ),
+              if (onSignIn != null) ...[
+                const SizedBox(height: AppTokens.space20),
+                SizedBox(
+                  height: AppTokens.buttonHeight,
+                  child: FilledButton(
+                    onPressed: onSignIn,
+                    child: const Text('Sign in'),
+                  ),
+                ),
+              ],
               // **Here too, not only once signed in** (task 14.4). A store
               // reviewer opens the app and does not make an account, and the
               // privacy policy is one of the things they go looking for. It

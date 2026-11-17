@@ -1,11 +1,13 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:food_menu/src/core/capability/capability_probe.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/dish_card.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/dish_row.dart';
 import 'package:food_menu/src/features/menu/presentation/widgets/price_label_text.dart';
 
+import '../../core/capability/capability_scope.dart';
 import 'fake_menu_repository.dart';
 
 void main() {
@@ -61,6 +63,9 @@ void main() {
 
   group('where a price would be', () {
     Widget wrap(Widget child) => ProviderScope(
+          // The dish card carries a wishlist heart, which asks what this
+          // store can do (task 14.7). Pinned so the test makes no request.
+          overrides: [capabilitiesProvider.overrideWithValue(anyStore)],
           child: MaterialApp(
             theme: AppTheme.light(),
             home: Scaffold(body: SizedBox(width: 390, child: child)),

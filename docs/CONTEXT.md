@@ -1048,6 +1048,39 @@ it takes orders at all, and its currency and time formats.
   than the foreground. The app's own red is 3.9:1, which is why the bar is 3
   and not 4.5.
 
+### What this store's plugin can do (task 14.7)
+`core/capability/` answers "does this store have that route" before a feature
+asks for it. The app is built against the newest Pro and runs against whatever
+is installed, so any `app/*` route may simply not be there.
+
+- **One request at launch**, to `GET /wp-json/fmp/v1` — the plugin's REST
+  **namespace index**, which WordPress registers for every namespace and which
+  lists every route in it (19 KB on the dev store). `CapabilityProbe` reads it,
+  `storeCapabilitiesProvider` holds it, and `capabilitiesProvider` is the plain
+  value widgets read.
+- **`PluginRoute` is the app's half of the contract**: one enum value per route
+  the app calls, 27 of them, each naming the route with its path parameters
+  written `{}`. Both sides normalise to that — the index publishes
+  `/fmp/v1/app/orders/(?P<id>\d+)/tracking`, a request carries
+  `app/orders/42/tracking`. A test asserts the dev store has every one of them,
+  so a typo in a template fails the suite instead of hiding a feature.
+- **Features ask about features, not routes.** `StoreCapabilities` exposes
+  `hasWishlist`, `canOrder`, `hasAddressBook` and so on, because a feature is
+  often more than one route — the wishlist needs its collection *and* its item
+  route, the address book needs `app/me` *and* `app/address-fields`.
+- **Three states, and they differ.** `fromIndex` is authoritative both ways;
+  `absent` (a 404 on the index itself) means no Food Menu plugin at all and
+  everything is off; `unknown` (any other failure) **assumes every feature is
+  present** so a dropped connection at launch cannot strip the app down.
+- **The fallback is `CapabilityInterceptor`**, which watches for
+  `code: rest_no_route` on a plugin URL and records the route as missing. It
+  keys on the *code*, not the 404 — see `FINDINGS.md` for why that distinction
+  is the whole thing.
+
+**Adding a route to the app means adding a `PluginRoute`** and deciding what
+hides without it. Leave it out and the app behaves as it did before this task:
+an error in front of the customer for a feature their restaurant does not have.
+
 ### The store's own pages (task 14.4)
 `privacy_policy_url` and `terms_url` on `/app/config`, rendered by `LegalCard`
 on the account screen **and on its signed-out state**.

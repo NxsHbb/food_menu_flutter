@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/capability/capability_probe.dart';
 import '../../../core/network/api_exception.dart';
 import '../../auth/data/auth_controller.dart';
 import '../domain/address_field.dart';
@@ -16,6 +17,11 @@ import 'address_repository.dart';
 class AddressController extends AsyncNotifier<List<SavedAddress>> {
   @override
   Future<List<SavedAddress>> build() async {
+    // No address routes on this store's plugin, no book (task 14.7). The
+    // account row is hidden on the same answer, so this is for the checkout,
+    // which reads the count to decide whether to offer a saved address.
+    if (!ref.watch(capabilitiesProvider).hasAddressBook) return const [];
+
     if (!ref.watch(isSignedInProvider)) return const [];
 
     return ref.read(addressRepositoryProvider).all();

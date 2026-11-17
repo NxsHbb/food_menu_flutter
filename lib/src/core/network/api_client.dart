@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/data/auth_controller.dart';
 import '../../features/branch/data/branch_controller.dart';
+import '../capability/capability_probe.dart';
 import '../config/app_config.dart';
 import 'api_exception.dart';
 import 'app_identity_interceptor.dart';
+import 'capability_interceptor.dart';
 import 'auth_interceptor.dart';
 import 'auth_refresh_interceptor.dart';
 import 'branch_interceptor.dart';
@@ -87,6 +89,20 @@ final dioProvider = Provider<Dio>((ref) {
     ),
   );
 
+  // Watches for `rest_no_route` and records which feature this store has not
+  // got (task 14.7). It changes no response: the request still fails, and the
+  // next build of whatever asked simply does not ask again.
+  dio.interceptors.add(
+    CapabilityInterceptor(
+      pluginApiBase: config.foodMenuApiBase,
+      // `read`, and inside the callback: this provider's own probe goes
+      // through this same dio, so touching it while dio is being built would
+      // be a cycle.
+      onRouteMissing: (route) =>
+          ref.read(storeCapabilitiesProvider.notifier).ruleOut(route),
+    ),
+  );
+
   // First, and unconditional: every request the app sends says so, which is
   // what lets the plugin correct the app's orders without touching the
   // website's own Store API traffic. See `AppIdentityInterceptor`.
@@ -124,6 +140,14 @@ class ApiClient {
 
   /// Absolute URL for a Food Menu plugin path, e.g. `track/abc123`.
   String foodMenuApi(String path) => '${_config.foodMenuApiBase}/$path';
+
+  /// The plugin's REST namespace index, which lists every route the store has
+  /// registered in it (task 14.7).
+  ///
+  /// The namespace root itself, with no trailing slash and no path — that is
+  /// the route WordPress registers for a namespace, and `foodMenuApi('')`
+  /// would ask for a different URL.
+  String get foodMenuIndex => _config.foodMenuApiBase;
 
   /// Absolute URL for a core WordPress REST path, e.g. `posts`.
   String wpApi(String path) => '${_config.wpApiBase}/$path';

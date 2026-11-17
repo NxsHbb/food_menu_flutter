@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/capability/capability_probe.dart';
 import '../../auth/data/auth_controller.dart';
 import '../domain/order_summary.dart';
 import 'orders_repository.dart';
@@ -71,6 +72,13 @@ class OrderHistoryController extends AsyncNotifier<OrderHistoryState> {
     // this instead means signing in loads the list and signing out drops it,
     // with no invalidation anywhere. The wishlist does the same.
     if (!ref.watch(isSignedInProvider)) return const OrderHistoryState();
+
+    // A store whose plugin has no history route has no history to read (task
+    // 14.7). Empty, and the screen says so in its own words — the error this
+    // used to raise offered a "Try again" that could never work.
+    if (!ref.watch(capabilitiesProvider).hasOrderHistory) {
+      return const OrderHistoryState();
+    }
 
     final group = ref.watch(orderGroupProvider);
 

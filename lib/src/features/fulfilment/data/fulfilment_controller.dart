@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/capability/capability_probe.dart';
 import '../../../core/network/api_exception.dart';
 
 import '../../branch/data/branch_controller.dart';
@@ -135,6 +136,14 @@ final orderTypesProvider = FutureProvider<OrderTypes>(
 /// customer the restaurant is closed because their train went into a tunnel is
 /// worse than showing them the error.
 final orderingDisabledProvider = Provider<bool>((ref) {
+  // **Can this store's plugin even be ordered from** (task 14.7). A Pro
+  // without the order-type, slot and gateway routes cannot take an app order
+  // whatever its settings say — the checkout refuses an order with no slot —
+  // so such a store is a showcase menu as surely as one with ordering
+  // switched off, and saying so on the first screen beats three failing
+  // requests and an error at the cart.
+  if (!ref.watch(capabilitiesProvider).canOrder) return true;
+
   // **Asked plainly first** (task 14.3). `GET /app/config` is the one route
   // that answers for a store it would otherwise refuse, so the app can say so
   // on the first screen instead of waiting to be turned away. A store that

@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/capability/capability_probe.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/util/relative_date.dart';
@@ -26,7 +28,7 @@ import 'reorder_button.dart';
 /// server decides whether an order can actually be reproduced, so the button
 /// is offered on every past order and says what it could not do afterwards —
 /// the alternative is a reorder request per row just to draw the list.
-class OrderRow extends StatelessWidget {
+class OrderRow extends ConsumerWidget {
   const OrderRow({
     required this.order,
     required this.onTap,
@@ -40,7 +42,7 @@ class OrderRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = AppPalette.of(context);
     final text = Theme.of(context).textTheme;
 
@@ -107,8 +109,15 @@ class OrderRow extends StatelessWidget {
                 const SizedBox(height: AppTokens.space10),
                 Row(
                   children: [
-                    Expanded(child: ReorderButton(orderId: order.id)),
-                    const SizedBox(width: AppTokens.space8),
+                    // **The pair becomes one button on a store that cannot
+                    // reorder** (task 14.7), rather than half a row of dead
+                    // space beside Details. Reorder is the server's judgement
+                    // about what of an old order can still be bought, and
+                    // without the route there is nothing to ask.
+                    if (ref.watch(capabilitiesProvider).hasReorder) ...[
+                      Expanded(child: ReorderButton(orderId: order.id)),
+                      const SizedBox(width: AppTokens.space8),
+                    ],
                     Expanded(
                       child: OutlinedButton(
                         onPressed: onTap,

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/capability/capability_probe.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/store_api/models/product.dart';
 import '../../auth/data/auth_controller.dart';
@@ -19,6 +20,12 @@ import 'wishlist_repository.dart';
 class WishlistController extends AsyncNotifier<List<Product>> {
   @override
   Future<List<Product>> build() async {
+    // **A store whose plugin has no wishlist has no favourites** (task
+    // 14.7). Empty rather than an error, and no request made: the hearts
+    // read this list, so an error here would put "Try again" on every dish
+    // card for a feature the store never shipped.
+    if (!ref.watch(capabilitiesProvider).hasWishlist) return const [];
+
     if (!ref.watch(isSignedInProvider)) return const [];
 
     return ref.read(wishlistRepositoryProvider).all();
