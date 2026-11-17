@@ -41,31 +41,48 @@ class QuickAddButton extends ConsumerWidget {
     final adding = ref.watch(quickAddPendingProvider(product.id));
     final radius = BorderRadius.circular(borderRadius);
 
-    return Material(
-      color: palette.brand,
-      borderRadius: radius,
-      child: InkWell(
-        // Dropped rather than disabled while the add is in flight: a disabled
-        // InkWell loses the splash, so the button would appear to go dead at
-        // the moment it most needs to look busy.
-        onTap: adding ? null : () => _onTap(context, ref),
+    return Semantics(
+      button: true,
+      // **A `+` has no name to a screen reader** (task 14.9), and this one
+      // is the app's main way into the cart — it was announced as nothing
+      // but "button", on every card on the menu, with no way to tell one
+      // dish's from the next.
+      //
+      // The label says what the tap will actually do, which this widget is
+      // the one place that knows: a dish needing choices opens the dish
+      // screen rather than adding, and promising "add" there would be a lie
+      // told only to the customer who cannot see the result.
+      label: adding
+          ? 'Adding ${product.name}'
+          : product.canAddDirectly
+              ? 'Add ${product.name} to cart'
+              : 'Choose options for ${product.name}',
+      child: Material(
+        color: palette.brand,
         borderRadius: radius,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: adding
-              ? Center(
-                  child: SizedBox.square(
-                    dimension: iconSize,
-                    child: const CircularProgressIndicator(
-                      strokeWidth: 2,
-                      // White on brand, as the `+` it replaces: `contrast` is
-                      // a dark ink and would all but vanish here.
-                      color: Colors.white,
+        child: InkWell(
+          // Dropped rather than disabled while the add is in flight: a
+          // disabled InkWell loses the splash, so the button would appear to
+          // go dead at the moment it most needs to look busy.
+          onTap: adding ? null : () => _onTap(context, ref),
+          borderRadius: radius,
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: adding
+                ? Center(
+                    child: SizedBox.square(
+                      dimension: iconSize,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        // White on brand, as the `+` it replaces: `contrast`
+                        // is a dark ink and would all but vanish here.
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                )
-              : Icon(Icons.add, size: iconSize, color: Colors.white),
+                  )
+                : Icon(Icons.add, size: iconSize, color: Colors.white),
+          ),
         ),
       ),
     );

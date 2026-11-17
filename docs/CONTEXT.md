@@ -1538,6 +1538,27 @@ time.
   advances through merged PRs.
 - Commit messages: imperative subject, no AI attribution (enforced by hook).
 
+### Accessibility (task 14.9)
+Two suites in `test/a11y/` guard it, both walking the shipped router:
+
+- **`large_text_test.dart`** draws every screen at 1.0, 1.5 and 2.0 and fails
+  on any overflow. Android's slider reaches 2.0 and iOS goes past it, and in a
+  **release** build an overflow is not a striped bar but a word silently cut
+  off. If you put two `Text`s in a `Row`, one of them needs to be `Flexible` —
+  and where one of them is a price, it is the *other* one.
+- **`semantics_labels_test.dart`** fails on anything tappable with no name. An
+  icon-only control needs `Semantics(button: true, label: …)` or an
+  `IconButton(tooltip: …)`; both are read by TalkBack and VoiceOver, and the
+  check accepts either. Say what the tap will **do**, not what the icon is.
+
+This app draws its own back controls instead of using an `AppBar`, so they
+inherit no name — label every one.
+
+**Tap targets are knowingly under 48dp** across the whole app (30×30 up to
+42×42; the table is in `FINDINGS.md`). That follows the design and was left
+alone on purpose, so it is not a defect to fix in passing — raise it as a
+design change or leave it.
+
 ### Refreshing a screen (task 14.8)
 Every list screen pulls to refresh: the landing menu, the menu list, the cart,
 orders, the order detail, the wishlist and the address book. Forms do not.

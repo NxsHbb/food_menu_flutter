@@ -263,20 +263,26 @@ class _BackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
 
-    return Material(
-      color: palette.card,
-      borderRadius: BorderRadius.circular(AppTokens.radiusButton),
-      child: InkWell(
-        onTap: onTap,
+    return Semantics(
+      button: true,
+      // This screen draws its own header rather than using `ScreenHeader`,
+      // so it needed the same label separately (task 14.9).
+      label: 'Back',
+      child: Material(
+        color: palette.card,
         borderRadius: BorderRadius.circular(AppTokens.radiusButton),
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            border: Border.all(color: palette.line),
-            borderRadius: BorderRadius.circular(AppTokens.radiusButton),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTokens.radiusButton),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              border: Border.all(color: palette.line),
+              borderRadius: BorderRadius.circular(AppTokens.radiusButton),
+            ),
+            child: Icon(Icons.chevron_left, color: palette.ink),
           ),
-          child: Icon(Icons.chevron_left, color: palette.ink),
         ),
       ),
     );

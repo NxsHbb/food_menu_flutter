@@ -441,16 +441,24 @@ class _CircleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Material(
-      color: palette.card,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () => closeDish(context),
-        child: SizedBox(
-          width: 38,
-          height: 38,
-          child: Icon(icon, size: 20, color: palette.ink),
+    return Semantics(
+      button: true,
+      // The dish screen floats its own control over the hero image rather
+      // than using an `AppBar`, so it gets none of the name a `BackButton`
+      // would have carried (task 14.9) — the only way off the screen, and
+      // announced as "button".
+      label: 'Back',
+      child: Material(
+        color: palette.card,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => closeDish(context),
+          child: SizedBox(
+            width: 38,
+            height: 38,
+            child: Icon(icon, size: 20, color: palette.ink),
+          ),
         ),
       ),
     );
@@ -773,15 +781,33 @@ class _AddBar extends StatelessWidget {
                     ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
+                // Only as wide as its contents, so the label and the price
+                // stay beside each other rather than being pushed apart.
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    switch ((orderable, unanswered.isNotEmpty)) {
-                      (false, _) => 'Unavailable',
-                      (true, true) =>
-                        'Select ${unanswered.first.title.toLowerCase()}',
-                      (true, false) =>
-                        prices.hasRange ? 'Choose options' : 'Add to cart',
-                    },
+                  // **Flexible, and the price is not** (task 14.9). At the
+                  // system text size these two fit with room to spare; at
+                  // 1.5 they were half a pixel over and at 2.0 fifty-eight,
+                  // which in a release build is not a striped bar but the
+                  // end of a word quietly cut off — on the one control the
+                  // whole app exists to offer.
+                  //
+                  // The label is what gives, because the figure beside it is
+                  // what the customer is about to be charged. Task 14.6 made
+                  // the same ruling for the Price Label: a store may choose
+                  // the words, never whether the price is legible.
+                  Flexible(
+                    child: Text(
+                      switch ((orderable, unanswered.isNotEmpty)) {
+                        (false, _) => 'Unavailable',
+                        (true, true) =>
+                          'Select ${unanswered.first.title.toLowerCase()}',
+                        (true, false) =>
+                          prices.hasRange ? 'Choose options' : 'Add to cart',
+                      },
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   // The total stays on the button while a group is still
                   // open, as the design has it, so it is visibly a running
@@ -790,6 +816,7 @@ class _AddBar extends StatelessWidget {
                     const SizedBox(width: AppTokens.space8),
                     Text(
                       lineTotal.format(),
+                      maxLines: 1,
                       style: text.labelLarge?.copyWith(color: Colors.white70),
                     ),
                   ],
@@ -828,6 +855,7 @@ class _Stepper extends StatelessWidget {
         children: [
           _StepButton(
             icon: Icons.remove,
+            label: 'Decrease quantity',
             // One is the floor; removing the line is the cart's job.
             onTap: enabled && quantity > 1 ? () => onChanged(quantity - 1) : null,
           ),
@@ -839,6 +867,7 @@ class _Stepper extends StatelessWidget {
           ),
           _StepButton(
             icon: Icons.add,
+            label: 'Increase quantity',
             onTap: enabled ? () => onChanged(quantity + 1) : null,
           ),
         ],
@@ -848,24 +877,39 @@ class _Stepper extends StatelessWidget {
 }
 
 class _StepButton extends StatelessWidget {
-  const _StepButton({required this.icon, required this.onTap});
+  const _StepButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
+
+  /// What this button does, for a screen reader (task 14.9). A `−` and a `+`
+  /// are shape alone: without this both announced as "button", side by side,
+  /// and the one that reduces an order was indistinguishable from the one
+  /// that increases it.
+  final String label;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTokens.radiusControl),
-      child: SizedBox(
-        width: 38,
-        height: 38,
-        child: Icon(
-          icon,
-          size: 18,
-          color: onTap == null ? palette.muted : palette.ink,
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTokens.radiusControl),
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Icon(
+            icon,
+            size: 18,
+            color: onTap == null ? palette.muted : palette.ink,
+          ),
         ),
       ),
     );
