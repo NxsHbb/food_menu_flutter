@@ -16,6 +16,7 @@ import 'menu_list_screen.dart';
 import 'widgets/addon_group_card.dart';
 import 'widgets/variation_picker.dart';
 import 'widgets/food_data_section.dart';
+import 'widgets/price_label_text.dart';
 import 'widgets/food_tags.dart';
 import 'widgets/reviews_section.dart';
 import '../data/addons_repository.dart';
@@ -526,7 +527,15 @@ class _Body extends StatelessWidget {
             style: text.bodyMedium?.copyWith(color: palette.muted),
           ),
         const SizedBox(height: AppTokens.space12),
-        if (product.sections.price)
+        // The store's own words, where it gave any (task 14.6). Still inside
+        // `sections.price`: a store that switched the price off wants no
+        // price line at all, label or number.
+        if (product.sections.price && product.hasPriceLabel)
+          PriceLabelText(
+            label: product.priceLabel,
+            style: text.headlineMedium,
+          )
+        else if (product.sections.price)
           Wrap(
             spacing: AppTokens.space8,
             crossAxisAlignment: WrapCrossAlignment.end,

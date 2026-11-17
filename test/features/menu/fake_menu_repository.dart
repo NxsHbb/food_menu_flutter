@@ -175,11 +175,13 @@ Product buildProduct({
   bool inStock = true,
   List<Map<String, dynamic>> categories = const [],
   List<Map<String, dynamic>> tags = const [],
+  String priceLabel = '',
   bool? timedAvailable,
   String timedBehavior = 'disable',
   String timedNote = '',
 }) {
   final extensions = <String, dynamic>{
+    if (priceLabel.isNotEmpty) 'price_label': priceLabel,
     if (requiresChoices) 'requires_choices': true,
     if (timedAvailable != null)
       'timed': {

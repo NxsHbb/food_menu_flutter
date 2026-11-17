@@ -2,6 +2,55 @@
 
 Newest first. One entry per completed task.
 
+## Task 14.6 — Price Label, reachable at last
+Branch `feat/price-label`, PRs TBD. **Free + Pro + app**, the first task to
+touch all three. 1067 tests, nine new.
+
+### The feature existed and no ordering store could use it
+Free 6.0.9 added Price Label — optional text shown instead of the price — and
+bound it to the `food-menu` post type: the metabox registered for that type,
+and `Fns::get_price_label()` returned `''` for anything else. A store in
+**online-ordering mode has no `food-menu` posts at all**; its menu is
+WooCommerce products. So the feature was unreachable for exactly the stores
+that take orders, and the vendor's own doc then asked the app to read
+`_tlp_fm_price_label` *on products*.
+
+`Fns::price_label_post_types()` now answers `food-menu` plus `product` when
+WooCommerce is active, behind a filter, and both the metabox and the getter
+go through it. `save()` needed no change — it was already nonce and
+`edit_post` only, with no post type in it.
+
+**Additive, and checked as such.** A product with no label behaves exactly as
+before, and WooCommerce's own shop pages never run the
+`rtfm_food_price_modifier` filter this feeds — so nothing outside Food Menu's
+own layouts moves for any existing site.
+
+### Pro publishes it, carefully
+`price_label` joins the product payload beside `ingredients` and `nutrition`,
+read through `method_exists()` rather than a version check: Price Label
+arrived in free 6.0.9, and calling the helper blind on an older free plugin
+would fatal **the whole products endpoint** rather than drop one optional
+field.
+
+### The app shows words where a number was
+The label replaces the entire price block — range, struck price and the row's
+"options" hint included — on the dish card, the dish row and the dish screen.
+A label beside a number is two answers to one question, and the store already
+chose which it wants read. Printed exactly as typed, with no currency symbol
+added: the store wrote the whole string.
+
+**`Add to cart` still shows the real price**, and that is deliberate. The
+label is a listing device; the customer must always see what they will be
+charged, and the cart, the totals and every sum in the app still use
+`prices`. Confirmed on the device: "Small 5.95 | Large 6.50" on the dish
+screen above an "Add to cart $4.50" button.
+
+### Verified end to end
+Set on a real product through the plugin, read back by
+`Fns::get_price_label()`, published on `/wc/store/v1/products`, and drawn on
+the OnePlus on both the list and the dish screen. The label was removed from
+the dev store afterwards.
+
 ## Task 14.5 — sort and filter, and a button behind the cart bar
 Branch `feat/menu-filters`, PR TBD. **App only.** 1058 tests, sixteen new.
 

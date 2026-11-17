@@ -990,6 +990,22 @@ a store running exactly one method.
 - No client-side validation that a gateway is enabled: **the Store API already
   refuses one**, by name, and that message is what the customer is shown.
 
+### Price Label (task 14.6)
+`extensions['food-menu-pro']['price_label']` on a product, from the free
+plugin's `_tlp_fm_price_label`. `Product.priceLabel`, empty for almost every
+dish.
+
+- **It replaces the whole price block** — range, struck price, and the row's
+  "options" hint — on the dish card, the dish row and the dish screen, through
+  `PriceLabelText`. Printed exactly as typed; nothing adds a currency symbol.
+- **`Add to cart` still shows the real price.** The label is a listing device;
+  the customer must see what they are charged. Every sum in the app uses
+  `prices`. See `FINDINGS.md` before changing that.
+- A variation inherits the parent's, like the rest of the food data.
+- The free plugin had to be widened to allow the field on `product` at all —
+  `Fns::price_label_post_types()`. It was bound to `food-menu`, which an
+  ordering store does not use.
+
 ### Sorting and filtering the menu (task 14.5)
 `MenuQuery` carries the search, the category, a `Set<int>` of food tag ids and
 a `MenuSort`. `MenuFilterSheet` edits a **draft** of the last two and commits
