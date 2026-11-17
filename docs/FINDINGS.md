@@ -3424,3 +3424,42 @@ state of a screen is not an empty version of it.** It is what a reviewer, and
 a first-time customer deciding whether to hand over their details, actually
 see. Anything required to be reachable has to be reachable there.
 
+## A modal sheet from a tab's navigator opens under the shell's cart bar
+Task 14.5's filter sheet came up on the device with its **Show dishes button
+entirely hidden** behind the floating cart bar. The shell paints that bar in a
+`Stack` above its own navigator, so anything shown by an inner navigator is
+below it.
+
+`BranchPickerSheet` hit this in Phase 5 and fixed it with
+`useRootNavigator: true`, and the comment it left is why this one took two
+minutes instead of an afternoon. **Every modal from a screen inside the shell
+needs it** — the symptom varies with how tall the sheet is and whether the
+cart has anything in it, which is what makes it easy to miss.
+
+Widget tests cannot see any of this: they pump the screen without the shell,
+so the bar that collides is not in the tree. This is the third device-only
+find in Phase 14, after the auth interceptor and the signed-out policy row.
+
+## A fake that is wrong in the same direction as the code proves nothing
+The Store API **ORs** `tag=22,24`: two tags widen the list. A fake repository
+that ANDed them would have made every filter test pass while describing the
+opposite of the real behaviour, and the first customer to tick two tags would
+have found it.
+
+The rule that came out of it: **a fake's semantics are part of the contract it
+fakes**, not an implementation detail of the test. Where the real thing has a
+behaviour worth asserting — OR not AND, a 400 rather than a default, a page
+that shrinks as it is erased — the fake copies it or the test is theatre.
+Checked against the live server first, then taught to the fake.
+
+## An empty parameter is not the same as an absent one
+`orderby=` is a **400** from the Store API; omitting `orderby` leaves the
+store's own arrangement. So "no sort" cannot be modelled as an empty string,
+and `MenuSort.storeOrder` carries a null `orderby` that the query builder
+drops entirely.
+
+Worth stating because the instinct is to give an enum a default string value
+and send it always. The same shape turns up on `tag`, where an empty list must
+not become `tag=`. Anything built from a query map needs to know which of its
+parameters are *omitted* rather than *empty*.
+

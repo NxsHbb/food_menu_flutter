@@ -6,17 +6,68 @@ import '../../../core/store_api/models/product.dart';
 import '../../branch/data/branch_controller.dart';
 import 'menu_repository.dart';
 
+/// How the list is ordered (task 14.5).
+///
+/// [storeOrder] sends **no** `orderby` at all, which is not the same as
+/// picking one: it leaves the Store API on whatever the store arranged, and
+/// is what the app did before this existed. Every other value is a WooCommerce
+/// `orderby`, and an unknown one is a 400 rather than a quiet fallback — so
+/// this enum is the only place they are spelled.
+enum MenuSort {
+  storeOrder(label: "The store's order"),
+  priceLowHigh(label: 'Price: low to high', orderby: 'price', order: 'asc'),
+  priceHighLow(label: 'Price: high to low', orderby: 'price', order: 'desc'),
+  popularity(label: 'Most popular', orderby: 'popularity'),
+  newest(label: 'Newest', orderby: 'date');
+
+  const MenuSort({required this.label, this.orderby, this.order});
+
+  final String label;
+
+  /// Null for [storeOrder], where the parameter is omitted entirely.
+  final String? orderby;
+
+  /// WooCommerce defaults to `desc` where this is null, which is right for
+  /// popularity and newest and wrong for nothing here.
+  final String? order;
+}
+
 /// What the list screen is currently asking for.
 class MenuQuery {
-  const MenuQuery({this.search = '', this.categoryId});
+  const MenuQuery({
+    this.search = '',
+    this.categoryId,
+    this.tagIds = const {},
+    this.sort = MenuSort.storeOrder,
+  });
 
   final String search;
   final int? categoryId;
 
-  MenuQuery copyWith({String? search, int? categoryId, bool clearCategory = false}) {
+  /// Food tags to narrow to. **The server ORs them**, so two tags widen the
+  /// list rather than narrowing it — which is what a customer picking both
+  /// "Vegan" and "Spicy" means, and is worth knowing before anyone assumes
+  /// otherwise.
+  final Set<int> tagIds;
+
+  final MenuSort sort;
+
+  /// True when anything beyond a search or category is in force, which is
+  /// what the filter button's dot reflects.
+  bool get isFiltered => tagIds.isNotEmpty || sort != MenuSort.storeOrder;
+
+  MenuQuery copyWith({
+    String? search,
+    int? categoryId,
+    bool clearCategory = false,
+    Set<int>? tagIds,
+    MenuSort? sort,
+  }) {
     return MenuQuery(
       search: search ?? this.search,
       categoryId: clearCategory ? null : (categoryId ?? this.categoryId),
+      tagIds: tagIds ?? this.tagIds,
+      sort: sort ?? this.sort,
     );
   }
 
@@ -24,10 +75,21 @@ class MenuQuery {
   bool operator ==(Object other) =>
       other is MenuQuery &&
       other.search == search &&
-      other.categoryId == categoryId;
+      other.categoryId == categoryId &&
+      other.sort == sort &&
+      // Set equality, not identity: the controller rebuilds on every query
+      // change, so two equal filters must compare equal or picking the same
+      // tag twice would refetch the same list.
+      other.tagIds.length == tagIds.length &&
+      other.tagIds.containsAll(tagIds);
 
   @override
-  int get hashCode => Object.hash(search, categoryId);
+  int get hashCode => Object.hash(
+        search,
+        categoryId,
+        sort,
+        Object.hashAllUnordered(tagIds),
+      );
 }
 
 /// The list screen's accumulated results.
@@ -133,6 +195,21 @@ class MenuQueryNotifier extends Notifier<MenuQuery> {
       state = state.copyWith(categoryId: id);
     }
   }
+
+  /// Applies the filter sheet's choices in **one** state change, so the list
+  /// is fetched once rather than once per tag the customer touched.
+  void applyFilters({required Set<int> tagIds, required MenuSort sort}) {
+    final next = state.copyWith(tagIds: tagIds, sort: sort);
+    if (next == state) return;
+    state = next;
+  }
+
+  /// Drops the tags and the sort, leaving the search and category alone —
+  /// those have their own visible controls and clearing them from a sheet
+  /// the customer cannot see would be a surprise.
+  void clearFilters() {
+    applyFilters(tagIds: const {}, sort: MenuSort.storeOrder);
+  }
 }
 
 final menuQueryProvider =
@@ -155,6 +232,8 @@ class MenuListController extends AsyncNotifier<MenuListState> {
         .productPage(
           categoryId: query.categoryId,
           search: query.search,
+          tagIds: query.tagIds,
+          sort: query.sort,
           page: 1,
         );
 
@@ -179,6 +258,8 @@ class MenuListController extends AsyncNotifier<MenuListState> {
       final next = await ref.read(menuRepositoryProvider).productPage(
             categoryId: query.categoryId,
             search: query.search,
+            tagIds: query.tagIds,
+            sort: query.sort,
             page: current.page + 1,
           );
 

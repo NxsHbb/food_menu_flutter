@@ -990,6 +990,24 @@ a store running exactly one method.
 - No client-side validation that a gateway is enabled: **the Store API already
   refuses one**, by name, and that message is what the customer is shown.
 
+### Sorting and filtering the menu (task 14.5)
+`MenuQuery` carries the search, the category, a `Set<int>` of food tag ids and
+a `MenuSort`. `MenuFilterSheet` edits a **draft** of the last two and commits
+once, through `applyFilters`.
+
+- **`tagAndSort()` in `menu_repository.dart` is the only place the parameters
+  are built**, because `loadMore` must ask the same question as page one. A
+  later page with a different filter reads as duplicated or missing dishes.
+- **The server ORs tags** — two tags widen the list. The sheet says so, and
+  the fake repository ORs them too.
+- **`MenuSort.storeOrder` sends no `orderby`.** An empty one is a 400; absent
+  leaves the store's arrangement. Every other value names a real WooCommerce
+  sort, and a test asserts it.
+- `MenuQuery` compares tags **by value**. The controller rebuilds on every
+  query change, so identity comparison would refetch on every tap.
+- The sheet uses **`useRootNavigator: true`**, like `BranchPickerSheet`, or it
+  opens under the shell's floating cart bar. See `FINDINGS.md`.
+
 ### The store itself (task 14.3)
 `GET fmp/v1/app/config`, public, read once at launch through
 `storeConfigProvider`. Carries the store's name, logo, primary colour, whether

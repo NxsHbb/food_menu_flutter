@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'product_detail_screen.dart';
 import '../domain/category_suggestions.dart';
 import 'widgets/category_chips.dart';
+import 'widgets/menu_filter_sheet.dart';
 import 'widgets/empty_search_result.dart';
 import 'widgets/dish_row.dart';
 
@@ -85,25 +86,36 @@ class _MenuListScreenState extends ConsumerState<MenuListScreen> {
               AppTokens.space16,
               AppTokens.space12,
             ),
-            child: TextField(
-              controller: _search,
-              textInputAction: TextInputAction.search,
-              onChanged: (value) =>
-                  ref.read(menuSearchInputProvider.notifier).type(value),
-              decoration: InputDecoration(
-                hintText: 'Search dishes, drinks…',
-                prefixIcon: Icon(Icons.search, color: palette.ink, size: 20),
-                suffixIcon: _search.text.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: () {
-                          _search.clear();
-                          ref.read(menuSearchInputProvider.notifier).clear();
-                          setState(() {});
-                        },
-                      ),
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _search,
+                    textInputAction: TextInputAction.search,
+                    onChanged: (value) =>
+                        ref.read(menuSearchInputProvider.notifier).type(value),
+                    decoration: InputDecoration(
+                      hintText: 'Search dishes, drinks…',
+                      prefixIcon:
+                          Icon(Icons.search, color: palette.ink, size: 20),
+                      suffixIcon: _search.text.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () {
+                                _search.clear();
+                                ref
+                                    .read(menuSearchInputProvider.notifier)
+                                    .clear();
+                                setState(() {});
+                              },
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppTokens.space8),
+                _FilterButton(filtered: query.isFiltered),
+              ],
             ),
           ),
           switch (categories) {
@@ -286,6 +298,62 @@ class _Failure extends ConsumerWidget {
               onPressed: () => ref.invalidate(menuListControllerProvider),
               child: const Text('Try again'),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Opens the sort-and-filter sheet, and says when something is in force.
+///
+/// **The dot is the whole affordance.** A filtered list looks like a short
+/// menu, and a customer who forgot they set a tag has no other way to tell
+/// the difference between "nothing matches" and "the store sells nothing".
+class _FilterButton extends ConsumerWidget {
+  const _FilterButton({required this.filtered});
+
+  final bool filtered;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = AppPalette.of(context);
+
+    return Semantics(
+      button: true,
+      label: filtered ? 'Sort and filter, active' : 'Sort and filter',
+      child: SizedBox(
+        height: 48,
+        width: 48,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Material(
+              color: palette.field,
+              borderRadius: BorderRadius.circular(AppTokens.radiusControl),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => MenuFilterSheet.show(context, ref),
+                child: SizedBox(
+                  height: 48,
+                  width: 48,
+                  child: Icon(Icons.tune, size: 20, color: palette.ink),
+                ),
+              ),
+            ),
+            if (filtered)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: palette.brand,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
