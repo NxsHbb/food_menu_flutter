@@ -5,6 +5,7 @@ import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/account/presentation/change_email_screen.dart';
 import 'package:food_menu/src/features/account/presentation/change_password_screen.dart';
+import 'package:food_menu/src/features/account/presentation/delete_account_screen.dart';
 import 'package:food_menu/src/features/auth/data/auth_controller.dart';
 import 'package:food_menu/src/features/auth/data/auth_repository.dart';
 import 'package:food_menu/src/features/auth/data/token_store.dart';
@@ -454,6 +455,179 @@ void main() {
       await pump(
         tester,
         const ChangeEmailScreen(),
+        repo: FakeAuthRepository(),
+        signedIn: true,
+        theme: AppTheme.dark(),
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('delete account', () {
+    /// Fills the password and gets as far as the confirmation dialog.
+    Future<void> ask(WidgetTester tester, {String password = 'Correct@2020'}) async {
+      await tester.enterText(find.byType(TextFormField).first, password);
+      await tester.tap(find.text('Delete my account'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('asks for confirmation before it deletes anything',
+        (tester) async {
+      // The password proves the person; the dialog is about the part no
+      // password can undo.
+      final repo = FakeAuthRepository();
+      final result = await pump(
+        tester,
+        const DeleteAccountScreen(),
+        repo: repo,
+        signedIn: true,
+      );
+
+      await ask(tester);
+
+      expect(find.text('Delete your account?'), findsOne);
+      expect(repo.calls, isEmpty);
+
+      await tester.tap(find.text('Keep my account'));
+      await tester.pumpAndSettle();
+
+      expect(repo.calls, isEmpty);
+      expect(result.container.read(currentSessionProvider), isNotNull);
+      expect(result.store.calls, isNot(contains('clear')));
+    });
+
+    testWidgets('signs out on this device once the server has agreed',
+        (tester) async {
+      final repo = FakeAuthRepository();
+      final result = await pump(
+        tester,
+        const DeleteAccountScreen(),
+        repo: repo,
+        signedIn: true,
+      );
+
+      await ask(tester);
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(repo.calls.single['call'], 'delete_account');
+      expect(repo.calls.single['password'], 'Correct@2020');
+      expect(result.container.read(currentSessionProvider), isNull);
+      expect(result.store.stored, isNull);
+      expect(result.store.calls, contains('clear'));
+    });
+
+    testWidgets('never calls logout, because the account is already gone',
+        (tester) async {
+      // The logout route authenticates the account it is ending. Calling it
+      // after the account is deleted spends a request to be told 401.
+      final repo = FakeAuthRepository();
+      await pump(
+        tester,
+        const DeleteAccountScreen(),
+        repo: repo,
+        signedIn: true,
+      );
+
+      await ask(tester);
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(repo.calls.map((call) => call['call']), isNot(contains('logout')));
+    });
+
+    testWidgets('shows the sentence the server composed', (tester) async {
+      // Whether past orders keep the customer's details is the store's
+      // setting, so the server writes that sentence and the app must not
+      // paraphrase it.
+      final repo = FakeAuthRepository()
+        ..deletionMessage = 'Your account has been deleted, and your details '
+            'have been removed from your past orders.';
+      await pump(
+        tester,
+        const DeleteAccountScreen(),
+        repo: repo,
+        signedIn: true,
+      );
+
+      await ask(tester);
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Your account has been deleted, and your details have been removed '
+          'from your past orders.',
+        ),
+        findsOne,
+      );
+    });
+
+    testWidgets('a refusal leaves the account and the session alone',
+        (tester) async {
+      final repo = FakeAuthRepository()
+        ..securityError = const ApiException(
+          failure: ApiFailure.http,
+          message: 'That is not your current password.',
+          statusCode: 403,
+          code: 'fmp_app_incorrect_password',
+        );
+      final result = await pump(
+        tester,
+        const DeleteAccountScreen(),
+        repo: repo,
+        signedIn: true,
+      );
+
+      await ask(tester, password: 'wrong');
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('That is not your current password.'), findsOne);
+      expect(result.container.read(currentSessionProvider), isNotNull);
+      expect(result.store.calls, isNot(contains('clear')));
+    });
+
+    testWidgets('says what deletion does before it is done', (tester) async {
+      await pump(
+        tester,
+        const DeleteAccountScreen(),
+        repo: FakeAuthRepository(),
+        signedIn: true,
+      );
+
+      expect(
+        find.text('Your past orders stay with the store as its own records.'),
+        findsOne,
+      );
+      expect(
+        find.text('An order already on its way will no longer be visible to you.'),
+        findsOne,
+      );
+    });
+
+    testWidgets('will not submit an empty form', (tester) async {
+      final repo = FakeAuthRepository();
+      await pump(
+        tester,
+        const DeleteAccountScreen(),
+        repo: repo,
+        signedIn: true,
+      );
+
+      await tester.tap(find.text('Delete my account'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete your account?'), findsNothing);
+      expect(find.text('Enter your password.'), findsOne);
+      expect(repo.calls, isEmpty);
+    });
+
+    testWidgets('renders in dark mode without overflow', (tester) async {
+      await pump(
+        tester,
+        const DeleteAccountScreen(),
         repo: FakeAuthRepository(),
         signedIn: true,
         theme: AppTheme.dark(),

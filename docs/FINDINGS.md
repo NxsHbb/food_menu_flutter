@@ -3156,3 +3156,136 @@ standard Material behaviour for a snackbar over a bottom bar, so nothing is
 changed here. Recorded because the next person to see it in a test will
 otherwise think the bar is broken. A `SnackBarBehavior.floating` with the bar's
 height as its margin is the fix if it is ever judged worth one.
+
+## The plugin repo now carries its own spec for this app
+Free 6.0.9 brought `tlp-food-menu/docs/app-feature.md`, written from the plugin
+side: Parts A (customer), B (staff), C (app-wide), every row marked free or
+Pro, backend-ready or not, and P1/P2/P3, ending in a list of endpoints still
+needed. It is the first statement of this app's scope that did not come from
+the design or from an audit of the plugins, and it does not agree with
+`PLAN.md` in three places — it schedules the staff app, reservations, dine-in
+and QR ordering that v1 excludes, it puts coupons and order bumps at P1/P2
+where this plan has them at v2, and it asks the app to take the store's logo
+and primary colour, which is an open question here answered the other way.
+
+**It was written against roughly pre-Phase-8 state.** Customer orders, tips,
+review writing, checkout extra fields, slot limits, ingredients, nutrition,
+reorder and the status timeline are all marked not-ready or partly-ready there
+and are all done here. Reading it as a to-do list would have redone a phase
+and a half of work; reading it as *the plugin side's view of the app* is what
+makes it useful. Reconciled into Phase 14 on 2026-11-17: ten tasks taken, six
+rulings left in Open dependencies.
+
+## The website's pause guard is on a hook the app never fires
+Kitchen Monitor's "pause taking orders" is enforced by
+`KitchenMonitorController::block_checkout_if_paused()`, hooked on
+**`woocommerce_checkout_process`** and reading `$_POST['fmp_order_time_type']`
+with the classic checkout's own date and time fields. `POST
+/wc/store/v1/checkout` fires neither the hook nor those fields, so **a paused
+store still accepts app orders**, scheduled pause or global, and the store's
+pause message never reaches the customer.
+
+This is the third time the same shape has appeared — 8.3 for purchasability,
+8.9 for slot validation, now this — and all three were found the same way:
+**`add_action`/`add_filter` on a WooCommerce checkout hook, diffed against
+what the Store API actually fires.** A feature audit cannot find them, because
+the rule has no setting of its own on the screen that matters. Worth running
+that same grep once more before release rather than a fourth time after it.
+Task 14.2.
+
+## A new plugin feature can be born on the wrong post type
+Free 6.0.9 added **Price Label** — optional text like `Small 5.95 | Large 6.50`
+shown instead of the price — as `Fns::PRICE_LABEL_META`, a side metabox, and a
+`rtfm_food_price_modifier` filter that every free and Pro layout ends in. The
+vendor's own doc then asks the app to read `_tlp_fm_price_label` **on
+products** (A3.6).
+
+It cannot, and neither can the website in the mode this app requires. The
+metabox registers for `TLPFoodMenu()->post_type` — always `food-menu` — and
+`Fns::get_price_label()` returns `''` for any other type, while an
+`online_ordering` store's items are WooCommerce `product`s (`fmp_source`,
+`Options::scProductSource()`). So the feature exists for display-only sites
+only, and the app's half of the row has nothing to read until the free plugin
+grows the field on a product. **A feature's reach is its post type, not its
+filter** — the filter made it look global because every layout honours it.
+
+For the record, the other half of the same pull is app-neutral: Pro's new
+Kitchen Monitor work (Sound Alert Statuses, Alarm Mode, the waiting-orders
+view) touches only `_fmp_is_new`, the new `_fmp_kitchen_alerted` meta and the
+monitor's own stats, none of which any `fmp/v1/app/*` route reads.
+
+## The store's payment set is three gateways, and that deletes a task
+Surveyed on the dev store before planning any of Phase 12, by booting WP and
+asking `WC()->payment_gateways()` rather than reading the settings screen:
+
+```
+bacs    Direct bank transfer   enabled: no    has_fields: no
+cheque  Check payments         enabled: no    has_fields: no
+cod     Cash on delivery       enabled: yes   has_fields: no
+available for the cart: cod        APP_SUPPORTED: cod
+```
+
+WooCommerce 11.2.1, and **those three are everything core registers here**.
+Neither Food Menu plugin ships a gateway — the free one has no gateway code at
+all, and Pro's only gateway-aware file is `PaymentMethodsApi`, which lists what
+the store enabled and flags what the app can finish.
+
+**PayPal Standard is the fourth class core ships and it was not in the list.**
+`WC_Gateway_Paypal::should_load()` registers it only on a store that already had
+it enabled or that has PayPal orders, writing the answer to its own
+`_should_load` option. A new store therefore has no redirect gateway at all, and
+no way to get one from core — which is easy to miss, because the class file is
+right there in `includes/gateways/paypal/`.
+
+Then the ruling, 2026-11-17: the website developer will use **WooCommerce's
+built-in gateways only**. Task 12.3 (native card, `flutter_stripe`) is deleted
+rather than deferred, Apple Pay and Google Pay go with it, `payment_data` stays
+unused in v1 — every remaining gateway has `has_fields` false and collects
+nothing at checkout — and 12.2 shrinks from "PayPal and every regional
+processor" to one legacy gateway the store may never switch on.
+
+**Two reasons were doing the work of one.** Card was deferred in v1 planning
+because it looked expensive, and it is now gone because it is unwanted. Only the
+second settles anything, and the first had been standing in for it since the
+plan was written — a cost estimate reads like a decision for as long as nobody
+asks the store.
+
+## Three routes needed the token the interceptor was stripping
+`AuthInterceptor` excluded **every** path under `/fmp/v1/app/auth/` from the
+`Authorization` header. That was right when it was written: the four routes
+there — login, register, refresh, logout — take no customer. Task 3.10 then
+added four more under the same prefix, and three of them *require* one.
+
+So `change-password`, `change-email` and, as written, `delete-account`
+answered a signed-in customer with **"You must be signed in to do that."**
+Change password and change email had been broken that way since task 3.11
+shipped, and nothing noticed for a month.
+
+**Nothing could notice.** Every test above this layer stubs `AuthRepository`,
+so no interceptor runs in any of them; the interceptor's own test listed the
+four routes it excluded and asserted they carried no header, which is exactly
+the behaviour that was wrong for the newer three. A test that enumerates the
+cases a rule was written for cannot fail when a case is added — and a *prefix*
+is an invitation to add one. The rule is now the list of routes that take no
+customer, named one by one, with a test that walks the other three and
+demands the header.
+
+It took running the app on a phone to see any of it. Found while verifying
+task 14.1 on the OnePlus against the dev site, within two minutes of the first
+screen.
+
+## A screen test and a device test answer different questions
+Task 14.1 had ten green tests, a clean analyze, and a plugin probe with twenty
+passing assertions, and the feature did not work at all on a phone. The three
+layers were each right about their own layer: the widget tests proved the
+screen calls the repository and signs out, the probe proved the route deletes
+the right things, and neither of them is the wire between the two.
+
+Worth stating plainly, because the suite is 996 tests and it is tempting to
+read that as coverage of the app: **everything from `ApiClient` down is stubbed
+in every screen test in this project.** Interceptors, headers, URL
+construction and status-code mapping are only exercised by
+`test/core/network/`, and only against a fake adapter. Anything that lives in
+that gap is found on a device or not at all. See the device recipe in this
+file; the run is cheap and it has now paid for itself twice.
+

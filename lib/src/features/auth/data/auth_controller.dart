@@ -205,6 +205,24 @@ class AuthController extends AsyncNotifier<AuthSession?> {
         );
     await _adopt(session);
   }
+
+  /// Deletes the account, then signs out on this device.
+  ///
+  /// Returns the server's sentence about the customer's past orders, for the
+  /// caller to show once the screen is gone.
+  ///
+  /// **Signs out locally, not through [logout].** The account the logout route
+  /// would authenticate no longer exists, so the call would spend a request to
+  /// be answered with a 401; and the session must go even if the server's
+  /// answer never arrives, because on the server it is already gone. A
+  /// failure throws before any of that, leaving the customer signed in with
+  /// an account they still have.
+  Future<String> deleteAccount({required String password}) async {
+    final message =
+        await ref.read(authRepositoryProvider).deleteAccount(password: password);
+    await signOutLocally();
+    return message;
+  }
 }
 
 final authControllerProvider =

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/account/presentation/account_screen.dart';
 import '../../features/account/presentation/change_email_screen.dart';
+import '../../features/account/presentation/delete_account_screen.dart';
 import '../../features/account/presentation/change_password_screen.dart';
 import '../../features/account/presentation/edit_profile_screen.dart';
 import '../../features/address/presentation/address_book_screen.dart';
@@ -114,6 +115,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: ChangeEmailScreen.routePath,
                     name: ChangeEmailScreen.routeName,
                     builder: (context, state) => const ChangeEmailScreen(),
+                  ),
+                  GoRoute(
+                    path: DeleteAccountScreen.routePath,
+                    name: DeleteAccountScreen.routeName,
+                    builder: (context, state) => const DeleteAccountScreen(),
                   ),
                   GoRoute(
                     path: AddressBookScreen.routePath,

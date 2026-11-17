@@ -45,11 +45,19 @@ void main() {
     expect(adapter.requests.single.headers['Authorization'], isNotNull);
   });
 
-  test('never sends a token to the auth routes themselves', () async {
+  test('never sends a token to the auth routes that take no customer',
+      () async {
     token = 'fmpa_8_abc_secret';
     final dio = dioWith();
 
-    for (final route in ['login', 'register', 'refresh', 'logout']) {
+    for (final route in [
+      'login',
+      'register',
+      'refresh',
+      'logout',
+      'forgot-password',
+      'reset-password',
+    ]) {
       await dio.post<Map<String, dynamic>>('/wp-json/fmp/v1/app/auth/$route');
     }
 
@@ -60,6 +68,44 @@ void main() {
         reason: request.path,
       );
     }
+  });
+
+  test('still sends it to the auth routes that require one', () async {
+    // Found on a device, not here: these three sit under `app/auth/` and the
+    // interceptor used to exclude that whole prefix, so all three answered
+    // "You must be signed in to do that." to a signed-in customer. Nothing
+    // above this layer could catch it — every screen test stubs
+    // `AuthRepository`, so no interceptor runs.
+    token = 'fmpa_8_abc_secret';
+    final dio = dioWith();
+
+    for (final route in [
+      'change-password',
+      'change-email',
+      'delete-account',
+    ]) {
+      await dio.post<Map<String, dynamic>>('/wp-json/fmp/v1/app/auth/$route');
+    }
+
+    for (final request in adapter.requests) {
+      expect(
+        request.headers['Authorization'],
+        'Bearer fmpa_8_abc_secret',
+        reason: request.path,
+      );
+    }
+  });
+
+  test('a query string cannot disguise a route that needs the token',
+      () async {
+    token = 'fmpa_8_abc_secret';
+    final dio = dioWith();
+
+    await dio.post<Map<String, dynamic>>(
+      '/wp-json/fmp/v1/app/auth/delete-account?_locale=user',
+    );
+
+    expect(adapter.requests.single.headers['Authorization'], isNotNull);
   });
 
   test('an empty token is treated as no token', () async {

@@ -5,6 +5,7 @@ import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/account/data/profile_repository.dart';
 import 'package:food_menu/src/features/address/data/address_repository.dart';
 import 'package:food_menu/src/features/account/presentation/account_screen.dart';
+import 'package:food_menu/src/features/account/presentation/delete_account_screen.dart';
 import 'package:food_menu/src/features/account/presentation/edit_profile_screen.dart';
 import 'package:food_menu/src/features/account/presentation/widgets/account_row.dart';
 import 'package:food_menu/src/features/auth/data/auth_controller.dart';
@@ -74,6 +75,11 @@ void main() {
               name: EditProfileScreen.routeName,
               builder: (context, state) => const EditProfileScreen(),
             ),
+            GoRoute(
+              path: DeleteAccountScreen.routePath,
+              name: DeleteAccountScreen.routeName,
+              builder: (context, state) => const DeleteAccountScreen(),
+            ),
           ],
         ),
         GoRoute(
@@ -125,13 +131,15 @@ void main() {
     // Task 3.11's pair, in their own card.
     expect(find.text('Change password'), findsOne);
     expect(find.text('Change email'), findsOne);
+    // Task 14.1, in a card of its own below the log-out button.
+    expect(find.text('Delete account'), findsOne);
 
     // The design's other three have no backend in v1 — rendering them would
     // mean inventing "Visa 4242" and a help centre. See the class docblock.
     expect(find.text('Payment methods'), findsNothing);
     expect(find.text('Notifications'), findsNothing);
     expect(find.text('Help & support'), findsNothing);
-    expect(find.byType(AccountRow), findsExactly(5));
+    expect(find.byType(AccountRow), findsExactly(6));
   });
 
   testWidgets('the wishlist row carries its real count', (tester) async {
@@ -265,6 +273,30 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(AccountRow), findsExactly(5));
+    expect(find.byType(AccountRow), findsExactly(6));
+  });
+
+  testWidgets('the delete row opens the deletion screen', (tester) async {
+    await pumpAccount(tester, repo: FakeAuthRepository(), signedIn: true);
+
+    await tester.tap(find.text('Delete account'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DeleteAccountScreen), findsOne);
+  });
+
+  testWidgets('the delete row is the only one drawn as destructive',
+      (tester) async {
+    // A red label among black ones is the whole warning at this level, so a
+    // second red row would spend it.
+    await pumpAccount(tester, repo: FakeAuthRepository(), signedIn: true);
+
+    final danger = tester
+        .widgetList<AccountRow>(find.byType(AccountRow))
+        .where((row) => row.danger)
+        .toList();
+
+    expect(danger, hasLength(1));
+    expect(danger.single.label, 'Delete account');
   });
 }

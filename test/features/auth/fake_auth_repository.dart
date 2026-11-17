@@ -195,6 +195,19 @@ class FakeAuthRepository implements AuthRepository {
     );
   }
 
+  /// The sentence the real route composes from the store's own setting.
+  String deletionMessage =
+      'Your account has been deleted. Your past orders stay with the store as '
+      'its own records.';
+
+  @override
+  Future<String> deleteAccount({required String password}) async {
+    calls.add({'call': 'delete_account', 'password': password});
+    if (delay > Duration.zero) await Future<void>.delayed(delay);
+    if (securityError != null) throw securityError!;
+    return deletionMessage;
+  }
+
   @override
   Future<void> logout({String? refreshToken, bool allDevices = false}) async {
     calls.add({'call': 'logout', 'refresh_token': refreshToken, 'all_devices': allDevices});
