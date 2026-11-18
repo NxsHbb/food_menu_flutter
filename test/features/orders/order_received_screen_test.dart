@@ -62,8 +62,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('reads the order back by id rather than being told it',
-      (tester) async {
+  testWidgets('reads the order back by id rather than being told it', (
+    tester,
+  ) async {
     await pump(tester, orderId: 62);
 
     expect(repo.requested, [62]);
@@ -85,10 +86,7 @@ void main() {
 
     // The order's name, not the session's: the order is what the kitchen
     // works from.
-    expect(
-      find.textContaining('Thanks, Test.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Thanks, Test.'), findsOneWidget);
   });
 
   testWidgets('a pickup order shows the time that was chosen', (tester) async {
@@ -129,8 +127,9 @@ void main() {
     expect(find.textContaining('Thanks,'), findsNothing);
   });
 
-  testWidgets('an order with no estimate shows a dash, not a blank',
-      (tester) async {
+  testWidgets('an order with no estimate shows a dash, not a blank', (
+    tester,
+  ) async {
     repo.answer = CustomerOrder.fromJson(const {
       'id': 71,
       'number': '71',
@@ -222,5 +221,49 @@ void main() {
     // just ordered wants next is to watch it being made.
     expect(find.widgetWithText(FilledButton, 'Track order'), findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Back to home'), findsOneWidget);
+  });
+
+  group('payment instructions (task 12.1)', () {
+    testWidgets('a bank-transfer order is told how to pay', (tester) async {
+      repo.answer = orderFromFixture('order_bank_transfer');
+      await pump(tester, orderId: 60);
+
+      expect(find.text('How to pay'), findsOneWidget);
+      expect(find.textContaining('quote your order number'), findsOneWidget);
+      // The rows the customer actually needs to move money.
+      expect(find.text('Account number'), findsOneWidget);
+      expect(find.text('0012345678901'), findsOneWidget);
+    });
+
+    testWidgets('and is not told the kitchen has started', (tester) async {
+      repo.answer = orderFromFixture('order_bank_transfer');
+      await pump(tester, orderId: 60);
+
+      expect(
+        find.textContaining('as soon as your payment arrives'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('getting started'), findsNothing);
+    });
+
+    testWidgets('a cash order still says the kitchen has it', (tester) async {
+      await pump(tester);
+
+      expect(find.textContaining('getting started'), findsOneWidget);
+      expect(find.text('How to pay'), findsNothing);
+    });
+
+    testWidgets('the card survives a large text scale', (tester) async {
+      // Task 14.9's rule: the bank rows are the one block on this screen a
+      // customer has to read off a phone, and they are long strings.
+      repo.answer = orderFromFixture('order_bank_transfer');
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await pump(tester, orderId: 60);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('How to pay'), findsOneWidget);
+    });
   });
 }

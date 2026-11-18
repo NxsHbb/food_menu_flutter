@@ -557,4 +557,27 @@ void main() {
       expect(parseHexColor('#zzzzzz'), isNull);
     });
   });
+
+  group('payment instructions (task 12.1)', () {
+    testWidgets('a bank-transfer order carries its bank details',
+        (tester) async {
+      repo.answer = orderFromFixture('order_bank_transfer');
+      await pump(tester, id: 60);
+
+      // The screen is a lazy ListView and the card sits below the items, so
+      // it is not built until it is scrolled to.
+      await tester.scrollUntilVisible(find.text('How to pay'), 200);
+
+      expect(find.text('How to pay'), findsOneWidget);
+      expect(find.text('Demo Bank Ltd'), findsOneWidget);
+      // The gateway's own name is still in the details list above it.
+      expect(find.text('Direct bank transfer'), findsOneWidget);
+    });
+
+    testWidgets('a cash order has no such card', (tester) async {
+      await pump(tester);
+
+      expect(find.text('How to pay'), findsNothing);
+    });
+  });
 }

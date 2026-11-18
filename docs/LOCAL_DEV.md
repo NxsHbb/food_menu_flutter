@@ -381,11 +381,33 @@ physical iPhone, and it has been seeded to mirror the local demo data.
 | Products | 16, incl. **Build Your Pizza** (variable, 3 sizes) and **Sold Out Special** (out of stock) |
 | On sale | 3 — Biryani, Pepperoni Feast, Chicken Wings |
 | Categories / tags | 6 / 7 |
-| Banner posts | 2, in `app-banners` (category 29) |
+| Banner posts | 5, in `app-banners` (category 29); the 3 newest carry badge tags |
+| `food-menu` CPT | 8 demo dishes, imported through the plugin's own CSV importer |
 | Test customer | `claude.devicetest@foodmenu.test` / `DeviceTest@2026##` |
 
-Currency is **BDT** and the store country **BD**, so prices there read
-differently from the local site's USD.
+**Both plugins run from their repos' `main`** (free 6.0.9, Pro `main`), not a
+release, which is why all 27 `app/*` routes answer there. The free plugin also
+sits in a second, **inactive** `tlp-food-menu-main/` folder as a rollback; Pro
+lives in `food-menu-pro-main/`. A zip whose top-level folder does not match
+those names installs a *third* copy instead of updating.
+
+**Store mode and money changed on 2026-11-18.** `fm_food_menu_type` was never
+set, so the site defaulted to `food_menu_post` and refused every ordering
+route; it is now `online_ordering`. Currency moved **BDT → USD** and the base
+country **BD → US:NY** so the card gateways can charge, which means prices
+read as dollars at their old magnitudes — a $190 iced latte — until someone
+rescales the products.
+
+Payments, as of 2026-11-18:
+
+| Gateway | State |
+|---|---|
+| Cash on delivery, Direct bank transfer, Cheque | enabled; all three **selectable in the app** since task 12.1 |
+| Stripe | enabled, **test mode**, keys in place. Enabling it turned on 9 Stripe methods; the app shows the 4 a USD cart can use |
+| PayPal Payments, Razorpay, WooPayments | installed and active, **disabled** — each needs its own credentials or onboarding |
+
+Pickup and delivery each have two windows a day (11:00–15:00, 18:00–22:00,
+15-minute interval), which is what makes the slot list non-empty.
 
 Seeding was done over the REST API with a `wp-login.php` cookie plus a
 `rest-nonce`, since the site has no Application Password set up. The scripts

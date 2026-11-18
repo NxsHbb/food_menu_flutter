@@ -26,6 +26,7 @@ class CustomerOrder {
     required this.paymentMethod,
     required this.paymentMethodTitle,
     required this.needsPayment,
+    required this.paymentInstructions,
     required this.customerNote,
     required this.customerName,
     required this.customerPhone,
@@ -60,6 +61,9 @@ class CustomerOrder {
       paymentMethod: json['payment_method'] as String? ?? '',
       paymentMethodTitle: json['payment_method_title'] as String? ?? '',
       needsPayment: json['needs_payment'] == true,
+      paymentInstructions: PaymentInstructions.fromJson(
+        (json['payment_instructions'] as Map?)?.cast<String, dynamic>(),
+      ),
       customerNote: json['customer_note'] as String? ?? '',
       customerName: customer['name'] as String? ?? '',
       customerPhone: customer['phone'] as String? ?? '',
@@ -71,9 +75,12 @@ class CustomerOrder {
       ),
       items: items is List
           ? items
-              .whereType<Map>()
-              .map((e) => OrderItem.fromJson(e.cast<String, dynamic>(), currency))
-              .toList(growable: false)
+                .whereType<Map>()
+                .map(
+                  (e) =>
+                      OrderItem.fromJson(e.cast<String, dynamic>(), currency),
+                )
+                .toList(growable: false)
           : const [],
     );
   }
@@ -126,7 +133,16 @@ class CustomerOrder {
   final String paymentMethodTitle;
 
   /// True for a gateway still waiting on money — cash on delivery is not.
+  ///
+  /// **Not the test for [paymentInstructions]**: WooCommerce counts only a
+  /// pending or failed order as needing payment, and bank transfer and cheque
+  /// park the order on hold, so this reads false for exactly the orders that
+  /// are waiting for money.
   final bool needsPayment;
+
+  /// How to pay, for a gateway that collected nothing at checkout (task
+  /// 12.1). Null when there is nothing left for the customer to do.
+  final PaymentInstructions? paymentInstructions;
 
   final String customerNote;
   final String customerName;
@@ -237,9 +253,9 @@ class OrderItem {
       image: json['image'] as String? ?? '',
       meta: meta is List
           ? meta
-              .whereType<Map>()
-              .map((e) => OrderItemMeta.fromJson(e.cast<String, dynamic>()))
-              .toList(growable: false)
+                .whereType<Map>()
+                .map((e) => OrderItemMeta.fromJson(e.cast<String, dynamic>()))
+                .toList(growable: false)
           : const [],
     );
   }
@@ -271,4 +287,62 @@ class OrderItemMeta {
 
   final String label;
   final String value;
+}
+
+/// What the customer must still do to pay — `payment_instructions`.
+///
+/// Bank transfer and cheque take the order and then wait for money to arrive.
+/// The website tells the customer on its thank-you page and in the order
+/// email; the app is a separate surface and has to be told, or someone pays
+/// for a meal into nothing. The server decides whether there is anything to
+/// say, so the app never asks "is this gateway offline?" itself.
+class PaymentInstructions {
+  const PaymentInstructions({required this.text, required this.details});
+
+  /// Null in, null out: no field, or nothing worth drawing, is the normal
+  /// case for cash on delivery and for an order already paid.
+  static PaymentInstructions? fromJson(Map<String, dynamic>? json) {
+    if (json == null) return null;
+
+    final raw = json['details'];
+    final details = raw is List
+        ? raw
+              .whereType<Map>()
+              .map((e) => PaymentDetail.fromJson(e.cast<String, dynamic>()))
+              .where((d) => d.isRenderable)
+              .toList(growable: false)
+        : const <PaymentDetail>[];
+    final text = json['text'] as String? ?? '';
+
+    if (text.isEmpty && details.isEmpty) return null;
+
+    return PaymentInstructions(text: text, details: details);
+  }
+
+  /// The store's own words, already stripped to plain text by the server —
+  /// the app has no HTML renderer and a gateway's instructions are a
+  /// free-text setting.
+  final String text;
+
+  /// The bank account rows, for bank transfer. Empty for cheque.
+  final List<PaymentDetail> details;
+}
+
+/// One labelled line of a payment detail, e.g. "IBAN" and its value.
+class PaymentDetail {
+  const PaymentDetail({required this.label, required this.value});
+
+  factory PaymentDetail.fromJson(Map<String, dynamic> json) => PaymentDetail(
+    label: json['label'] as String? ?? '',
+    value: json['value'] as String? ?? '',
+  );
+
+  /// WooCommerce's own label, translated by the store. Never composed here —
+  /// a sort code is a "Routing number" in the US and a "BSB" in Australia.
+  final String label;
+  final String value;
+
+  /// A value with no label is still worth showing; a label with no value is
+  /// not.
+  bool get isRenderable => value.isNotEmpty;
 }
