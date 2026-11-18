@@ -2,6 +2,67 @@
 
 Newest first. One entry per completed task.
 
+## Task 12.2 — paying somewhere else and coming back
+Branch `feat/redirect-payment`, PR TBD. **Pro + app.** 1144 tests, seven new.
+
+### The gateway hands back a URL, and that is all it hands back
+Probed against the real thing before any app code: a Store API checkout with
+Razorpay answers **200**, creates the order as **pending**, and returns
+WooCommerce's own order-pay URL with the order key in
+`payment_result.redirect_url`. So the app's job is to open that, and to find
+out afterwards what happened.
+
+### There is no return to intercept
+`LaunchMode.inAppBrowserView` is a Custom Tab on Android and an
+`SFSafariViewController` on iOS. **Neither reports the URL it ended on.**
+That rules out the usual trick of watching for a return URL, and it is why
+this needs no webview package: `url_launcher` was already here for task 14.4's
+legal links, and PayPal refuses to sign anybody in inside an embedded webview
+regardless.
+
+So resuming is the signal and **the order is the answer**. That turns out to
+be the better design rather than a consolation: it covers the customer who
+killed the browser, paid on a desktop, or never came back, all through one
+path, and a stale "paid" can never be inferred from a URL the app guessed at.
+
+### A third state on the order-received screen
+An order that is placed but unpaid is neither a success nor a failure. The
+kitchen has not started, and "Order placed!" would be the same lie 12.1 took
+out of the bank-transfer case — but an error page would be worse, since the
+customer may be one tap from finishing. The screen now says **Finish your
+payment**, names the gateway in the merchant's own words, and offers Pay now,
+**I have already paid** (for a payment made somewhere this app cannot see),
+and Back to home.
+
+`needs_payment` is the test here, and this is the one case it is right for:
+pending is exactly what it counts. The same field that was useless for 12.1 —
+see `FINDINGS.md` — is the correct one here, which is worth knowing before
+somebody "fixes" one of the two.
+
+### Two things that would have been bugs
+**The redirect travels as a route `extra`, not in the path.** Reopening the
+screen cold — from a restored stack, or later from a notification — would
+otherwise send a customer back to a payment page they may already have paid,
+so a cold open shows the order instead. A test pins it.
+
+**Value before loading**, task 14.8's rule again: resuming invalidates the
+order provider, and a refreshing provider is loading *while still holding* its
+last value. The screen matched `AsyncLoading()` first, so every return from
+the gateway would have replaced the screen with a full-page spinner. Reordered
+and pinned by a test that pumps a single frame after a resume.
+
+### Verified as far as the store allowed
+On the OnePlus: Razorpay selectable and preselected, order **#66** placed as
+pending, the Custom Tab opened on the store's order-pay URL, and closing it
+returned to **Finish your payment** with the order re-read.
+
+**The payment itself could not be completed**, and not for an app reason: the
+demo store is in WooCommerce's **"coming soon"** site-visibility mode, so a
+logged-out browser gets "Food Menu is coming soon" instead of the order-pay
+page. The REST API is not gated, which is why the app works at all and why
+this never showed up before. Recorded in `FINDINGS.md`: a store in coming-soon
+mode cannot take a redirect payment from the app *or* the web.
+
 ## Task 12.1 — the two gateways the app could already finish
 Branch `feat/offline-gateway-instructions`, PR TBD. **Pro + app.** 1137 tests,
 eleven new across three suites.
