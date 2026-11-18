@@ -3841,3 +3841,51 @@ That is the rule behaving as written rather than a regression, and the fix is
 a store setting: reorder the gateways in WooCommerce → Settings → Payments.
 Recorded because the first reading of it on a device looks like the app
 choosing for itself.
+
+## A store in "coming soon" mode cannot take a redirect payment
+WooCommerce's site-visibility setting puts the whole front end behind "coming
+soon" for anybody not logged in. The **REST API is not gated**, which is why
+the app works perfectly against such a store — and why this stayed invisible
+until task 12.2 opened a browser.
+
+A redirect gateway hands back a URL on the *website* — Razorpay returns
+`$order->get_checkout_payment_url()`, the order-pay page — and the customer
+opens it in a plain browser with no admin session. On the demo store that
+page answers **"Food Menu is coming soon"**, so the payment cannot be made.
+Nothing about this is app-specific: a web customer would hit exactly the same
+wall.
+
+Worth checking before any redirect-gateway test, and before launch: the store
+must be **Live**, not coming-soon, for PayPal, Razorpay or any other gateway
+that finishes on the website. Curl the site root **without** the admin cookie
+— as admin it looks fine.
+
+## `inAppBrowserView` cannot tell you where it ended, and that is fine
+`LaunchMode.inAppBrowserView` is a Chrome Custom Tab on Android and an
+`SFSafariViewController` on iOS. Both are the right surface for a payment —
+they keep the customer in the app, share the system cookie jar, and are what
+the gateways ask for, PayPal actively refusing to sign anybody in inside an
+embedded webview — and **neither reports the URL it closed on**.
+
+So there is no return URL to intercept, which rules out the pattern most
+redirect-payment code is written around. Task 12.2 uses **resume plus a
+re-read of the order** instead, and that turned out to be the stronger design:
+one path covers the customer who paid, the one who cancelled, the one who
+killed the browser, and the one who paid on a desktop and came back later.
+Nothing is ever inferred from a URL the app guessed the shape of.
+
+The cost is that the app cannot know *instantly* that payment succeeded — it
+knows when the customer returns, or when they tap "I have already paid".
+
+## `needs_payment` is right for a redirect gateway and wrong for an offline one
+Two tasks, same field, opposite answers, so this is worth stating plainly:
+
+| Gateway kind | Status after checkout | `needs_payment` | Used? |
+|---|---|---|---|
+| Bank transfer, cheque | `on-hold` | **false** | No — task 12.1 answers paid-or-closed instead |
+| Razorpay, PayPal | `pending` | **true** | Yes — task 12.2 branches on it |
+
+WooCommerce counts only pending and failed as needing payment. A redirect
+gateway leaves the order pending until the money arrives, so the field means
+exactly what it says; an offline gateway parks it on hold, where the same
+field goes quiet. Anyone unifying the two will break one of them.

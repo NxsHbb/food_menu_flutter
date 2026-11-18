@@ -20,6 +20,9 @@ void main() {
     int orderId = 62,
     ThemeData? theme,
     Size size = const Size(390, 844),
+    // Task 12.2: what the checkout hands over for a gateway that finishes in
+    // a browser. Null everywhere else, as a cold open of this route is.
+    String? payUrl,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -33,6 +36,7 @@ void main() {
           name: OrderReceivedScreen.routeName,
           builder: (_, state) => OrderReceivedScreen(
             orderId: int.tryParse(state.pathParameters['id'] ?? '') ?? -1,
+            payUrl: payUrl,
           ),
         ),
         GoRoute(
@@ -264,6 +268,96 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('How to pay'), findsOneWidget);
+    });
+  });
+
+  group('a gateway that finishes in a browser (task 12.2)', () {
+    const payUrl = 'https://example.test/checkout/order-pay/62/?key=wc_order_x';
+
+    testWidgets('says the payment is unfinished, not that it is placed',
+        (tester) async {
+      repo.answer = orderFromFixture('order_awaiting_payment');
+      await pump(tester, payUrl: payUrl);
+
+      expect(find.text('Finish your payment'), findsOneWidget);
+      // The lie task 12.1 took out of the bank-transfer case.
+      expect(find.text('Order placed!'), findsNothing);
+      expect(find.textContaining('Card / UPI / Net banking'), findsOneWidget);
+    });
+
+    testWidgets('offers to pay, to recheck, and to leave', (tester) async {
+      repo.answer = orderFromFixture('order_awaiting_payment');
+      await pump(tester, payUrl: payUrl);
+
+      expect(find.text('Pay now'), findsOneWidget);
+      // For the customer who paid somewhere this app cannot see.
+      expect(find.text('I have already paid'), findsOneWidget);
+      expect(find.text('Back to home'), findsOneWidget);
+    });
+
+    testWidgets('a paid order is a placed order', (tester) async {
+      // Same route, same redirect — the order is what decides, not the URL.
+      await pump(tester, payUrl: payUrl);
+
+      expect(find.text('Order placed!'), findsOneWidget);
+      expect(find.text('Finish your payment'), findsNothing);
+    });
+
+    testWidgets('a cold open never reopens the gateway', (tester) async {
+      // No `payUrl`: reopening the screen from a notification or a restored
+      // stack must show the order, not send the customer back to pay.
+      repo.answer = orderFromFixture('order_awaiting_payment');
+      await pump(tester);
+
+      expect(find.text('Finish your payment'), findsNothing);
+      expect(find.text('Order placed!'), findsOneWidget);
+    });
+
+    testWidgets('rechecking reads the order again', (tester) async {
+      repo.answer = orderFromFixture('order_awaiting_payment');
+      await pump(tester, payUrl: payUrl);
+      expect(repo.requested, [62]);
+
+      await tester.tap(find.text('I have already paid'));
+      await tester.pumpAndSettle();
+
+      expect(repo.requested, [62, 62]);
+    });
+
+    testWidgets('and so does coming back into the app', (tester) async {
+      // The only signal an in-app browser view gives: neither a Custom Tab
+      // nor SFSafariViewController reports the URL it ended on.
+      repo.answer = orderFromFixture('order_awaiting_payment');
+      await pump(tester, payUrl: payUrl);
+      expect(repo.requested, [62]);
+
+      tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      );
+      await tester.pumpAndSettle();
+
+      expect(repo.requested.length, greaterThan(1));
+    });
+
+    testWidgets('the paid order replaces the waiting state in place',
+        (tester) async {
+      // Task 14.8's rule on this screen: invalidating leaves the provider
+      // loading *while holding* its last value, so matching loading first
+      // would flash a spinner every time the customer came back.
+      repo.answer = orderFromFixture('order_awaiting_payment');
+      await pump(tester, payUrl: payUrl);
+      expect(find.text('Finish your payment'), findsOneWidget);
+
+      repo.answer = orderFromFixture('order_delivery');
+      tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      );
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+
+      await tester.pumpAndSettle();
+      expect(find.text('Order placed!'), findsOneWidget);
     });
   });
 }

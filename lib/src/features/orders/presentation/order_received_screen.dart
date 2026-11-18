@@ -1,6 +1,8 @@
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_palette.dart';
@@ -24,10 +26,19 @@ import 'order_detail_screen.dart';
 /// gave the estimate, the progress strip and the timeline. It navigates into
 /// the Orders tab rather than pushing, so backing out of the order lands on
 /// the history list instead of on a receipt for an order already placed.
-class OrderReceivedScreen extends ConsumerWidget {
-  const OrderReceivedScreen({required this.orderId, super.key});
+class OrderReceivedScreen extends ConsumerStatefulWidget {
+  const OrderReceivedScreen({required this.orderId, this.payUrl, super.key});
 
   final int orderId;
+
+  /// Where the gateway wants the customer to finish paying (task 12.2).
+  ///
+  /// Null for everything that completes at checkout. Non-null only for the
+  /// run that placed the order: it comes from the checkout's own answer and
+  /// is deliberately **not** part of the route path, so reopening this screen
+  /// cold — from a notification, or a restored stack — shows the order
+  /// rather than reopening a payment page the customer may have finished.
+  final String? payUrl;
 
   static const routePath = '/order-received/:id';
   static const routeName = 'order-received';
@@ -38,31 +49,235 @@ class OrderReceivedScreen extends ConsumerWidget {
       context.goNamed(MenuScreen.routeName);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OrderReceivedScreen> createState() =>
+      _OrderReceivedScreenState();
+}
+
+class _OrderReceivedScreenState extends ConsumerState<OrderReceivedScreen>
+    with WidgetsBindingObserver {
+  /// Opened once. A rebuild must not send the customer back to the gateway,
+  /// and neither must coming back from it.
+  bool _opened = false;
+
+  /// Set when the browser would not open at all, so the screen can say so
+  /// instead of looking like nothing happened.
+  bool _couldNotOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // After the first frame: this runs before the order has been read, and
+    // the gateway page is what the customer is waiting for.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _pay());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// **The only way back from an in-app browser view.**
+  ///
+  /// `LaunchMode.inAppBrowserView` is a Custom Tab on Android and an
+  /// `SFSafariViewController` on iOS, and neither reports the URL it ended
+  /// on, so there is no return to intercept. Resuming is the signal, and the
+  /// order itself is the answer — which also covers the customer who killed
+  /// the browser, paid on another device, or never came back at all.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.payUrl != null) {
+      ref.invalidate(orderProvider(widget.orderId));
+    }
+  }
+
+  Future<void> _pay({bool again = false}) async {
+    final url = widget.payUrl;
+    if (url == null || url.isEmpty) return;
+    if (_opened && !again) return;
+
+    final target = Uri.tryParse(url);
+    if (target == null) {
+      if (mounted) setState(() => _couldNotOpen = true);
+      return;
+    }
+
+    _opened = true;
+    var opened = false;
+
+    try {
+      // Not `externalApplication`: a Custom Tab keeps the customer inside the
+      // app, shares the system cookie jar, and is what the gateways ask for —
+      // PayPal refuses to sign anybody in inside an embedded webview.
+      opened = await launchUrl(target, mode: LaunchMode.inAppBrowserView);
+    } on PlatformException {
+      opened = false;
+    }
+
+    if (mounted) setState(() => _couldNotOpen = !opened);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final order = ref.watch(orderProvider(orderId));
+    final order = ref.watch(orderProvider(widget.orderId));
 
     return PopScope(
       // Back is "home", not "out of the app": this route replaces the stack,
       // so there is nothing beneath it to pop to.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _home(context);
+        if (!didPop) OrderReceivedScreen._home(context);
       },
       child: Scaffold(
         backgroundColor: palette.card,
         body: SafeArea(
+          // **Value before loading**, task 14.8's rule: resuming from the
+          // gateway invalidates this provider, and a refreshing provider is
+          // loading *while still holding* its last value. Matching loading
+          // first would replace the screen with a spinner every time the
+          // customer came back from paying.
           child: switch (order) {
-            AsyncLoading() => const Center(child: CircularProgressIndicator()),
+            AsyncValue(:final value?) =>
+              widget.payUrl != null && value.needsPayment
+                  ? _AwaitingPayment(
+                      order: value,
+                      couldNotOpen: _couldNotOpen,
+                      onPay: () => _pay(again: true),
+                      onCheck: () =>
+                          ref.invalidate(orderProvider(widget.orderId)),
+                      onHome: () => OrderReceivedScreen._home(context),
+                    )
+                  : _Placed(order: value),
             AsyncError(:final error) => _Unreadable(
               error: error,
-              onRetry: () => ref.invalidate(orderProvider(orderId)),
-              onHome: () => _home(context),
+              onRetry: () => ref.invalidate(orderProvider(widget.orderId)),
+              onHome: () => OrderReceivedScreen._home(context),
             ),
-            AsyncData(:final value) => _Placed(order: value),
+            _ => const Center(child: CircularProgressIndicator()),
           },
         ),
       ),
+    );
+  }
+}
+
+/// An order that is placed but not paid — the gateway finishes in a browser.
+///
+/// **Not a failure, and not a success.** The order exists, the kitchen has
+/// not started, and the money is somewhere between the app and the gateway.
+/// Saying "Order placed!" here would be the same lie task 12.1 took out of
+/// the bank-transfer case, and an error page would be worse: the customer may
+/// be one tap from finishing.
+class _AwaitingPayment extends StatelessWidget {
+  const _AwaitingPayment({
+    required this.order,
+    required this.couldNotOpen,
+    required this.onPay,
+    required this.onCheck,
+    required this.onHome,
+  });
+
+  final CustomerOrder order;
+  final bool couldNotOpen;
+  final VoidCallback onPay;
+  final VoidCallback onCheck;
+  final VoidCallback onHome;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final text = Theme.of(context).textTheme;
+    // The merchant's own name for the gateway, as everywhere else.
+    final gateway = order.paymentMethodTitle;
+
+    return Column(
+      children: [
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                AppTokens.space24,
+                AppTokens.space24,
+                AppTokens.space24,
+                AppTokens.space16,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight -
+                      AppTokens.space24 -
+                      AppTokens.space16,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        color: palette.tint,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.lock_clock_outlined,
+                        size: 40,
+                        color: palette.brand,
+                      ),
+                    ),
+                    const SizedBox(height: AppTokens.space20),
+                    Text(
+                      'Finish your payment',
+                      textAlign: TextAlign.center,
+                      style: text.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: AppTokens.space12),
+                    Text(
+                      couldNotOpen
+                          ? 'We could not open the payment page. Try again, '
+                                'or pay from the order in your account.'
+                          : gateway.isEmpty
+                          ? 'Your order is placed and waiting to be paid.'
+                          : 'Your order is placed. Pay with $gateway to send '
+                                'it to the kitchen.',
+                      textAlign: TextAlign.center,
+                      style: text.bodyMedium?.copyWith(color: palette.muted),
+                    ),
+                    const SizedBox(height: AppTokens.space20),
+                    _Facts(order: order),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTokens.space16,
+            AppTokens.space12,
+            AppTokens.space16,
+            AppTokens.space24,
+          ),
+          child: Column(
+            children: [
+              FilledButton(
+                onPressed: onPay,
+                child: Text(couldNotOpen ? 'Try again' : 'Pay now'),
+              ),
+              const SizedBox(height: AppTokens.space8),
+              // For the customer who paid somewhere this app cannot see — on
+              // a desktop, or in a browser it never opened.
+              TextButton(
+                onPressed: onCheck,
+                child: const Text('I have already paid'),
+              ),
+              TextButton(onPressed: onHome, child: const Text('Back to home')),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

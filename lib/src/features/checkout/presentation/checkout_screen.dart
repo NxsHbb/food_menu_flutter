@@ -208,9 +208,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   /// server. Nothing about the order is carried over — see
   /// [OrderReceivedScreen].
   void _confirm(PlacedOrder order) {
+    // **The one thing carried over.** A gateway that finishes in a browser
+    // answers the checkout with where to send the customer, and that URL is
+    // nowhere on the order itself — so it travels with the route or not at
+    // all (task 12.2). Everything else on the next screen is still read back
+    // from the server.
+    final payUrl = order.payment?.redirectUrl;
+
     context.goNamed(
       OrderReceivedScreen.routeName,
       pathParameters: {'id': '${order.id}'},
+      extra: payUrl != null && payUrl.isNotEmpty ? payUrl : null,
     );
   }
 

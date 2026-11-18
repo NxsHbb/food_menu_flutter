@@ -195,6 +195,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: OrderReceivedScreen.routeName,
         builder: (context, state) => OrderReceivedScreen(
           orderId: int.tryParse(state.pathParameters['id'] ?? '') ?? -1,
+          // Task 12.2's redirect, handed over by the checkout and by nothing
+          // else: a cold open of this route has no payment to finish.
+          payUrl: state.extra is String ? state.extra as String : null,
         ),
       ),
       GoRoute(
