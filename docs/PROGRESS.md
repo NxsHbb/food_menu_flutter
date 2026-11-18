@@ -2,6 +2,71 @@
 
 Newest first. One entry per completed task.
 
+## Task 12.3 — the card gateways, and four walls behind them
+Branch `feat/card-via-pay-page` (Pro only), PR TBD. **No app code at all** —
+12.2 and 12.4 had already built everything the app needed.
+
+### The cheap route, chosen over the native SDK
+A gateway that collects a card expects its own JavaScript to have run before
+the order is posted. Stripe's Store API path refuses outright — *"The selected
+payment method type is invalid"* — and the failure comes **before an order
+exists**, so the app could not place a card order at all.
+
+The planned fix was `flutter_stripe` plus a PaymentIntent brokered in Pro:
+one gateway fixed, a native dependency on both platforms. The route taken
+instead hands the gateway to WooCommerce's own `order-pay` page, which fixes
+**every** card gateway at once and adds nothing. `StoreApi\Legacy` skips the
+gateway whenever a result already carries a status, so setting one at priority
+5 means nothing is charged and the order is left pending.
+
+### Four walls, none of which a test would have found
+Each was invisible until a real browser loaded a real order, and each looked
+like the previous one's symptom:
+
+1. **The store's Checkout page is the Checkout block.** It renders payment in
+   JavaScript from `wc/store/v1/order/{id}`, which **401s a guest** carrying
+   only the order key. An app customer is a guest to the website however
+   signed in they are to the app. The block mounted, could not read the order,
+   and drew nothing — in the webview *and* in Chrome, which is what proved it
+   was never a webview problem.
+2. **`get_checkout_payment_url( true )` omits `pay_for_order`.** Without it
+   `WC_Shortcode_Checkout::order_pay()` renders the **receipt** view — an order
+   summary and nothing to pay with. Razorpay never noticed: its own receipt
+   hook draws its modal either way.
+3. **Email verification.** WooCommerce asks a guest to verify the order's
+   email outside a ten-minute grace period, so a customer returning to an
+   unpaid order got an email field instead of a card field.
+4. **A login wall.** `order_pay()` refuses unless the viewer
+   `can( 'pay_for_order' )` or is logged in — and WooCommerce grants that
+   capability to anyone holding a **guest** order's key. An app order belongs
+   to a real customer, so it failed the test that a guest order passes.
+
+### What that last one is, precisely
+The fix extends WooCommerce's own rule rather than inventing one: **possession
+of the order key is the proof**, as it is for guest orders and for the "pay
+for this order" links WooCommerce emails. The capability is granted for that
+one order, only when the key in the URL matches, and only for orders the app
+deferred. Worth knowing it is a deliberate widening and not an oversight.
+
+### Everything is gated on one piece of meta
+`_fmp_app_web_checkout`, written when the checkout defers. The website's own
+checkout, pay page, verification and login are untouched — the standing rule
+that plugin work for the app must not change the website, kept through four
+changes that all live on shared filters.
+
+### Found by reproducing locally, after guessing wrongly twice
+Two theories died on the way: that an empty cart killed gateway availability
+(it does not — `stripe is_available=true` with an empty cart), and that the
+webview was at fault. Both were settled in minutes on the local site with a
+throwaway logging plugin, after much longer spent inferring from curl against
+production. The local site is where this should have gone sooner.
+
+### Verified on the device
+Order #81 placed with Credit / Debit Card: the pay page renders **inside the
+app** with the order table, every enabled gateway, and Stripe's own card
+fields — *"Test mode: use card 4242 4242 4242 4242"*. No login form, no
+verification form.
+
 ## Fix — PayPal's cancel link left the customer on the shop's website
 Branch `fix/payment-return-detection`, PR TBD. **App only.** 1158 tests, six
 new.
