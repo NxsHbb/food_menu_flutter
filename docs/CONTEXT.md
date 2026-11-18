@@ -91,6 +91,13 @@ design decides the final navigation.
 **HTTP: `dio`**, chosen for its interceptor model, which the Store API's
 session headers need.
 
+**Payment browser: `webview_flutter`** (task 12.4). The one place the app
+renders somebody else's page: a gateway that finishes on the web — Razorpay,
+PayPal — is drawn inside the app's own screen rather than handed to a browser.
+Task 12.2 shipped this as a Custom Tab, which is in-app in the technical sense
+and reads as leaving for Chrome. **Nothing else may use it**: a webview is a
+way of not building a screen, and the rest of the app is native on purpose.
+
 ### The network layer
 `core/network/` holds four pieces:
 

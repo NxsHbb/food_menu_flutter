@@ -18,6 +18,7 @@ import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/cart/presentation/widgets/cart_bar.dart';
 import '../../features/checkout/presentation/checkout_screen.dart';
 import '../../features/menu/presentation/menu_list_screen.dart';
+import '../../features/checkout/presentation/payment_webview_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/menu/presentation/product_detail_screen.dart';
 import '../../features/orders/presentation/order_detail_screen.dart';
@@ -199,6 +200,23 @@ final routerProvider = Provider<GoRouter>((ref) {
           // else: a cold open of this route has no payment to finish.
           payUrl: state.extra is String ? state.extra as String : null,
         ),
+      ),
+      GoRoute(
+        path: PaymentWebViewScreen.routePath,
+        name: PaymentWebViewScreen.routeName,
+        builder: (context, state) {
+          // Only ever pushed from the order-received screen, which hands over
+          // the gateway's URL and its name. A cold open has neither, and a
+          // payment page with no order behind it is not a screen worth
+          // drawing — so it falls back to the menu.
+          final args = state.extra;
+
+          if (args is! ({String url, String title})) {
+            return const MenuScreen();
+          }
+
+          return PaymentWebViewScreen(payUrl: args.url, title: args.title);
+        },
       ),
       GoRoute(
         path: ProductDetailScreen.routePath,

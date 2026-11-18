@@ -3889,3 +3889,34 @@ WooCommerce counts only pending and failed as needing payment. A redirect
 gateway leaves the order pending until the money arrives, so the field means
 exactly what it says; an offline gateway parks it on hold, where the same
 field goes quiet. Anyone unifying the two will break one of them.
+
+## Retrying a payment does not create a second order
+The obvious fear with a payment screen that can be retried is a pile of
+abandoned orders, one per attempt. It does not happen: placing again on an
+**unchanged cart** updates the existing pending order rather than creating a
+new one. Measured on the demo store — order #66 created at 06:28, modified at
+06:47 by a second Place order, and no #67 anywhere.
+
+That is WooCommerce's Store API reusing the draft order it keeps against the
+cart session. It means the app's **Pay now** is safe to press repeatedly, and
+it is also why the order number a customer sees does not change when they give
+up and try again an hour later.
+
+Worth knowing the boundary: this holds while the cart is the same. Change the
+cart and the next checkout is a different order.
+
+## A webview silently does nothing with a `upi://` link
+Not an error, not a blank page — nothing at all, which on a payment screen is
+indistinguishable from a dead button. Every UPI app and most banking apps are
+reached through `upi://` or `intent://`, so a redirect gateway in India walks
+into this immediately.
+
+`classifyPaymentUrl()` answers `delegate` for any scheme that is not http,
+https or about, and those go to the system with
+`LaunchMode.externalApplication` — the one case where leaving the app is the
+right answer, because the app being asked for is a banking app.
+
+The same function matches the **return** on `order-received` in the path and
+never on the host. The store's domain differs per deployment and a gateway can
+host the return page itself, so a hostname check is the kind of thing that
+passes in testing and fails on somebody's production site.

@@ -1,12 +1,11 @@
-import 'package:flutter/services.dart' show PlatformException;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../checkout/presentation/payment_webview_screen.dart';
 import '../../menu/presentation/menu_screen.dart';
 import '../data/orders_repository.dart';
 import '../domain/customer_order.dart';
@@ -67,9 +66,6 @@ class _OrderReceivedScreenState extends ConsumerState<OrderReceivedScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // After the first frame: this runs before the order has been read, and
-    // the gateway page is what the customer is waiting for.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _pay());
   }
 
   @override
@@ -97,31 +93,41 @@ class _OrderReceivedScreenState extends ConsumerState<OrderReceivedScreen>
     if (url == null || url.isEmpty) return;
     if (_opened && !again) return;
 
-    final target = Uri.tryParse(url);
-    if (target == null) {
+    if (Uri.tryParse(url) == null) {
       if (mounted) setState(() => _couldNotOpen = true);
       return;
     }
 
     _opened = true;
-    var opened = false;
+    final gateway = ref.read(orderProvider(widget.orderId)).value
+        ?.paymentMethodTitle;
 
-    try {
-      // Not `externalApplication`: a Custom Tab keeps the customer inside the
-      // app, shares the system cookie jar, and is what the gateways ask for —
-      // PayPal refuses to sign anybody in inside an embedded webview.
-      opened = await launchUrl(target, mode: LaunchMode.inAppBrowserView);
-    } on PlatformException {
-      opened = false;
-    }
+    // **Pushed, not launched.** Task 12.2 opened a Custom Tab, which is
+    // in-app in the technical sense and reads as leaving for Chrome. This is
+    // the app's own screen, and it can watch where the gateway navigates.
+    await context.pushNamed(
+      PaymentWebViewScreen.routeName,
+      extra: (
+        url: url,
+        title: gateway == null || gateway.isEmpty ? 'Payment' : gateway,
+      ),
+    );
 
-    if (mounted) setState(() => _couldNotOpen = !opened);
+    // Back from the gateway, however it ended. The order decides.
+    if (mounted) ref.invalidate(orderProvider(widget.orderId));
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final order = ref.watch(orderProvider(widget.orderId));
+
+    // The gateway opens as soon as the order confirms it is unpaid — not on
+    // the first frame, when nothing has been read back yet.
+    final unpaid = order.value?.needsPayment ?? false;
+    if (widget.payUrl != null && unpaid && !_opened) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _pay());
+    }
 
     return PopScope(
       // Back is "home", not "out of the app": this route replaces the stack,
@@ -141,6 +147,9 @@ class _OrderReceivedScreenState extends ConsumerState<OrderReceivedScreen>
           child: switch (order) {
             AsyncValue(:final value?) =>
               widget.payUrl != null && value.needsPayment
+                  // Only now, and only once: opening on the first frame
+                  // would send a customer to pay for an order that the read
+                  // we had not waited for says is already paid.
                   ? _AwaitingPayment(
                       order: value,
                       couldNotOpen: _couldNotOpen,

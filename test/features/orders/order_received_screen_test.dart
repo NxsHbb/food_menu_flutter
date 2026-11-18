@@ -5,6 +5,7 @@ import 'package:food_menu/src/core/network/api_exception.dart';
 import 'package:food_menu/src/core/theme/app_theme.dart';
 import 'package:food_menu/src/features/orders/data/orders_repository.dart';
 import 'package:food_menu/src/features/orders/presentation/order_detail_screen.dart';
+import 'package:food_menu/src/features/checkout/presentation/payment_webview_screen.dart';
 import 'package:food_menu/src/features/orders/presentation/order_received_screen.dart';
 import 'package:go_router/go_router.dart';
 
@@ -13,7 +14,13 @@ import 'fake_orders_repository.dart';
 void main() {
   late FakeOrdersRepository repo;
 
-  setUp(() => repo = FakeOrdersRepository());
+  /// Every push to the payment screen, in order (task 12.4).
+  late List<({String url, String title})?> opened;
+
+  setUp(() {
+    repo = FakeOrdersRepository();
+    opened = [];
+  });
 
   Future<void> pump(
     WidgetTester tester, {
@@ -43,6 +50,30 @@ void main() {
           path: '/',
           name: 'menu',
           builder: (_, _) => const Scaffold(body: Text('Menu')),
+        ),
+        // Task 12.4's screen is a platform webview, which a widget test
+        // cannot build. What matters here is that the screen pushes it, and
+        // with what — so this stands in and says so.
+        GoRoute(
+          path: PaymentWebViewScreen.routePath,
+          name: PaymentWebViewScreen.routeName,
+          builder: (context, state) {
+            final args = state.extra as ({String url, String title})?;
+            opened.add(args);
+            return Scaffold(
+              body: Column(
+                children: [
+                  Text('Gateway: ${args?.title}'),
+                  // Stands in for the real screen's header back and for the
+                  // webview closing itself on the return URL.
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close gateway'),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         GoRoute(
           path: '/order/:id',
@@ -271,13 +302,32 @@ void main() {
     });
   });
 
-  group('a gateway that finishes in a browser (task 12.2)', () {
+  group('a gateway that finishes in a browser (tasks 12.2, 12.4)', () {
     const payUrl = 'https://example.test/checkout/order-pay/62/?key=wc_order_x';
 
-    testWidgets('says the payment is unfinished, not that it is placed',
-        (tester) async {
+    /// Opens the screen on an unpaid order and comes back from the gateway,
+    /// which is where the customer is after paying, cancelling, or pressing
+    /// back.
+    Future<void> returnFromGateway(WidgetTester tester) async {
       repo.answer = orderFromFixture('order_awaiting_payment');
       await pump(tester, payUrl: payUrl);
+      await tester.tap(find.text('Close gateway'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('opens the gateway inside the app, named', (tester) async {
+      repo.answer = orderFromFixture('order_awaiting_payment');
+      await pump(tester, payUrl: payUrl);
+
+      // Task 12.4: the app's own screen, not a browser handed the URL.
+      expect(opened.single?.url, payUrl);
+      // The merchant's own name for the gateway, as everywhere else.
+      expect(opened.single?.title, 'Card / UPI / Net banking');
+      expect(find.text('Gateway: Card / UPI / Net banking'), findsOneWidget);
+    });
+
+    testWidgets('coming back says the payment is unfinished', (tester) async {
+      await returnFromGateway(tester);
 
       expect(find.text('Finish your payment'), findsOneWidget);
       // The lie task 12.1 took out of the bank-transfer case.
@@ -285,9 +335,8 @@ void main() {
       expect(find.textContaining('Card / UPI / Net banking'), findsOneWidget);
     });
 
-    testWidgets('offers to pay, to recheck, and to leave', (tester) async {
-      repo.answer = orderFromFixture('order_awaiting_payment');
-      await pump(tester, payUrl: payUrl);
+    testWidgets('and offers to pay, to recheck, and to leave', (tester) async {
+      await returnFromGateway(tester);
 
       expect(find.text('Pay now'), findsOneWidget);
       // For the customer who paid somewhere this app cannot see.
@@ -295,48 +344,57 @@ void main() {
       expect(find.text('Back to home'), findsOneWidget);
     });
 
-    testWidgets('a paid order is a placed order', (tester) async {
-      // Same route, same redirect — the order is what decides, not the URL.
+    testWidgets('coming back re-reads the order', (tester) async {
+      repo.answer = orderFromFixture('order_awaiting_payment');
       await pump(tester, payUrl: payUrl);
+      final before = repo.requested.length;
 
-      expect(find.text('Order placed!'), findsOneWidget);
-      expect(find.text('Finish your payment'), findsNothing);
+      await tester.tap(find.text('Close gateway'));
+      await tester.pumpAndSettle();
+
+      expect(repo.requested.length, greaterThan(before));
     });
 
-    testWidgets('a cold open never reopens the gateway', (tester) async {
-      // No `payUrl`: reopening the screen from a notification or a restored
-      // stack must show the order, not send the customer back to pay.
+    testWidgets('a paid order never opens the gateway', (tester) async {
+      // Same route, same redirect — the order is what decides.
+      await pump(tester, payUrl: payUrl);
+
+      expect(opened, isEmpty);
+      expect(find.text('Order placed!'), findsOneWidget);
+    });
+
+    testWidgets('a cold open never opens the gateway', (tester) async {
+      // No `payUrl`: reopening from a notification or a restored stack must
+      // show the order, not send the customer back to pay.
       repo.answer = orderFromFixture('order_awaiting_payment');
       await pump(tester);
 
-      expect(find.text('Finish your payment'), findsNothing);
+      expect(opened, isEmpty);
       expect(find.text('Order placed!'), findsOneWidget);
     });
 
     testWidgets('rechecking reads the order again', (tester) async {
-      repo.answer = orderFromFixture('order_awaiting_payment');
-      await pump(tester, payUrl: payUrl);
-      expect(repo.requested, [62]);
+      await returnFromGateway(tester);
+      final before = repo.requested.length;
 
       await tester.tap(find.text('I have already paid'));
       await tester.pumpAndSettle();
 
-      expect(repo.requested, [62, 62]);
+      expect(repo.requested.length, before + 1);
     });
 
     testWidgets('and so does coming back into the app', (tester) async {
-      // The only signal an in-app browser view gives: neither a Custom Tab
-      // nor SFSafariViewController reports the URL it ended on.
-      repo.answer = orderFromFixture('order_awaiting_payment');
-      await pump(tester, payUrl: payUrl);
-      expect(repo.requested, [62]);
+      // The backstop for a gateway that sent the customer to a banking app:
+      // the webview is gone and only the lifecycle says they are back.
+      await returnFromGateway(tester);
+      final before = repo.requested.length;
 
       tester.binding.handleAppLifecycleStateChanged(
         AppLifecycleState.resumed,
       );
       await tester.pumpAndSettle();
 
-      expect(repo.requested.length, greaterThan(1));
+      expect(repo.requested.length, greaterThan(before));
     });
 
     testWidgets('the paid order replaces the waiting state in place',
@@ -344,8 +402,7 @@ void main() {
       // Task 14.8's rule on this screen: invalidating leaves the provider
       // loading *while holding* its last value, so matching loading first
       // would flash a spinner every time the customer came back.
-      repo.answer = orderFromFixture('order_awaiting_payment');
-      await pump(tester, payUrl: payUrl);
+      await returnFromGateway(tester);
       expect(find.text('Finish your payment'), findsOneWidget);
 
       repo.answer = orderFromFixture('order_delivery');
