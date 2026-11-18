@@ -3944,3 +3944,44 @@ is not the `order-pay` page the payment started from, means the payment is
 over — paid, cancelled or abandoned — and the order decides which. Gateways
 return wherever the store told them to, so enumerating their landing pages was
 never going to hold.
+
+## The app's customer is a guest to the website, and four things check for that
+The app signs a customer in with a bearer token. The **website** wants a
+WordPress cookie. Anything the app hands a customer to on the store — a pay
+page, a receipt, an account page — therefore meets them as a **guest**, and
+WooCommerce has four separate guards that notice:
+
+| Guard | What the customer saw |
+|---|---|
+| Checkout **block** loads the order from `wc/store/v1/order/{id}` | 401 `woocommerce_rest_invalid_billing_email`; the block drew nothing |
+| `order_pay()` needs `pay_for_order` in the URL | the receipt view: a summary with nothing to pay with |
+| Guest email verification, outside a 10-minute grace period | "verify the email address associated with the order" |
+| `current_user_can( 'pay_for_order' )` | "Please log in to your account below to continue to the payment form" |
+
+Each one hides the next, so fixing one reveals another and every fix looks
+like it did not work. Task 12.3 went through all four in order.
+
+**The pattern to carry forward**: any future hand-off to a website surface —
+an invoice, a subscription page, a reservation — meets the same wall, and the
+answer each time is the **order key**, which is WooCommerce's own credential
+for guests and for the links it emails.
+
+## Two theories that were wrong, and what settled them
+Worth recording because both were plausible and both cost real time.
+
+**"An empty cart kills gateway availability."** The Store API empties the cart
+when the order is created, and gateways' `is_available()` consults the cart,
+so a pay page with no gateways looked explained. It is not true: logging on
+the pay page showed `stripe enabled=yes is_available=true` and four available
+gateways, with the cart empty. A filter written against that theory was
+reverted.
+
+**"The webview is at fault."** The card form never appeared in the app, and a
+webview is the obvious suspect. Opening the same URL in Chrome on the same
+phone showed exactly the same blank page, which ended that line of enquiry in
+one step.
+
+The lesson is the same for both: **reproduce locally and instrument it.** Ten
+minutes with a logging mu-plugin on the dev site answered what an hour of
+inference from curl against production had not, and would have caught the
+first theory before any code was written for it.
