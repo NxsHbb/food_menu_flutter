@@ -2,7 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:food_menu/src/features/checkout/domain/payment_return.dart';
 
 void main() {
-  PaymentNavigation classify(String url) => classifyPaymentUrl(Uri.parse(url));
+  const store = 'shop.test';
+
+  PaymentNavigation classify(String url, {String? host = store}) =>
+      classifyPaymentUrl(Uri.parse(url), storeHost: host);
 
   group('what a navigation inside the payment screen means (task 12.4)', () {
     test('the gateway and the store are both just pages', () {
@@ -30,9 +33,12 @@ void main() {
         classify('https://shop.test/checkout/?cancel_order=true&order=wc_x'),
         PaymentNavigation.finished,
       );
-      // `false` is the live site's own way of saying "not that".
+      // On a host the app does not know, `false` is the site's own way of
+      // saying "not that" and the navigation is ordinary. On the shop's own
+      // host it does not matter either way: being back there is the end of
+      // the payment, whatever the query says.
       expect(
-        classify('https://shop.test/checkout/?cancel_order=false'),
+        classify('https://elsewhere.test/checkout/?cancel_order=false'),
         PaymentNavigation.allow,
       );
     });
@@ -58,6 +64,66 @@ void main() {
       // and fail on somebody's production site.
       expect(
         classify('https://anything.example/x/order-received/9/'),
+        PaymentNavigation.finished,
+      );
+    });
+  });
+
+  group('coming back to the shop is the end of it (fix)', () {
+    test('PayPal cancels to the cart, and says nothing about it', () {
+      // Found on a device: PayPal's "Cancel and return" landed here, the
+      // webview rendered the shop's website inside the app, and the customer
+      // was stranded on it.
+      expect(
+        classify('https://shop.test/cart/'),
+        PaymentNavigation.finished,
+      );
+    });
+
+    test('so does a bounce to the shop front or the checkout', () {
+      expect(classify('https://shop.test/'), PaymentNavigation.finished);
+      expect(
+        classify('https://shop.test/checkout/'),
+        PaymentNavigation.finished,
+      );
+    });
+
+    test('but the page the payment started on is not a return', () {
+      // The order-pay page is where the whole thing begins, and it is on the
+      // shop's own host.
+      expect(
+        classify('https://shop.test/checkout/order-pay/66/?key=wc_order_x'),
+        PaymentNavigation.allow,
+      );
+    });
+
+    test('www is the same shop', () {
+      expect(
+        classify('https://www.shop.test/cart/'),
+        PaymentNavigation.finished,
+      );
+    });
+
+    test('the gateway is still somebody else', () {
+      expect(
+        classify('https://www.sandbox.paypal.com/checkoutnow?token=23C7'),
+        PaymentNavigation.allow,
+      );
+      expect(
+        classify('https://api.razorpay.com/v1/checkout/embedded'),
+        PaymentNavigation.allow,
+      );
+    });
+
+    test('with no host to compare, only the old rules apply', () {
+      // A store whose host the app could not parse still gets the
+      // order-received and cancel_order rules.
+      expect(
+        classify('https://shop.test/cart/', host: null),
+        PaymentNavigation.allow,
+      );
+      expect(
+        classify('https://shop.test/checkout/order-received/9/', host: null),
         PaymentNavigation.finished,
       );
     });
