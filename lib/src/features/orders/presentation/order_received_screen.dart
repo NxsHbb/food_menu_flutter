@@ -8,6 +8,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../menu/presentation/menu_screen.dart';
 import '../data/orders_repository.dart';
 import '../domain/customer_order.dart';
+import 'widgets/payment_instructions_card.dart';
 import 'order_detail_screen.dart';
 
 /// The design's order-received screen.
@@ -71,6 +72,15 @@ class _Placed extends StatelessWidget {
 
   final CustomerOrder order;
 
+  /// What the customer is told under "Order placed!".
+  static String _subtitle(String name, {required bool waiting}) {
+    final what = waiting
+        ? 'We will start your order as soon as your payment arrives.'
+        : 'The kitchen has your order and is getting started.';
+
+    return name.isEmpty ? what : 'Thanks, $name. $what';
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -113,16 +123,27 @@ class _Placed extends StatelessWidget {
                     Text(
                       // The name is the one on the order, not the one in the
                       // session: the order is what the kitchen works from.
-                      name.isEmpty
-                          ? 'The kitchen has your order and is getting '
-                                'started.'
-                          : 'Thanks, $name. The kitchen has your order and '
-                                'is getting started.',
+                      //
+                      // **An unpaid order is not being cooked.** Bank
+                      // transfer and cheque leave it on hold until the money
+                      // lands, so promising a kitchen already working on it
+                      // would be the one sentence on this screen that is not
+                      // true (task 12.1).
+                      _subtitle(
+                        name,
+                        waiting: order.paymentInstructions != null,
+                      ),
                       textAlign: TextAlign.center,
                       style: text.bodyMedium?.copyWith(color: palette.muted),
                     ),
                     const SizedBox(height: AppTokens.space20),
                     _Facts(order: order),
+                    if (order.paymentInstructions != null) ...[
+                      const SizedBox(height: AppTokens.space16),
+                      PaymentInstructionsCard(
+                        instructions: order.paymentInstructions!,
+                      ),
+                    ],
                   ],
                 ),
               ),

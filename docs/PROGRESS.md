@@ -2,6 +2,70 @@
 
 Newest first. One entry per completed task.
 
+## Task 12.1 — the two gateways the app could already finish
+Branch `feat/offline-gateway-instructions`, PR TBD. **Pro + app.** 1137 tests,
+eleven new across three suites.
+
+### Nothing was missing but the words
+Bank transfer and cheque have `has_fields` false: WooCommerce collects nothing
+for them at checkout, exactly like cash on delivery. The app could always have
+carried them to a placed order — what it could not do was tell the customer
+what to do next, and an order placed with no account number to pay into is
+worse than one that was refused.
+
+The website says it twice, on `woocommerce_thankyou_{$id}` and in the order
+email. **Neither fires for a Store API order.** Third time this shape has come
+up — 8.9's slot rules and 14.2's pause both hid behind a hook the app does not
+travel through — and the fix is the same: publish it as data.
+
+### `needs_payment` is false for exactly the orders that owe money
+The payload has carried `needs_payment` since 6.4 and it looks like the right
+test. It is not. WooCommerce counts only **pending or failed** as needing
+payment (`class-wc-order.php`), and both gateways park the order on **hold**,
+so the field reads false for every order that is waiting for a transfer.
+
+`payment_instructions` is answered on paid-or-closed instead: once the money
+is in, or the order is cancelled, refunded or failed, there is nothing left to
+say. A test pins it — status `on-hold`, `needsPayment` false, instructions
+present — because the next person to read that field will think what we did.
+
+### The bank rows come from WooCommerce, not from us
+Core renders them as an HTML table, which the app cannot use, but the **option
+and the two filters underneath are shared**: `woocommerce_bacs_accounts` and
+`woocommerce_bacs_account_fields`, both called with the order id. A store that
+customised either for its website gets the same answer in the app.
+
+The sort-code label is country-specific — "Routing number" in the US, "BSB" in
+Australia, "IFSC" in India — and core keeps that map in a **private** method,
+so it is mirrored with a comment saying so. The labels stay in WooCommerce's
+own text domain on purpose: they are its strings, and a translated store has
+already translated them.
+
+### Two things the app says differently now
+The instructions card is drawn with a brand hairline, because it is the one
+thing on a finished order screen the customer still has to act on, and an
+order already placed otherwise reads as done.
+
+And the order-received screen no longer tells an unpaid order that **"the
+kitchen has your order and is getting started"**. It hasn't, and it isn't: the
+order is on hold until the money lands. It now says so.
+
+Labels sit above values rather than beside them. An IBAN in a two-column row
+is the exact shape that overflowed at 2.0 text scale in 14.9, and a test
+redraws the card at that scale to keep it that way.
+
+### Verified on the live store, not only in tests
+Pro deployed to `radiustheme.net/demos/food-menu`, then the OnePlus: bank
+transfer selectable for the first time, order **#63** placed, status **on
+hold**, and the card on the order screen carrying the store's own instructions
+and account lines. `GET /app/payment-methods` answers `supported` for all
+three of `cod`, `bacs`, `cheque`.
+
+**One side effect worth knowing.** `default_id()` picks the first *supported*
+gateway in the store's own order, so with bank transfer enabled and sorted
+above cash on delivery, the app now preselects it. That is the rule working as
+written; a store that wants cash first reorders its gateways.
+
 ## Task 14.9 — the accessibility audit, run rather than reviewed
 Branch `feat/accessibility-pass`, PR TBD. **App only.** 1126 tests, five new
 across two suites of their own.

@@ -14,6 +14,7 @@ import '../domain/order_tracking.dart';
 import 'orders_screen.dart';
 import 'widgets/order_status_pill.dart';
 import 'widgets/order_tracking_card.dart';
+import 'widgets/payment_instructions_card.dart';
 import 'widgets/reorder_button.dart';
 
 /// One order in full — the design's "Order tracking" screen.
@@ -216,6 +217,14 @@ class _Detail extends ConsumerWidget {
                 _ItemsCard(order: order),
                 const SizedBox(height: AppTokens.space12),
                 _DetailsCard(order: order),
+                // Above the note, because this is the one thing on the screen
+                // the customer still has to act on (task 12.1).
+                if (order.paymentInstructions != null) ...[
+                  const SizedBox(height: AppTokens.space12),
+                  PaymentInstructionsCard(
+                    instructions: order.paymentInstructions!,
+                  ),
+                ],
                 if (order.customerNote.trim().isNotEmpty) ...[
                   const SizedBox(height: AppTokens.space12),
                   _NoteCard(note: order.customerNote),

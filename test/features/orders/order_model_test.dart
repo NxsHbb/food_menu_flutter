@@ -81,4 +81,63 @@ void main() {
     expect(order.trackingToken, isEmpty);
     expect(order.exists, isTrue);
   });
+
+  group('payment instructions (task 12.1)', () {
+    test('reads the bank details a bank-transfer order carries', () {
+      final order = orderFromFixture('order_bank_transfer');
+      final payment = order.paymentInstructions!;
+
+      expect(payment.text, startsWith('Transfer the order total'));
+      // The store's own rows, in the store's own order.
+      expect(payment.details.map((d) => d.label), [
+        'Account name',
+        'Bank',
+        'Account number',
+        'Routing number',
+      ]);
+      expect(payment.details.last.value, 'DEMO-0001');
+    });
+
+    test('money is owed while needsPayment reads false', () {
+      // The trap this task was written around: WooCommerce counts only a
+      // pending or failed order as needing payment, and bank transfer parks
+      // the order on hold. Branching on `needsPayment` would hide the bank
+      // details from exactly the orders that are waiting for money.
+      final order = orderFromFixture('order_bank_transfer');
+
+      expect(order.status, 'on-hold');
+      expect(order.needsPayment, isFalse);
+      expect(order.paymentInstructions, isNotNull);
+    });
+
+    test('a cash order has nothing to say', () {
+      expect(orderFromFixture('order_pickup').paymentInstructions, isNull);
+    });
+
+    test('an empty payload is null rather than an empty card', () {
+      final order = CustomerOrder.fromJson({
+        ...jsonFixture('order_pickup'),
+        'payment_instructions': {'text': '', 'details': <dynamic>[]},
+      });
+
+      expect(order.paymentInstructions, isNull);
+    });
+
+    test('a detail with no value is dropped', () {
+      // Core prints a bank field only when it has a value, and a label with
+      // nothing beside it reads as a missing answer.
+      final order = CustomerOrder.fromJson({
+        ...jsonFixture('order_pickup'),
+        'payment_instructions': {
+          'text': 'Pay us.',
+          'details': [
+            {'label': 'IBAN', 'value': ''},
+            {'label': 'BIC', 'value': 'DEMOBIC'},
+          ],
+        },
+      });
+
+      expect(order.paymentInstructions!.details.single.label, 'BIC');
+    });
+  });
 }

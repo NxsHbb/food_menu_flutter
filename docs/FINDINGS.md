@@ -3776,3 +3776,68 @@ sizes to whoever owns the design.
 
 The two fixes that needed no such decision — the overflow and the labels —
 shipped in the same task.
+
+## `needs_payment` is false for every order that is waiting for money
+WooCommerce counts an order as needing payment only while it is **pending or
+failed** — `WC_Order::needs_payment()` checks
+`woocommerce_valid_order_statuses_for_payment`, which is `[ pending, failed ]`
+— and both offline gateways move the order to **on-hold** in
+`process_payment()`. So the field reads **false** for exactly the orders whose
+customer still has to go and make a transfer.
+
+`/app/orders/{id}` has carried `needs_payment` since 6.4 and it is the obvious
+thing to branch on. Task 12.1 answers **paid-or-closed** instead:
+`$order->is_paid() || $order->has_status( [ 'cancelled', 'refunded', 'failed' ] )`,
+which says what is actually meant — once the money is in, or the order is off,
+stop telling the customer how to send it. A test pins the trap so the next
+reading of that field starts from the answer.
+
+## The offline gateways' instructions are presentation, not data
+`WC_Gateway_BACS` and `WC_Gateway_Cheque` both publish their `instructions`
+through `woocommerce_thankyou_{$id}` and `woocommerce_email_before_order_table`
+— an `echo` of HTML on two paths a Store API order never takes. The same shape
+as 8.9's slot rules and 14.2's pause.
+
+Two near-misses worth recording, because both look like the shortcut:
+
+- **`payment_result.payment_details` is empty for these gateways.** The Store
+  API carries a generic key/value bag from `process_payment()`, and BACS and
+  cheque return only `result` and `redirect`, so the obvious channel carries
+  nothing.
+- **`wc/store/v1/order/{id}` does not help either.** It has `needs_payment` and
+  `payment_requirements` and no payment title, let alone instructions.
+
+So the instructions are published as a field of their own. The bank rows reuse
+core's **option and filters** rather than its markup —
+`woocommerce_bacs_accounts` and `woocommerce_bacs_account_fields`, both passed
+the order id — so a store that customised them for its website gets the same
+answer in the app. `WC_Gateway_BACS::get_country_locale()`, which decides
+whether a sort code is called "Routing number" or "BSB", is **private**, so
+that map is mirrored with a comment rather than called.
+
+## Enabling Stripe enables nine gateways, and the app shows four
+Switching on the Stripe plugin's card gateway turned on **nine** payment
+methods at once — card, Amazon Pay, BLIK, Klarna, Affirm, EPS, Bancontact,
+Link and Cash App Pay — each a gateway id of its own in
+`wc/v3/payment_gateways`.
+
+The app showed **four**. `/app/payment-methods` lists what the store has
+*enabled*, and `PaymentMethods.offered()` then intersects it with
+`cart.payment_methods`, which is WooCommerce's own answer for *this* cart. The
+EU-only methods are not available to a US/USD cart, so they never reached the
+screen. Task 6.3's two-source rule doing its job: the store says what it
+accepts, the cart says what it can accept here, and neither is trusted alone.
+
+Worth knowing before a demo: a store that wants one tidy card option has to
+turn the other eight off in WooCommerce. Nothing in the app can do it.
+
+## The app's preselected gateway follows the store's own sort order
+`PaymentMethodsApi::default_id()` returns the first **supported** gateway in
+the order WooCommerce sorted them. Adding `bacs` and `cheque` to the supported
+list in 12.1 therefore changed what the app preselects — bank transfer, which
+sorts above cash on delivery on the demo store, instead of cash.
+
+That is the rule behaving as written rather than a regression, and the fix is
+a store setting: reorder the gateways in WooCommerce → Settings → Payments.
+Recorded because the first reading of it on a device looks like the app
+choosing for itself.

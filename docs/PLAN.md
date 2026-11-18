@@ -226,9 +226,15 @@ being placed**. Last of the parity work for that reason.
 ## Phase 12 — Payment methods
 Cash on delivery is all task 6.3 left v1 with. This phase adds the rest.
 
-**Scoped by a ruling, 2026-11-17.** The website developer will run
+**Reopened by a ruling, 2026-11-18.** The store now runs **PayPal Payments,
+WooPayments, Stripe and Razorpay** alongside the built-in gateways; all four
+are installed on the demo site and Stripe is configured in test mode. That
+reverses the scoping below and brings 12.3 back from the dead — the reasoning
+is kept because it is still why 12.1 came first and why 12.2 was nearly empty.
+
+~~**Scoped by a ruling, 2026-11-17.** The website developer will run
 **WooCommerce's built-in gateways only** — no gateway plugin, first-party or
-otherwise. That empties most of this phase rather than reordering it:
+otherwise.~~ That emptied most of this phase rather than reordering it:
 
 - The store's whole payment set is `cod`, `bacs`, `cheque` and, if it is ever
   switched on, legacy PayPal Standard. **Surveyed on the dev store** (WooCommerce
@@ -259,9 +265,9 @@ What is already in place and unused:
 
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 12.1 | Offline gateways — bank transfer and cheque. They collect nothing at checkout (`has_fields` is false), so the only missing piece is the gateway's **payment instructions**: return them from `GET /app/orders/{id}` and show them on the order received screen, or a customer is never told where to send the money. Then add the ids to the supported list | pro + app | todo |
-| 12.2 | **The redirect flow, now worth one gateway.** Open `payment_result.redirect_url`, handle the return, the cancel and the abandon, and reconcile by re-reading the order. With the ruling above, the only core gateway that redirects is **legacy PayPal Standard** — and WooCommerce hides it: `WC_Gateway_Paypal::should_load()` registers it only on a store that already had it enabled or has PayPal orders, which is why the dev store does not list it at all. **Conditional on the store enabling it** (see Open dependencies); if they do not, this task is dead code and should be dropped rather than built | app | todo |
-| ~~12.3~~ | ~~Native card — Stripe via `flutter_stripe` and `payment_data`~~ **Deleted by the 2026-11-17 ruling**, not deferred: the store will not run a card gateway, so there is nothing for the app to complete. It was always the droppable task here; what dropped it was the store's answer rather than our cost estimate. Apple Pay and Google Pay go with it, since both arrive through a card gateway | — | dropped |
+| 12.1 | **Bank transfer and cheque, which the app can finish.** Both have `has_fields` false — nothing is collected at checkout — so the only missing piece was the gateway's **payment instructions**, and without them the app takes a bank-transfer order and never says which account to pay into. `GET /app/orders/{id}` now carries `payment_instructions`: the gateway's own words as plain text, plus the store's bank rows as label/value pairs, read from `woocommerce_bacs_accounts` and the `woocommerce_bacs_account_fields` filter so a store that customised them for its website gets the same answer here. **`needs_payment()` could not be the test** — it is pending-or-failed only, and both gateways park the order **on hold**, so it reads false for exactly the orders waiting for money; paid-or-closed is the real question. The card sits on the order-received and order-detail screens, and an unpaid order is no longer told the kitchen has started. `APP_SUPPORTED` gains both ids | pro + app | done |
+| 12.2 | **The redirect flow, which now carries most of the store's gateways.** Open `payment_result.redirect_url`, handle the return, the cancel and the abandon, and reconcile by re-reading the order. The 2026-11-17 ruling had cut this to legacy PayPal Standard — which WooCommerce hides on a store that never used it, and the demo does not list. The 2026-11-18 ruling puts **PayPal Payments (`ppcp-gateway`) and Razorpay** in scope, both of which leave the app through a browser and come back, so this is no longer a candidate for deletion but the main piece of Phase 12. Needs a decision of its own on **where the browser lives** — an external tab via `url_launcher`, which the app already carries, or an in-app webview, which it deliberately does not | app | todo |
+| 12.3 | **Native card, reinstated.** Was deleted on 2026-11-17 because the store would run no card gateway; it now runs **Stripe** (test mode, keys in place) and **WooPayments**, which is Stripe underneath. The app has to collect a card and confirm a PaymentIntent, which means a gateway SDK — `flutter_stripe` — and `payment_data` on the checkout post, the one field `OrderDraft.toJson` was built to carry and has never sent. Apple Pay and Google Pay come back with it. **Largest task in the phase**, and the only one that adds a native dependency on both platforms | app | todo |
 
 ## Phase 13 — Release
 | # | Task | Repo | Status |
