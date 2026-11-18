@@ -3920,3 +3920,27 @@ The same function matches the **return** on `order-received` in the path and
 never on the host. The store's domain differs per deployment and a gateway can
 host the return page itself, so a hostname check is the kind of thing that
 passes in testing and fails on somebody's production site.
+
+## PayPal's login does work in a webview, and its cancel link does not come back
+Two corrections from putting PayPal on a device, both the opposite of what was
+assumed when task 12.2 chose a Custom Tab.
+
+**PayPal signs people in inside a webview.** The sandbox login page rendered
+and accepted input in `webview_flutter` on Android. The claim that it refuses
+embedded webviews — written into 12.2's reasoning and its commit message — is
+withdrawn. The case for a Custom Tab rested on not adding a dependency, which
+is a weaker argument and lost to 12.4 anyway. Worth re-checking on iOS and in
+live mode before anyone relies on it.
+
+**Its cancel link strands the customer.** "Cancel and return to Food Menu"
+does not come back to `order-received`, and carries no `cancel_order` — it
+lands on the shop's **cart page**. 12.4's first build matched only those two
+patterns, so the webview rendered the shop's own website inside the app, with
+no way forward and the app's header still saying "PayPal". Found on the first
+device run, which is the whole argument for doing one.
+
+The rule now is **host-based**: back on the store's own host, on anything that
+is not the `order-pay` page the payment started from, means the payment is
+over — paid, cancelled or abandoned — and the order decides which. Gateways
+return wherever the store told them to, so enumerating their landing pages was
+never going to hold.

@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/screen_header.dart';
@@ -80,7 +81,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
     final url = Uri.tryParse(request.url);
     if (url == null) return NavigationDecision.navigate;
 
-    switch (classifyPaymentUrl(url)) {
+    switch (classifyPaymentUrl(url, storeHost: _storeHost)) {
       case PaymentNavigation.allow:
         return NavigationDecision.navigate;
 
@@ -100,6 +101,10 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
         return NavigationDecision.prevent;
     }
   }
+
+  /// The host the app talks to, so a return to the shop is recognisable.
+  String? get _storeHost =>
+      Uri.tryParse(AppConfig.fromEnvironment().baseUrl)?.host;
 
   void _close() {
     if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();

@@ -2,6 +2,45 @@
 
 Newest first. One entry per completed task.
 
+## Fix — PayPal's cancel link left the customer on the shop's website
+Branch `fix/payment-return-detection`, PR TBD. **App only.** 1158 tests, six
+new.
+
+### Found on the first device run with PayPal
+"Cancel and return to Food Menu" does not go to `order-received` and carries
+no `cancel_order`. It lands on the shop's **cart page** — so task 12.4's
+classifier said "allow", the webview rendered the shop's own website inside
+the app, and the customer sat on "Your cart is currently empty!" under a
+header still reading **PayPal**, with nothing to press.
+
+Every unit test passed throughout. Nothing short of a real gateway would have
+produced that URL.
+
+### Enumerating landing pages was the wrong shape
+12.4 matched two patterns, both WooCommerce's: `order-received` and
+`cancel_order`. But a gateway returns wherever the **store** told it to, and
+PayPal, Razorpay and the next one will each pick differently.
+
+The rule is now the store's own **host**: back on it, on anything that is not
+the `order-pay` page the payment started from, means the payment is over —
+paid, cancelled or abandoned — and the order says which. The two old patterns
+stay as a backstop for a store whose host the app could not parse.
+
+`www.` is folded, because a shop served from `example.com` that redirects
+through `www.example.com` is not a different shop.
+
+### And a claim of mine was wrong
+12.2 argued for a Custom Tab partly because "PayPal refuses to sign anybody in
+inside an embedded webview". **It does not** — its sandbox login rendered and
+accepted input in the webview on this device. Corrected in `PLAN.md` and
+`FINDINGS.md` rather than quietly left. The dependency argument for the Custom
+Tab stood on its own; this one never should have been made.
+
+### Verified
+PayPal order **#68** placed, login page drawn inside the app, Cancel tapped —
+the screen closed itself and returned to **Finish your payment**, naming
+PayPal. Which is what it should have done the first time.
+
 ## Task 12.4 — the gateway, inside the app
 Branch `feat/in-app-payment`, PR TBD. **App only.** 1152 tests, eight new.
 
@@ -70,8 +109,9 @@ out afterwards what happened.
 `SFSafariViewController` on iOS. **Neither reports the URL it ended on.**
 That rules out the usual trick of watching for a return URL, and it is why
 this needs no webview package: `url_launcher` was already here for task 14.4's
-legal links, and PayPal refuses to sign anybody in inside an embedded webview
-regardless.
+legal links. **A second reason given at the time was wrong**: PayPal does not
+refuse to sign people in inside an embedded webview — task 12.4 put its login
+page in one and it worked. The dependency argument stood on its own.
 
 So resuming is the signal and **the order is the answer**. That turns out to
 be the better design rather than a consolation: it covers the customer who
