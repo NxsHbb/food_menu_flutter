@@ -391,6 +391,17 @@ sits in a second, **inactive** `tlp-food-menu-main/` folder as a rollback; Pro
 lives in `food-menu-pro-main/`. A zip whose top-level folder does not match
 those names installs a *third* copy instead of updating.
 
+**Prices are in real dollars since 2026-11-18.** The 16 products were seeded
+at Bangladeshi magnitudes and read as `$450` once the currency moved; they are
+now divided by 100 — a latte is `$1.90`, the steak `$12.50`, the pizza
+`$4.50`–`$8.50`. The 8 `food-menu` CPT dishes still carry the old numbers,
+which nothing reads while the store is in `online_ordering` mode.
+
+**Order history is empty**, deliberately: every order on the store was test
+traffic from building Phase 12, in two currencies and the wrong magnitudes, so
+all 16 were moved to the trash. Place one from the app if a demo needs a
+history.
+
 **Store mode and money changed on 2026-11-18.** `fm_food_menu_type` was never
 set, so the site defaulted to `food_menu_post` and refused every ordering
 route; it is now `online_ordering`. Currency moved **BDT → USD** and the base
