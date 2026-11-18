@@ -2,6 +2,59 @@
 
 Newest first. One entry per completed task.
 
+## Task 12.4 — the gateway, inside the app
+Branch `feat/in-app-payment`, PR TBD. **App only.** 1152 tests, eight new.
+
+### What was wrong with the Custom Tab
+Task 12.2 opened the gateway with `LaunchMode.inAppBrowserView`, which is
+in-app in the technical sense — it overlays the app, it never switches task —
+and reads as being thrown out to Chrome: a browser bar, a URL, a share button
+and an X. Habib called it on sight. The webview draws the same page under the
+app's **own header**, with the gateway's name on it.
+
+### The real gain was not cosmetic
+A Custom Tab never reports the URL it closed on, so 12.2 could only wait for
+the app to be resumed and then re-read the order. A webview sees every
+navigation, so the app now **closes itself** the moment the customer lands
+back on `order-received`, instead of leaving them looking at a finished
+payment wondering what to press.
+
+`classifyPaymentUrl()` is a pure function with three answers — allow,
+finished, delegate — and is the one part of a payment flow that can be pinned
+down in a unit test rather than on a device. It matches on the **path**, never
+the host: the store's domain differs per deployment and a gateway can host the
+return itself, so a hostname check would pass here and fail on somebody's
+production site.
+
+### A webview fails silently on half of India's payment methods
+A `upi://` or `intent://` link — every UPI app, and most banking apps — cannot
+be loaded by a webview, which does nothing at all rather than erroring. That
+looks exactly like a dead button. Those schemes are detected and handed to the
+system instead, so the payment carries on in the app that owns it.
+
+### What the URL still does not decide
+Landing on `order-received` closes the screen; it does **not** mean paid. The
+order is re-read and the order decides, exactly as in 12.2. A webview that
+believed a URL would eventually tell somebody their money had arrived when it
+had not.
+
+### Verified on the device, and one thing was not
+On the OnePlus against the live store: Place order → **Razorpay's own checkout
+rendered inside the app**, under the "Card / UPI / Net banking" header, with
+the store name, `$190` and the customer's email already filled in. Backing out
+returned to **Finish your payment** with the order re-read.
+
+**The payment was not completed.** Razorpay's contact step rejected the
+synthetic Indian mobile numbers an adb script can type, and getting past it is
+gateway validation rather than anything the app owns — a person with the phone
+in hand does it in seconds. Everything up to and including the gateway's own
+form is verified; the leg from "card entered" to "order paid" is not.
+
+**Retrying did not duplicate the order.** Placing again on an unchanged cart
+updated the existing pending order — #66, created 06:28, modified 06:47 —
+rather than creating a second one. Recorded in `FINDINGS.md`, because the
+obvious fear with a retryable payment screen is a pile of abandoned orders.
+
 ## Task 12.2 — paying somewhere else and coming back
 Branch `feat/redirect-payment`, PR TBD. **Pro + app.** 1144 tests, seven new.
 
