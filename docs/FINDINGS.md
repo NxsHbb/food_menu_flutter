@@ -3985,3 +3985,32 @@ The lesson is the same for both: **reproduce locally and instrument it.** Ten
 minutes with a logging mu-plugin on the dev site answered what an hour of
 inference from curl against production had not, and would have caught the
 first theory before any code was written for it.
+
+## A form taller than the screen can refuse in silence
+`FormState.validate()` marks every failing field and returns false. Where the
+field is drawn is not its problem — and when the button that triggered it is
+pinned to the bottom of a scrolling page, a failure above the fold produces no
+visible change at all. On a device that is indistinguishable from a broken
+button, and it was read as one for several minutes during task 12.5's device
+pass before the page was scrolled up.
+
+It only bites once a **store** adds fields. The app's own inputs sit near the
+top of the checkout, so during development everything it validates really is
+on screen, and the assumption gets written down as a comment and believed.
+
+**`FormState` does not expose its fields**, so there is no `firstInvalid` to
+scroll to. Walking the element tree under the form for the first
+`FormFieldState` with `hasError` is the way; inside a `ListView` tree order is
+visual order, so the first hit is the topmost failure.
+
+**A field that has scrolled away may not be mounted.** `ListView(children:)`
+builds elements lazily, and a recycled field has no `BuildContext` to scroll
+to — `find...first` on it throws `Bad state: No element` rather than coming
+back empty, which is its own small trap in tests. Any "reveal the error"
+routine needs a fallback for the case where the error exists but its widget
+does not.
+
+**The test harness hid it.** `CheckoutHarness.pump` uses a 390x**2400**
+surface so that tests never have to scroll, which is the right default and
+also means no existing test could have caught this. The regression test asks
+for 390x700 explicitly.

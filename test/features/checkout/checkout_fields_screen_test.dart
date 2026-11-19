@@ -113,4 +113,60 @@ void main() {
     expect(find.text('This is required'), findsOneWidget);
     expect(harness.checkout.drafts, isEmpty);
   });
+
+  testWidgets('the question that blocks the order is scrolled back into view',
+      (tester) async {
+    // A handset-height screen rather than the harness's tall one, so the
+    // checkout actually scrolls — which is the whole of this defect.
+    final harness = CheckoutHarness()..checkout.fieldsAnswer = _fields();
+    await harness.pump(tester, size: const Size(390, 700));
+
+    // The contact section wants a phone and the test account has none. Fill
+    // it, so the store's own question is the only thing left failing and
+    // this test cannot pass by scrolling to somebody else's error.
+    await tester.enterText(find.byType(TextFormField).at(1), '01555 111222');
+    await tester.pumpAndSettle();
+
+    // Not `.first`: that finder throws rather than coming back empty once
+    // the viewport has recycled the field, which is a state this test walks
+    // straight through.
+    final question = find.descendant(
+      of: find.byType(CheckoutFieldsSection),
+      matching: find.byType(TextFormField),
+    );
+
+    // The state a customer reaches by scrolling down to pay: the button is
+    // pinned and always visible, the store's question is not. Stepped rather
+    // than one big drag so it survives sections being added above it.
+    for (var i = 0; i < 12 && _inViewport(tester, question); i++) {
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+    }
+    expect(
+      _inViewport(tester, question),
+      isFalse,
+      reason: 'the question has to start off screen for this to prove '
+          'anything',
+    );
+
+    await tester.tap(find.text('Place order'));
+    await tester.pumpAndSettle();
+
+    // Task 12.5: refusing from the bottom of the page used to look exactly
+    // like a dead button.
+    expect(_inViewport(tester, question), isTrue);
+    expect(harness.checkout.drafts, isEmpty);
+  });
+}
+
+/// Whether [finder] currently overlaps the scrolling area it lives in.
+///
+/// A widget the viewport has recycled is not on screen either, and asking
+/// for its rect would throw rather than answer.
+bool _inViewport(WidgetTester tester, Finder finder) {
+  final found = finder.evaluate();
+  if (found.isEmpty) return false;
+  final box = found.first.renderObject! as RenderBox;
+  final rect = box.localToGlobal(Offset.zero) & box.size;
+  return tester.getRect(find.byType(ListView)).overlaps(rect);
 }
