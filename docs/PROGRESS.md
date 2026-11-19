@@ -2,6 +2,50 @@
 
 Newest first. One entry per completed task.
 
+## Task 12.5 — the button that looked dead
+
+Branch `fix/checkout-validation-reveal`, PR TBD. App only.
+
+### What it looked like
+Tapping **Place order** did nothing. No spinner, no snackbar, no movement —
+and no order. It survived a relaunch, three gateways and a fresh cart, which
+is exactly how a dead button behaves. The cause was two screens up: the dev
+store's required `Apartment / buzzer` field (task 8.2) was empty, the form
+refused, and the only sign of it was a red message nobody could see.
+
+The validation was never wrong. `_placeOrder()` marked the field and returned,
+on the reasonable-sounding assumption written in its own comment — *"Everything
+it checks is on screen"*. That holds for the name and the phone, which the app
+puts near the top. It stops holding the moment a **store** adds its own
+questions, because they land above the payment section while the button that
+validates them is pinned to the bottom.
+
+### The fix
+The first failing field is scrolled into view. `FormState` keeps its fields
+private, so there is nothing to ask for the one that failed; the tree under
+the form is walked instead for the first `FormFieldState` with `hasError`.
+Inside a `ListView` the tree order **is** the visual order, so the first hit is
+the topmost failure rather than an arbitrary one.
+
+The fallback is not decoration. A field scrolled well out of the viewport can
+be recycled, and `_inViewport` in the test proves that happens at handset
+height. When nothing errored is still mounted there is no context to scroll to,
+so a snackbar says it instead — silence is the defect, not an acceptable
+outcome of it.
+
+### Proved by a test that fails without it
+`the question that blocks the order is scrolled back into view` pumps the
+checkout at **390x700** rather than the harness's default 390x2400 — the tall
+surface exists so other tests never scroll, and it is precisely what hid this.
+The phone is filled first so the store's own question is the only thing
+failing, otherwise the test could pass by scrolling to somebody else's error.
+Commenting out the one new call turns it red.
+
+### Left alone
+The inline message, the `autovalidateMode` flip and the readiness check below
+it are untouched. This adds the one thing missing: telling the customer where
+to look.
+
 ## Task 12.3 — the card gateways, and four walls behind them
 Branch `feat/card-via-pay-page` (Pro only), PR TBD. **No app code at all** —
 12.2 and 12.4 had already built everything the app needed.

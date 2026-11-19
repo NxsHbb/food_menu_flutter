@@ -81,12 +81,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Future<void> _placeOrder() async {
     if (_placing) return;
 
-    // The form first. Everything it checks is on screen, so a message beside
-    // the field beats the same complaint in a snackbar — and when the form is
-    // not on screen at all, signed out or with an empty cart, it passes and
-    // the readiness below says the useful thing instead.
+    // The form first. A message beside the field beats the same complaint in
+    // a snackbar — and when the form is not on screen at all, signed out or
+    // with an empty cart, it passes and the readiness below says the useful
+    // thing instead.
+    //
+    // **The field it marks is not necessarily on screen.** The store's own
+    // questions sit well above the payment section, and the button that runs
+    // this is pinned to the bottom, so marking the field and stopping there
+    // reads as a dead button.
     if (!(_formKey.currentState?.validate() ?? false)) {
       setState(() => _autovalidate = true);
+      _revealFirstError();
       return;
     }
 
@@ -226,6 +232,52 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     ScaffoldMessenger.of(context)
       ..removeCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Brings the first field that failed validation into view.
+  ///
+  /// **`FormState` keeps its fields to itself**, so there is nothing to ask
+  /// for the one that failed. The tree under the form is walked instead for
+  /// the first `FormFieldState` holding an error; inside a `ListView` the
+  /// tree order is the visual order, which makes the first one found the
+  /// topmost rather than merely some failing field.
+  ///
+  /// The fallback matters as much as the scroll: a field that has scrolled
+  /// out of the viewport can be recycled, and a validation failure nobody
+  /// can see is the defect this fixes, not an acceptable outcome of it.
+  void _revealFirstError() {
+    final form = _formKey.currentContext;
+    if (form == null) return;
+
+    BuildContext? firstBad;
+
+    void visit(Element element) {
+      if (firstBad != null) return;
+      if (element case final StatefulElement stateful) {
+        final state = stateful.state;
+        if (state is FormFieldState && state.hasError) {
+          firstBad = element;
+          return;
+        }
+      }
+      element.visitChildren(visit);
+    }
+
+    form.visitChildElements(visit);
+
+    if (firstBad case final target?) {
+      Scrollable.ensureVisible(
+        target,
+        // Clear of the pinned header, and far enough down that the message
+        // under the field arrives with it.
+        alignment: 0.15,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      return;
+    }
+
+    _say('Please check the highlighted details above.');
   }
 
   @override
