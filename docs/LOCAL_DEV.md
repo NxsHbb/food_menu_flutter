@@ -14,6 +14,13 @@ nothing WordPress-related enters the Flutter git tree.
 | PHP | 8.3.1, built-in server |
 | wp-cli | `~/.local/bin/wp` (wrapper raising `memory_limit` to 1G) |
 
+**WooPayments is installed here but can never work**, because its account
+data is gated on a WordPress.com handshake and this site is on a LAN address
+WordPress.com cannot reach. `WCPAY_DEV_MODE` is defined in `wp-config.php`
+for the same reason it was added — test-mode onboarding — and neither it nor
+seeding `wcpay_account_data` makes the gateway available. Test WooPayments on
+the **live demo site** instead; `FINDINGS.md` explains why in full.
+
 ## Why the LAN IP and not localhost
 An Android emulator reaches the host at `10.0.2.2`; a physical device needs the
 machine's LAN address. `siteurl`/`home` are set to the LAN IP so REST responses
@@ -385,8 +392,23 @@ physical iPhone, and it has been seeded to mirror the local demo data.
 | `food-menu` CPT | 8 demo dishes, imported through the plugin's own CSV importer |
 | Test customer | `claude.devicetest@foodmenu.test` / `DeviceTest@2026##` |
 
-**Both plugins run from their repos' `main`** (free 6.0.9, Pro `main`), not a
-release, which is why all 27 `app/*` routes answer there. The free plugin also
+**Both plugins run from their repos' `main`** (free **6.0.9.1**, Pro
+**6.0.7.1**, updated 2026-11-22 and current through task 12.6), not a
+release, which is why all 27 `app/*` routes answer there. They are uploaded
+over HTTP — there is no wp-cli, no SFTP and no Application Password on that
+host:
+
+```sh
+# Build with the LIVE folder name as the prefix, or a third copy is installed.
+git archive --format=zip --prefix=tlp-food-menu/      -o free.zip main
+git archive --format=zip --prefix=food-menu-pro-main/ -o pro.zip  main
+```
+
+POST the zip to `wp-admin/update.php?action=upload-plugin` as multipart
+`pluginzip` with the `_wpnonce` from `plugin-install.php?tab=upload`, then
+follow the `&overwrite=update-plugin` link it answers with. The confirmation
+page says *"The uploaded file has expired"* even when it has not — follow the
+link anyway. Admin is `admin`; Habib supplies the password when it is needed. The free plugin also
 sits in a second, **inactive** `tlp-food-menu-main/` folder as a rollback; Pro
 lives in `food-menu-pro-main/`. A zip whose top-level folder does not match
 those names installs a *third* copy instead of updating.
@@ -396,6 +418,23 @@ at Bangladeshi magnitudes and read as `$450` once the currency moved; they are
 now divided by 100 — a latte is `$1.90`, the steak `$12.50`, the pizza
 `$4.50`–`$8.50`. The 8 `food-menu` CPT dishes still carry the old numbers,
 which nothing reads while the store is in `online_ordering` mode.
+
+**Payment gateways, as of 2026-11-22.** Four gateway plugins run together:
+WooPayments 11.3.0, Stripe 11.2.0, PayPal/PPCP 4.2.2 and Razorpay 4.8.9.
+`GET /app/payment-methods` answers **27** methods and the store's default is
+`woocommerce_payments`.
+
+- **WooPayments is connected and in test mode** (Habib did the WordPress.com
+  login on 2026-11-22). Test card `4242 4242 4242 4242`, any future expiry,
+  any CVC. Proved end to end from the OnePlus: **order #84**, $1.90, paid.
+- **Five labels are duplicated** between the WooPayments and Stripe stacks —
+  Klarna, Affirm, Amazon Pay, EPS, Bancontact — plus three distinct card rows
+  (*Card*, *Credit / Debit Card*, *Card / UPI / Net banking*). A customer
+  cannot tell the pairs apart. Disabling one stack is an open decision; see
+  `FINDINGS.md`.
+- The currency is **USD** and WooPayments' account country is **US**, while
+  the test customer's address is Dhaka. The card form takes that as its
+  billing country without complaint.
 
 **Order history is empty**, deliberately: every order on the store was test
 traffic from building Phase 12, in two currencies and the wrong magnitudes, so
