@@ -98,6 +98,16 @@ Task 12.2 shipped this as a Custom Tab, which is in-app in the technical sense
 and reads as leaving for Chrome. **Nothing else may use it**: a webview is a
 way of not building a screen, and the rest of the app is native on purpose.
 
+**What the webview shows is the store's page, and the store decides what is on
+it.** A card gateway is finished on WooCommerce's own `order-pay` (task 12.3),
+which re-renders the store's whole gateway list from scratch — it does not
+know what the app's radio list said. Anything the customer chose in the app
+has to be re-applied there by the plugin, or the page quietly contradicts the
+app: task 12.6 was exactly that, with the pay page preselecting the store's
+first gateway over the customer's. Treat a hand-off to a website surface as
+**losing all app state by default**, the order being the only thing that
+crosses.
+
 ### The network layer
 `core/network/` holds four pieces:
 

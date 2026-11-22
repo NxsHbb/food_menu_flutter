@@ -4014,3 +4014,58 @@ does not.
 surface so that tests never have to scroll, which is the right default and
 also means no existing test could have caught this. The regression test asks
 for 390x700 explicitly.
+
+## The pay page preselects a gateway, and it is not the one the customer chose
+`WC_Shortcode_Checkout::order_pay()` re-renders the store's **whole** gateway
+list and then calls `WC_Payment_Gateways::set_current_gateway()`. That method
+has two branches: the session's `chosen_payment_method`, or — when there is
+none — `current( $gateways )`, the **first available gateway**.
+
+An app customer arrives in a fresh webview with no WooCommerce session, so the
+fallback is the only branch that ever runs for us. Task 12.3 handed card orders
+to this page and inherited the behaviour whole:
+
+| | |
+|---|---|
+| The order summary, at the top of the page | `Payment method: Klarna` |
+| The radio that is checked, below it | `cod` |
+| The payment box that is **not** `display:none` | `cod`'s |
+
+Three separate things on one page disagreeing, with the one that decides
+furthest from the one the customer reads.
+
+**It is not cosmetic.** `WC_Form_Handler::pay_action()` reads
+`$_POST['payment_method']` and calls `$order->set_payment_method()` on it. A
+customer who taps *Pay for order* without noticing the radio pays by a method
+they did not pick, and the order's gateway changes underneath them to match.
+On this store the first available gateway is **cash on delivery**, so the real
+outcome is worse than a wrong card: the order converts to cash and nobody is
+charged at all.
+
+**`before_woocommerce_pay_form` is the hook.** It is the only one that fires
+after `set_current_gateway()` and before `form-pay.php`, and it is handed the
+gateway list. The array is a copy; the gateways inside it are the same objects
+the template reads `chosen` from, so setting the property there lands.
+
+**Clear every flag before setting one.** WooCommerce's gateway objects are
+singletons for the request, so `chosen` is sticky — setting the right one
+without clearing the rest leaves two radios checked, and the browser honours
+the last.
+
+**A gateway can go away between placing and paying.** `is_available()` is
+re-evaluated on the pay page, and the store may have switched one off since.
+Nothing is preselected in that case, deliberately: an unpaid order is
+recoverable and an order silently paid by the wrong method is not. A notice
+says which method went away, because a page with no radio checked and a button
+answering *"Invalid payment method."* is the same silence as
+[the form that refuses off-screen](#a-form-taller-than-the-screen-can-refuse-in-silence).
+
+**The list is not narrowed to the single gateway.** A customer whose card is
+refused needs another way to pay, and a page offering one method that does not
+work is a dead end. Preselecting is enough — the mis-pick was silent, and a
+deliberate change is not.
+
+**Razorpay and PayPal were never affected.** They answer the checkout with a
+redirect URL of their own (task 12.2) and never touch the pay page. Only the
+gateways 12.3 defers here were ever at risk, which is why five tasks of
+payment work went past this.
