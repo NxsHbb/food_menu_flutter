@@ -2,6 +2,73 @@
 
 Newest first. One entry per completed task.
 
+## Task 12.6 — the pay page chose the gateway, not the customer
+
+Branch `fix/pay-page-gateway-preselect`, PR TBD. **Pro only** — no Dart
+changed; this repo's diff is docs.
+
+### What it looked like
+A Klarna order, opened on the store's pay page by task 12.3. The summary at
+the top of the page said **Payment method: Klarna**. The radio twelve lines
+below it was **Cash on delivery**, checked, with its description box the only
+one not `display:none`. Reproduced the same way on Stripe card and Cash App.
+
+Tapping *Pay for order* from there does not pay by card. `pay_action()` reads
+`$_POST['payment_method']` and calls `$order->set_payment_method()` on it, so
+the order becomes a cash-on-delivery order and no money is taken at all — and
+the only sign is a radio nobody looked at, on a page the customer did not
+expect to have to read.
+
+### The cause
+`order_pay()` calls `WC_Payment_Gateways::set_current_gateway()`, which
+prefers the session's `chosen_payment_method` and falls back to
+`current( $gateways )` — the first available gateway. The app's customer
+arrives in a fresh webview with no WooCommerce session, so the fallback is the
+only branch that ever runs for us. Task 12.3 inherited it whole.
+
+### The fix
+`AppWebCheckout::preselect_chosen_gateway()` on `before_woocommerce_pay_form`
+— the one hook that fires after `set_current_gateway()` and before
+`form-pay.php`, and the one handed the gateway list. It clears `chosen` on
+every gateway, then sets it on the order's own. Clearing first is not
+decoration: WooCommerce's gateways are singletons for the request, so without
+it two radios end up checked.
+
+Gated on the `_fmp_app_web_checkout` meta, like the rest of 12.3's changes, so
+the website's own pay page keeps WooCommerce's behaviour.
+
+A gateway the store switched off between placing and paying preselects
+**nothing** and prints a notice naming it. An unpaid order is recoverable; one
+silently paid by the wrong method is not.
+
+The gateway list is still rendered in full. A customer whose card is refused
+needs another way to pay, and the defect was that the mis-pick was silent —
+not that a deliberate change is possible.
+
+### Proved twice
+**On the dev store, by HTML.** The same order, before and after:
+
+```
+before:  value="cod"            checked='checked'    box visible
+         value="stripe_klarna"                       display:none
+after:   value="cod"                                 display:none
+         value="stripe_klarna"  checked='checked'    box visible
+```
+
+Every available gateway was then driven through the hook against the store's
+real gateway objects: five preselected correctly, exactly one chosen each
+time, and two switched-off ids left nothing chosen and printed the notice.
+
+**On the OnePlus, end to end.** A Klarna order placed through the app, order
+**#172**. The webview opened under the app's own Klarna header, Klarna's radio
+was selected, cash on delivery and card were not, and Klarna's panel was open
+with its real terms — *4 interest-free payments of $41.80*. Task 12.5's fix
+showed itself on the way past, scrolling the empty `Apartment / buzzer` field
+back into view.
+
+### Left behind
+Order #172, pending and unpaid, on `customer@foodmenu.test`.
+
 ## Task 12.5 — the button that looked dead
 
 Branch `fix/checkout-validation-reveal`, PR TBD. App only.
