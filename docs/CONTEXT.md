@@ -997,11 +997,23 @@ a store running exactly one method.
   is *available for this cart*. `PaymentMethods.offered` takes a nullable
   list, because an unread cart and a cart nothing can pay for are different
   answers. See `FINDINGS.md`.
-- **`supported` is the app's reach, not the store's.** A gateway needing a
-  redirect or a native SDK is still listed, drawn dimmed and unselectable, so
-  a store running only card gets an explanation instead of an empty section.
-  The server decides which ids those are, filterable with
-  `fmp_app_supported_gateways`.
+- **`supported` is true for everything enabled, since task 12.3.** It was
+  once the app's reach — a gateway it could not finish was drawn dimmed and
+  unselectable — but there are now three ways to finish one and between them
+  they cover every gateway WooCommerce can register:
+
+  | Route | Gateways | How it ends |
+  |---|---|---|
+  | The app finishes it | `cod`, `bacs`, `cheque` | `has_fields` false; nothing is collected |
+  | The gateway redirects | `razorpay`, `ppcp-gateway`, `paypal` | its own `redirect_url`, then the order is re-read |
+  | The store's pay page | **everything else** | `AppWebCheckout` defers to `order-pay` |
+
+  The third is a **catch-all, not a list**: `AppWebCheckout` bails only for
+  ids in `app_handled_ids()` and defers anything else, so a gateway installed
+  tomorrow is covered without a release. `fmp_app_supported_gateways` still
+  moves an id between the first two sets. The field is kept in the payload
+  rather than dropped, because an older app reads it and a future gateway may
+  yet defeat all three — see `FINDINGS.md` for the one shape that would.
 - **The method is resolved, never stored** — like the order type, the slot and
   the address. A tap on an unsupported row can never reach an order.
 - No client-side validation that a gateway is enabled: **the Store API already

@@ -4069,3 +4069,91 @@ deliberate change is not.
 redirect URL of their own (task 12.2) and never touch the pay page. Only the
 gateways 12.3 defers here were ever at risk, which is why five tasks of
 payment work went past this.
+
+## Every WooCommerce gateway is covered, and the one shape that would not be
+Asked plainly on 2026-11-22: can the app take **any** gateway WooCommerce
+registers, including the "Accept payments with Woo" partners? Read off the
+code rather than guessed, and then tested.
+
+**Yes, because the pay-page route is a catch-all rather than a list.**
+`AppWebCheckout::defer_to_pay_page()` returns early only for ids in
+`PaymentMethodsApi::app_handled_ids()` and defers **everything else** to
+`order-pay`. Nothing has to be added for a new gateway; the partners in
+WooCommerce's own Payments directory are ordinary plugins registering ordinary
+`WC_Payment_Gateway`s, and they land in one of the three routes automatically.
+
+**The one shape that would defeat all three** is a gateway that *collects
+fields* but is **blocks-only** — one that registers a JS payment method for
+the Checkout block and inherits `WC_Payment_Gateway::payment_fields()`, whose
+base implementation only echoes a description. `AppWebCheckout` renders the
+**classic** pay form, so such a gateway would draw a radio, no inputs, and no
+way to pay. This is why `supported` is still a field in the payload rather
+than a dropped constant.
+
+Surveyed on both stores, and **nothing hits it**. Every gateway with
+`has_fields` true defines its own `payment_fields()`:
+
+| Plugin | Gateways registered | Own `payment_fields()` |
+|---|---|---|
+| WooPayments 11.3.0 | 17 | all |
+| Stripe 11.2.0 | 22 | all |
+| PayPal (PPCP) 4.2.2 | 11 | `ppcp-gateway` only — the rest redirect and collect nothing |
+| Razorpay 4.8.9 | 1 | base only; redirects |
+
+A base-only `payment_fields()` is harmless for a **redirect** gateway: the
+page shows a description and the real work happens on submit, in
+`process_payment()`. It is only fatal when the gateway needs card input.
+
+**WooPayments is proved, not predicted.** Live demo site, order **#84**,
+$1.90, test card 4242, `pi_3UeSzzCDMV1c6spb0FdDxKkT`, paid. The order carries
+`AppWebCheckout`'s own note, *"Payment handed to the store's pay page for the
+mobile app."* The app then said *"the kitchen has your order and is getting
+started"* — wording task 12.1 reserves for a genuinely **paid** order — so the
+payment state was read correctly, not merely the redirect.
+
+### Four limits worth stating
+Not gaps in routing; limits of what "handles a gateway" means here.
+
+1. **No native card entry, for anything.** `payment_data` is unused in v1 and
+   every card gateway goes through the webview. The app *completes* card
+   payments; it does not *render* them.
+2. **No saved cards.** The app's customer is a guest to the website, so
+   WooCommerce's stored payment methods never appear on the pay page. Every
+   payment is entered fresh.
+3. **Wallet buttons render but are unproven.** Stripe's Link button and
+   WooPay both drew on the pay page in the app's webview and neither was
+   tapped. These need domain-association files served from the store; treat
+   them as untested.
+4. **Duplicate gateways read as a defect.** The live demo now runs the
+   WooPayments *and* Stripe stacks together, so the checkout lists Klarna,
+   Affirm, Amazon Pay, EPS and Bancontact **twice** with identical labels,
+   plus three separate card rows, across 27 methods. Nothing is wrong with
+   any of them and a customer cannot tell them apart. **A store running two
+   gateway plugins is a merchant configuration problem the app cannot fix** —
+   the titles are the merchant's and the app is forbidden from composing its
+   own (see *Paying* in `CONTEXT.md`).
+
+## WooPayments cannot be tested on the LAN dev site, at all
+Worth recording because an hour went into proving it is not worth trying.
+
+`WC_Payments_Account::get_cached_account_data()` opens with
+`if ( ! $this->payments_api_client->is_server_connected() ) { return []; }` —
+the **Jetpack/WordPress.com** handshake. No account means
+`check_base_availability()` fails at the Stripe capability-status check, so
+the gateway is never `is_available()` and never reaches the app.
+
+The dev site is on a LAN address WordPress.com cannot reach, so:
+
+- **Seeding `wcpay_account_data` does nothing.** The cache is never read; the
+  guard above returns before it.
+- **Faking the Jetpack tokens as well would be worse than useless.**
+  WooPayments renders its card field from its own JS keyed to a *real*
+  account, so the result is a blank form — indistinguishable from the
+  blocks-only failure above. A test whose failure mode mimics the defect it is
+  looking for is not a cheap test, it is a misleading one.
+- `WCPAY_DEV_MODE` only selects test-mode onboarding and waives the HTTPS
+  requirement. It does not conjure an account.
+
+**Use the live demo site**: public HTTPS is exactly what the handshake needs,
+and it is where #84 was placed. The WordPress.com login is a human step that
+cannot be automated from here.
