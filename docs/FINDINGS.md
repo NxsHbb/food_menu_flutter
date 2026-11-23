@@ -4157,3 +4157,138 @@ The dev site is on a LAN address WordPress.com cannot reach, so:
 **Use the live demo site**: public HTTPS is exactly what the handshake needs,
 and it is where #84 was placed. The WordPress.com login is a human step that
 cannot be automated from here.
+
+## The iPhone was verified with a release build, and that is not a preference
+The first iPhone pass against the live site, on 2026-11-23. Every check
+passed — menu with real dollar prices, dish and add-ons, sign-in surviving a
+force-quit, cart and checkout, and a card payment opening the store's pay
+page — but only on a **release** build, and getting there cost four failed
+launches that each reported something other than the real cause.
+
+**A profile build launched from the home screen draws a white screen.** The
+same binary, launched by `flutter run`, rendered the menu correctly off the
+live site. Force-quit and tapped from the home screen it comes up blank. The
+mechanism was **not established** and is recorded as an observation rather
+than explained: profile is AOT-compiled and ought to run standalone. What
+matters practically is that a white screen on an iPhone is not evidence of an
+app defect, and the thing to reach for is a release build, which needs no
+debugger, no VM service and no Xcode automation.
+
+`CONTEXT.md` carries the recipe. The rest of this section is why each step is
+in it.
+
+## A locked iPhone fails the build with an error that never mentions locking
+Three `flutter run` attempts died on:
+
+```
+No Xcode build settings have been found. Please check possible errors above.
+Could not build the precompiled application for the device.
+```
+
+Nothing there is true. The build settings exist — running
+`xcodebuild -showBuildSettings` **without** a destination prints them in full.
+Adding `-destination id=<device>` is what fails, and only then does the real
+error appear:
+
+```
+xcodebuild: error: Could not configure request to show build settings:
+  Timed out waiting for all destinations ...
+  error:The developer disk image could not be mounted on this device.
+```
+
+And one layer below that, in the CoreDevice log:
+
+```
+kAMDMobileImageMounterDeviceLocked: The device is locked.
+```
+
+**The developer disk image will not mount on a locked handset.** Developer
+Mode was enabled, the pairing was good and the iOS 18.7.2 DDI was present and
+valid the whole time — the phone was simply locked.
+
+Two things worth keeping. `devicectl device info lockState` answers the
+question directly, and **`unlockedSinceBoot: true` is not the field to read**;
+`passcodeRequired: true` means locked *now*, which is what the mount cares
+about. And a 5-minute auto-lock is not long enough for a cold build, so the
+device re-locked mid-run twice; the DDI mount survives a later lock once it
+has been mounted, but the first mount needs the screen unlocked.
+
+Diagnosing this from the Flutter error alone is not possible. The chain is
+four errors deep and the top one is actively misleading.
+
+## A release build over a profile build is refused as a signing failure
+Built release into a tree that already held a profile build, and the device
+refused the install:
+
+```
+Unable to Install "Food Menu"
+This app cannot be installed because its integrity could not be verified.
+Failed to verify code signature of .../Frameworks/Flutter.framework
+  : 0xe8008001
+LegacyErrorString = ApplicationVerificationFailed
+```
+
+That reads as a certificate or provisioning problem and is neither. Both the
+app and the framework were signed correctly — `Apple Development: Mamunur
+Rashid`, team `M34L8S85ZF`, the same identity that had just installed a
+profile build. The actual state was:
+
+```
+codesign --verify --deep --strict Runner.app
+  Runner.app: a sealed resource is missing or invalid
+```
+
+**`flutter build ios` writes every configuration to the same
+`build/ios/iphoneos/Runner.app`.** A release build over a profile bundle
+replaces the payload and leaves a `_CodeSignature` that no longer seals it.
+`flutter clean` then a release build produces a valid seal and installs.
+
+This matters for task 13.2 beyond this one session: a release pipeline that
+builds configurations in sequence without cleaning between them will hit
+`ApplicationVerificationFailed` and send whoever reads it hunting through
+certificates and provisioning profiles, which are not the problem. Verify the
+seal before blaming the signature.
+
+## `flutter run` on an iOS device is not scriptable the way `adb` is
+The OnePlus is drivable end to end from a terminal. The iPhone is not, and the
+limits are worth stating rather than rediscovered.
+
+**`flutter run` needs Xcode's AppleScript automation, and needs Xcode closed.**
+With Xcode running it got as far as installing and then failed after 131
+seconds:
+
+```
+Error starting debug session in Xcode:
+  Timed out waiting for CONFIGURATION_BUILD_DIR to update.
+```
+
+Flutter's own advice in that message — close Xcode and re-run — is the fix. A
+background process cannot answer the automation permission prompt either.
+
+**The VM service tunnel is the other half.** When it will not connect, Flutter
+retries roughly every 1.6 seconds without limit; it reached **attempt #450**
+on one run:
+
+```
+Exception attempting to connect to the VM Service:
+  HttpException: Connection reset by peer, uri = http://127.0.0.1:52161/...
+```
+
+Those retries are not free. The app had rendered its menu and then stopped
+responding to touch while they ran, and a second launch attached over the top
+of the first made it worse. **A frozen iPhone app under `flutter run` is the
+tooling before it is the app** — kill the run and relaunch standalone before
+reading anything into it. `--host-vmservice-port` is the documented remedy and
+did not help here, because the real blocker was the Xcode automation above.
+
+**There is no process-list confirmation to lean on either.**
+`devicectl device info processes` listed 527 processes and **never** showed
+`com.foodmenu`, while `devicectl device process launch` reported the app
+launched and held it open, and the customer could see it on screen. The
+process list is not a reliable test of whether a Flutter app is running on
+iOS; `devicectl device info apps` confirming installation plus a human looking
+at the handset is.
+
+With no CLI screenshot or input API, **the per-screen pass on the iPhone is
+Habib's eyes**. What is automatable is build, sign, seal, install and launch,
+and that is worth automating because each of those failed at least once here.

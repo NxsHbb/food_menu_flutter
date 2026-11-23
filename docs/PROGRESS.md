@@ -2,6 +2,67 @@
 
 Newest first. One entry per completed task.
 
+## The first iPhone pass, against the live site
+
+Branch `docs/ios-device-pass`, PR TBD. **No Dart changed.** The diff is docs
+plus Flutter 3.50's own iOS project migration.
+
+### What was verified
+Release build, `com.foodmenu` 1.0.0, on the cabled **iPhone 11 (iOS 18.7.2)**,
+pointed at `https://radiustheme.net/demos/food-menu`. Five checks, chosen
+because they exercise platform code the OnePlus passes structurally could not:
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Menu loads — banners, dishes, real dollar prices | pass |
+| 2 | Dish detail and add-on selection | pass |
+| 3 | Sign in, force-quit, reopen still signed in | pass |
+| 4 | Add to cart, checkout screen | pass |
+| 5 | Card payment opens the store's pay page in the webview | pass |
+
+Checks 3 and 5 are the ones worth the trip. **3** puts
+`flutter_secure_storage` on the real iOS **Keychain**, which is
+entitlement-gated on a device and which nothing in the 1159 tests or any
+Android run touches. **5** is `webview_flutter_wkwebview` on **WKWebView**, a
+different engine from Android's, carrying task 12.3's pay page and task 12.6's
+gateway preselect.
+
+Habib drove the handset; there is no CLI screenshot or input API for a
+physical iPhone.
+
+### Gates
+`flutter analyze` clean. `flutter test` — 1159 pass.
+
+### What it cost to get there
+Four failed launches, each reporting something other than its cause. Written
+up in `FINDINGS.md` as four sections; the short version:
+
+- A **locked** iPhone fails the build with `No Xcode build settings have been
+  found`, which mentions neither locking nor the developer disk image that is
+  actually refusing to mount.
+- A **release build over a profile build** is refused as
+  `ApplicationVerificationFailed`, which reads as a certificate problem and is
+  a broken bundle seal. `flutter clean` fixes it. This one has teeth for 13.2.
+- `flutter run` on an iOS device needs **Xcode's AppleScript automation and
+  Xcode closed**, so iOS device runs are not scriptable the way `adb` is.
+- A **profile build launched from the home screen draws a white screen** while
+  the same binary renders correctly under `flutter run`. Cause not
+  established; recorded as an observation. Release is the build to verify with.
+
+### The iOS floor moved, and that is a product fact
+Flutter 3.50 migrated the iOS project on first invocation: minimum deployment
+target **13.0 → 15.0** in `Podfile` and `project.pbxproj`, and Swift Package
+Manager integration added to the project and scheme. Not optional — 3.50
+dropped iOS 13 and 14 — but it means **the app's floor is now iOS 15.0**,
+which belongs on the store listing and not only in a build file. Carried here
+rather than swept into an unrelated commit.
+
+### Confirmed, not predicted
+`privacy_policy_url` is **empty** on the live demo site. This was an open
+dependency written as "check before 13.2"; it is now measured and it is empty,
+so a submission from that store would fail. WordPress ships the page as a
+draft and nobody published it.
+
 ## Task 12.6 — the pay page chose the gateway, not the customer
 
 Branch `fix/pay-page-gateway-preselect`, PR TBD. **Pro only** — no Dart

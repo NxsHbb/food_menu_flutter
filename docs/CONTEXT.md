@@ -1496,6 +1496,67 @@ Omitting it falls back to the local dev site in `LOCAL_DEV.md`. `localhost` is
 never the default: an Android emulator reaches the host at `10.0.2.2` and a
 physical device needs the LAN address.
 
+## Platform minimums
+**iOS 15.0**, raised from 13.0 by Flutter 3.50, which dropped iOS 13 and 14.
+It is set in `ios/Podfile` and in `IPHONEOS_DEPLOYMENT_TARGET`. The iOS project
+also carries Swift Package Manager integration alongside CocoaPods; the tool
+added it and warns that removing CocoaPods would build faster, which is a
+cleanup nobody has taken. Treat 15.0 as a fact for the store listing, not just
+a build setting.
+
+## Running on a device
+Both handsets are real; neither is a simulator. They are not equally
+drivable, and the asymmetry decides how verification is done.
+
+**Android — scriptable end to end.** `adb` gives screenshots, taps and text,
+so a pass can be driven and evidenced from a terminal. The local dev site over
+HTTP is fine. `adb devices -l` is the truth about what is attached;
+`flutter devices` can list only the wireless iPhone and error out.
+
+```sh
+flutter run -d <android-id> --dart-define=FOOD_MENU_BASE_URL=http://<lan-ip>:8080
+```
+
+**iPhone — build it, install it, then look at it.** There is no CLI screenshot
+or input API, so the per-screen pass is human. A handset also cannot reach a
+LAN dev site (iOS Local Network privacy denies it silently), so point it at
+the live HTTPS site.
+
+Use a **release** build. It needs no debugger, no VM service and no Xcode
+automation, and it is the only configuration that was made to run reliably
+standalone — a profile build launched from the home screen comes up white
+(`FINDINGS.md`).
+
+```sh
+flutter clean                       # mandatory when switching configuration
+flutter build ios --release --dart-define=FOOD_MENU_BASE_URL=https://radiustheme.net/demos/food-menu
+codesign --verify --deep --strict build/ios/iphoneos/Runner.app   # expect silence
+xcrun devicectl device install app --device <uuid> build/ios/iphoneos/Runner.app
+```
+
+Then tap the icon on the handset.
+
+Three traps, each of which reports something other than its cause — the long
+version is in `FINDINGS.md`:
+
+- **Unlock the phone first.** The developer disk image will not mount on a
+  locked device, and the failure surfaces as `No Xcode build settings have
+  been found`. Check with
+  `xcrun devicectl device info lockState --device <uuid>` and read
+  `passcodeRequired`, not `unlockedSinceBoot`.
+- **`flutter clean` between configurations.** All configurations build to
+  `build/ios/iphoneos/Runner.app`, and building one over another leaves a
+  stale `_CodeSignature`; the device then refuses the install as
+  `ApplicationVerificationFailed`, which looks like a certificate problem.
+- **`devicectl device info processes` never lists the app**, even when it is
+  running and on screen. Do not use it to decide whether the app is alive.
+
+`flutter run` does work on the iPhone, but only with **Xcode closed** — it
+drives Xcode over AppleScript and otherwise dies on `Timed out waiting for
+CONFIGURATION_BUILD_DIR to update`. It is the only way to get Dart logs off
+the device, so it is worth the trouble when something needs explaining rather
+than confirming.
+
 ## Layout
 ```
 lib/            Dart source (see Architecture above)

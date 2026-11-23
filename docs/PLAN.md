@@ -273,10 +273,17 @@ What is already in place and unused:
 | 12.6 | **The store's pay page ignores the gateway the app chose.** `AppWebCheckout` defers a card order to `order-pay`, which re-renders WooCommerce's whole gateway list and preselects the **first available** one — bank transfer on this store — while the page header above it still reads the gateway the customer picked. Reproduced on Stripe card, Klarna and Cash App; a customer who taps "Pay for order" without noticing pays by a method they did not choose, and the order's gateway silently changes with it. Razorpay and PayPal are unaffected: they return their own redirect URL and never touch the pay page. The deferred order's own `payment_method` is now what the pay page preselects. The cause is `set_current_gateway()`, whose session branch never runs for an app customer — a fresh webview carries no WooCommerce session — leaving `current( $gateways )` as the only path. `before_woocommerce_pay_form` is the one hook that fires after it and before the template; `chosen` is cleared on every gateway first, because WooCommerce's gateways are singletons for the request and two checked radios is the other way to get this wrong. **On this store the first available gateway is cash on delivery**, so the real outcome was not a wrong card but no charge at all. A gateway switched off between placing and paying preselects nothing and says which one went away | pro | done |
 
 ## Phase 13 — Release
+A **release build was run on the iPhone against the live site on 2026-11-23**
+and all five checks passed, so neither task below is blocked on the app
+working. What that pass changed is what they have to carry: the iOS floor is
+now **15.0** (Flutter 3.50 dropped 13 and 14), which is 13.1's to state rather
+than leave in a build file, and the signing traps it turned up are 13.2's —
+see `FINDINGS.md`.
+
 | # | Task | Repo | Status |
 |---|---|---|---|
-| 13.1 | App icon, splash, display name, permissions audit on both platforms | app | todo |
-| 13.2 | Release builds, signing, and store metadata | app | todo |
+| 13.1 | App icon, splash, display name, permissions audit on both platforms. Must record the **iOS 15.0 minimum** and the Swift Package Manager migration Flutter 3.50 applied to the iOS project | app | todo |
+| 13.2 | Release builds, signing, and store metadata. **`flutter clean` between configurations is not optional** — all configurations build to one path and a stale `_CodeSignature` is refused by the device as `ApplicationVerificationFailed`, which reads as a certificate problem and is not | app | todo |
 
 ## Phase 14 — The vendor's own feature list
 `tlp-food-menu/docs/app-feature.md`, new in free 6.0.9, is a spec for this app
@@ -454,14 +461,18 @@ rows that fit the v1 already agreed; see Open dependencies.
 - **The iOS bundle ID is tied to one Apple team.** `com.foodmenu` can only be
   registered under `M34L8S85ZF`; another team is refused it outright. Device
   builds, TestFlight and the App Store all depend on that account. Anyone
-  building elsewhere must change the bundle ID. Confirm before task 13.2.
+  building elsewhere must change the bundle ID. **Still true and now
+  exercised**: the 2026-11-23 iPhone pass signed and installed under that team
+  as `Apple Development: Mamunur Rashid`, so the account works — the
+  constraint is who else can build, not whether this can.
 - **A production store must publish a privacy policy page.** Both consoles
   require a reachable policy URL for an app that creates accounts, and the app
   reads the store's own. **WordPress ships that page as a draft**, so a store
   that never published it has none and the row does not appear — correctly,
-  but the submission then fails. Check `privacy_policy_url` on
-  `GET /app/config` before any upload. `docs/STORE-SUBMISSION.md` says so too.
-  Confirm before task 13.2.
+  but the submission then fails. `docs/STORE-SUBMISSION.md` says so too.
+  **Measured 2026-11-23, no longer a thing to check: `privacy_policy_url` is
+  empty on the live demo site**, so a submission from it would fail today.
+  Someone has to publish that page in WordPress before 13.2.
 - **Customer registration must be enabled on the store.** Task 3.1 follows
   WooCommerce's My Account registration setting rather than overriding it, so a
   store running the app needs `woocommerce_enable_myaccount_registration` on.
