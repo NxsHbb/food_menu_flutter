@@ -73,6 +73,11 @@ restaurant ordering app.
 | Android | `<queries>` for `http`/`https` VIEW intents | So the privacy policy row can find a browser on API 30+ (task 14.4) |
 | iOS | `NSLocalNetworkUsageDescription` | Development against a LAN dev site |
 
+The iOS build's **minimum deployment target is 15.0**, raised from 13.0 by
+Flutter 3.50. App Store Connect takes this from the build, but the listing's
+compatibility line follows it, so state 15.0 anywhere the supported-OS range
+is written by hand.
+
 **Nothing else.** No camera, no location, no contacts, no notifications yet —
 push is task 10.4 and will add one, on both platforms, when it lands.
 
@@ -93,6 +98,10 @@ a reachable policy URL, so:
 > **Before submitting a build for any store: check that store has a published
 > privacy policy page.** `curl .../wp-json/fmp/v1/app/config` and look at
 > `privacy_policy_url`. Empty means the console requirement is not met.
+
+**Checked on the live demo site, 2026-11-23: `privacy_policy_url` is empty.**
+A submission built against that store would fail the console requirement
+today. The page exists as WordPress's draft and needs publishing.
 
 ---
 
