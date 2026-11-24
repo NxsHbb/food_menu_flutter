@@ -402,6 +402,24 @@ API route at all and WooCommerce's own needs `edit_products`, so it goes to
 - The reviews **list and form are not in the design**, like the address (3.9)
   and auth (3.11) screens, so they are drawn from the app's own vocabulary.
 
+### The dish screen's photos
+`DishGallery` draws **every** photo in `Product.images`, not just
+`primaryImage`: a `PageView` with dots over the picture, and a full-screen
+viewer on tap. Nothing in the payload changed for it — the list was always
+arriving and the hero was keeping the first and discarding the rest.
+
+Two things about it are load-bearing rather than stylistic, and both have the
+long version in `FINDINGS.md`:
+
+- The hero's scrim is wrapped in an **`IgnorePointer`**. It covers the whole
+  box, so without that it takes every tap meant for the photograph.
+- The viewer's pinch, pan and double tap are **written out as recognizers**
+  rather than handed to `InteractiveViewer`, which cannot share a horizontal
+  drag with a `PageView` — with it in place the photos do not page at all.
+
+A dish with one photo still opens the viewer and simply has no dots; a dish
+with none keeps the striped placeholder and is not tappable.
+
 ### Hidden sections on the dish screen
 The store's `hide_options` setting — **one array of section names**, not eight
 switches — reaches the app as a `sections` block on the same extension (task
