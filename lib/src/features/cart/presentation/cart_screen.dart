@@ -134,8 +134,11 @@ class _Cart extends ConsumerWidget {
                 // on both (task 9.4). Honoured in both places, or a store set
                 // to "cart" would find the app asking nowhere.
                 const SizedBox(height: AppTokens.space12),
+                // Nothing after it: the section carries its own bottom gap,
+                // because it draws nothing at all on a store with tips
+                // switched off — and a gap here outlived that, leaving
+                // twice the spacing between the lines and the totals.
                 const TipSection(screen: 'cart'),
-                const SizedBox(height: AppTokens.space12),
                 _Totals(totals: cart.totals),
               ],
             ),

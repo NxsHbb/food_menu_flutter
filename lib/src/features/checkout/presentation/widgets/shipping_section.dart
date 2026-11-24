@@ -42,28 +42,35 @@ class ShippingSection extends ConsumerWidget {
 
     if (packages.isEmpty) return const SizedBox.shrink();
 
-    return CheckoutCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const CheckoutSectionTitle('Delivery method'),
-          const SizedBox(height: AppTokens.space12),
-          for (final package in packages) ...[
-            // Named only when there is more than one, which a restaurant
-            // order never is — but WooCommerce can split a cart and the
-            // rows would otherwise read as one list of alternatives.
-            if (packages.length > 1 && package.name.isNotEmpty) ...[
-              Text(
-                package.name,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppPalette.of(context).muted,
+    // **The gap below belongs to this section, not to the screen** — the
+    // same reason `CheckoutFieldsSection` carries its own. There are three
+    // ways out of this method without a card, and a `SizedBox` in the
+    // checkout's list would survive all of them: a pickup order would show
+    // a gap where the delivery method it does not have would have been.
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.space12),
+      child: CheckoutCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CheckoutSectionTitle('Delivery method'),
+            const SizedBox(height: AppTokens.space12),
+            for (final package in packages) ...[
+              // Named only when there is more than one, which a restaurant
+              // order never is — but WooCommerce can split a cart and the
+              // rows would otherwise read as one list of alternatives.
+              if (packages.length > 1 && package.name.isNotEmpty) ...[
+                Text(
+                  package.name,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: AppPalette.of(context).muted),
                 ),
-              ),
-              const SizedBox(height: AppTokens.space8),
+                const SizedBox(height: AppTokens.space8),
+              ],
+              _Rates(package: package),
             ],
-            _Rates(package: package),
           ],
-        ],
+        ),
       ),
     );
   }

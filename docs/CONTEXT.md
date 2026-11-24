@@ -402,6 +402,22 @@ API route at all and WooCommerce's own needs `edit_products`, so it goes to
 - The reviews **list and form are not in the design**, like the address (3.9)
   and auth (3.11) screens, so they are drawn from the app's own vocabulary.
 
+### Spacing on the checkout, and who owns a gap
+Every card on the checkout is `AppTokens.space12` from the next, and **the gap
+belongs to the section that may not be there** (task 15.3). A section that can
+return `SizedBox.shrink()` carries its own `Padding(bottom: space12)` —
+`CheckoutFieldsSection`, `ShippingSection`, `TipSection` — because a `SizedBox`
+in the screen's list would outlive it and leave a gap around nothing. A
+section that always draws takes its spacing from the list instead, and
+`PaymentSection` ends the run needing none.
+
+`TipSection` is on the cart screen as well, so nothing is placed after it
+there either.
+
+`test/features/checkout/checkout_spacing_test.dart` measures the drawn cards
+rather than the widgets, which is the only way the question has a real answer:
+a hidden section still exists in the tree with zero height.
+
 ### The dish screen's photos
 `DishGallery` draws **every** photo in `Product.images`, not just
 `primaryImage`: a `PageView` with dots over the picture, and a full-screen

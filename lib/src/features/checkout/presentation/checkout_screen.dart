@@ -337,9 +337,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         // customer gets one prompt here rather than a dead
                         // address block and a form that asks again for what
                         // the account already knows.
-                        if (!signedIn)
-                          const _SignInRequired()
-                        else ...[
+                        if (!signedIn) ...[
+                          const _SignInRequired(),
+                          // Always drawn in this branch, so the gap can sit
+                          // here rather than inside it.
+                          const SizedBox(height: AppTokens.space12),
+                        ] else ...[
                           const CheckoutAddressSection(),
                           const SizedBox(height: AppTokens.space12),
                           // **Keyed, and it has to be.** The banner above is
@@ -351,6 +354,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           const ContactDetailsSection(
                             key: ValueKey('contact-details'),
                           ),
+                          // Always drawn in this branch, so its gap can sit
+                          // here. It cannot be left to the section below:
+                          // that one draws nothing on a store with no extra
+                          // questions, and took this gap with it.
+                          const SizedBox(height: AppTokens.space12),
                           // The store's own questions, directly after the
                           // ones this app asks. Keyed for the same reason,
                           // and it draws nothing when a store has defined
@@ -363,6 +371,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         // After the address, because a rate is priced from
                         // it, and before payment, because it moves the total
                         // the payment is for.
+                        //
+                        // **No `SizedBox` between these three.** Shipping and
+                        // the tip each carry their own bottom gap, because
+                        // either can draw nothing — five ways between them —
+                        // and a gap in this list would outlive the section it
+                        // was spacing. Payment always draws, so it needs
+                        // none and ends the run.
                         const ShippingSection(),
                         // Before payment, which is the last thing the
                         // customer settles: a tip changes the figure on the

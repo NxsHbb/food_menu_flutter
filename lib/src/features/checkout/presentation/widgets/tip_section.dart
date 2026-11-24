@@ -91,84 +91,92 @@ class _TipSectionState extends ConsumerState<TipSection> {
     final text = Theme.of(context).textTheme;
     final type = _resolvedType(tip);
 
-    return CheckoutCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CheckoutSectionTitle(
-            tip.heading.isNotEmpty ? tip.heading : 'Add a tip',
-          ),
-          const SizedBox(height: AppTokens.space12),
-          // Only when the store allows both. One kind is not a choice, and a
-          // toggle that cannot move reads as a broken control.
-          if (tip.allowsFixed && tip.allowsPercentage) ...[
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'fixed', label: Text('Amount')),
-                ButtonSegment(value: 'percentage', label: Text('Percent')),
-              ],
-              selected: {type},
-              onSelectionChanged: _busy
-                  ? null
-                  : (selected) => setState(() {
+    // **The gap below belongs to this section.** Two of the paths above
+    // leave without a card, and a `SizedBox` in the screen's list would
+    // outlive both — a store with tips switched off would get a gap where
+    // the tip it does not ask for would have been. Both screens that use
+    // this section therefore place nothing after it.
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.space12),
+      child: CheckoutCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CheckoutSectionTitle(
+              tip.heading.isNotEmpty ? tip.heading : 'Add a tip',
+            ),
+            const SizedBox(height: AppTokens.space12),
+            // Only when the store allows both. One kind is not a choice, and a
+            // toggle that cannot move reads as a broken control.
+            if (tip.allowsFixed && tip.allowsPercentage) ...[
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'fixed', label: Text('Amount')),
+                  ButtonSegment(value: 'percentage', label: Text('Percent')),
+                ],
+                selected: {type},
+                onSelectionChanged: _busy
+                    ? null
+                    : (selected) => setState(() {
                         _type = selected.first;
                         _controller.clear();
                       }),
-            ),
-            const SizedBox(height: AppTokens.space12),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  enabled: !_busy,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
-                  decoration: InputDecoration(
-                    hintText: type == 'percentage' ? '10' : '2.00',
-                    prefixText: type == 'percentage' ? null : ' ',
-                    suffixText: type == 'percentage' ? '%' : null,
-                  ),
-                ),
               ),
-              const SizedBox(width: AppTokens.space12),
-              // **Width, because the theme gives every FilledButton
-              // `Size.fromHeight` — which is an infinite width.** That is
-              // right for the full-bleed buttons the design is made of, and
-              // it means one cannot sit in a Row without being told how wide
-              // to be.
-              SizedBox(
-                width: 96,
-                child: FilledButton(
-                  onPressed: _busy ? null : () => _send(_entered(type)),
-                  child: const Text('Add'),
-                ),
-              ),
+              const SizedBox(height: AppTokens.space12),
             ],
-          ),
-          if (tip.isSet) ...[
-            const SizedBox(height: AppTokens.space8),
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    _currentLabel(tip),
-                    style: text.bodySmall?.copyWith(color: palette.muted),
+                  child: TextField(
+                    controller: _controller,
+                    enabled: !_busy,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
+                    decoration: InputDecoration(
+                      hintText: type == 'percentage' ? '10' : '2.00',
+                      prefixText: type == 'percentage' ? null : ' ',
+                      suffixText: type == 'percentage' ? '%' : null,
+                    ),
                   ),
                 ),
-                TextButton(
-                  onPressed: _busy ? null : () => _send(0),
-                  child: const Text('Remove'),
+                const SizedBox(width: AppTokens.space12),
+                // **Width, because the theme gives every FilledButton
+                // `Size.fromHeight` — which is an infinite width.** That is
+                // right for the full-bleed buttons the design is made of, and
+                // it means one cannot sit in a Row without being told how wide
+                // to be.
+                SizedBox(
+                  width: 96,
+                  child: FilledButton(
+                    onPressed: _busy ? null : () => _send(_entered(type)),
+                    child: const Text('Add'),
+                  ),
                 ),
               ],
             ),
+            if (tip.isSet) ...[
+              const SizedBox(height: AppTokens.space8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _currentLabel(tip),
+                      style: text.bodySmall?.copyWith(color: palette.muted),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _busy ? null : () => _send(0),
+                    child: const Text('Remove'),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
