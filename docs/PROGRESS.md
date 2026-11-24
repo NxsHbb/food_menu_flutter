@@ -2,6 +2,49 @@
 
 Newest first. One entry per completed task.
 
+## Task 15.3 — the checkout's optional sections ran into each other
+
+Branch `fix/checkout-spacing`, PR TBD. App only.
+
+### The rule, which is the whole fix
+**A gap belongs to the section that may not be there.** `ShippingSection`
+leaves without a card on three paths and `TipSection` on two, so a `SizedBox`
+in the screen's list outlives the thing it was spacing: a pickup order with
+tips off would have shown two gaps in an empty stretch of screen. Each now
+carries its own `Padding(bottom: space12)`, the way `CheckoutFieldsSection`
+already did. `PaymentSection` always draws, so it needs none and ends the run.
+
+### Two more offenders, found by measuring rather than reading
+The test measures the **drawn cards** — every `CheckoutCard` on the screen,
+sorted top to bottom, and the distance from each to the next. That turned up
+two gaps of zero that the report had not mentioned and that reading the list
+would not have shown:
+
+- **Below the contact details.** The gap there was being left to
+  `CheckoutFieldsSection`'s own padding — which vanishes with the section, and
+  that section draws nothing at all on a store with no extra questions. Which
+  is most of them, so the two cards were flush on almost every store.
+- **Below the sign-in card.** Only drawn on the signed-out branch, which no
+  screenshot in the earlier passes had been taken on.
+
+Both are always drawn where they appear, so their gaps sit in the list rather
+than inside them — the rule above applies to sections that can vanish, not to
+every section.
+
+### The cart screen had the same bug and is fixed with it
+`TipSection` is on the cart too, where it sat between two `SizedBox`es. With
+the gap now inside it, the trailing one would have doubled the spacing — and
+it had already been stray in its own right, leaving 24dp between the lines and
+the totals on any store with tipping off.
+
+### Gates
+`flutter analyze` clean. `flutter test` — 1177 pass, 5 new.
+
+### Verified on the handset
+OnePlus 8T against the live store, signed out: the sign-in card, the tip and
+the payment list evenly spaced, with the delivery method absent — which is one
+of the vanishing sections, drawing nothing and leaving nothing behind.
+
 ## Task 15.2 — a dish had one photo, no slider and no viewer
 
 Branch `feat/dish-gallery`, PR TBD. App **and** content, as the plan had it.
