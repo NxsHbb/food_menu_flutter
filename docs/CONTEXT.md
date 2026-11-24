@@ -1014,6 +1014,17 @@ a store running exactly one method.
   moves an id between the first two sets. The field is kept in the payload
   rather than dropped, because an older app reads it and a future gateway may
   yet defeat all three — see `FINDINGS.md` for the one shape that would.
+
+  **Which route a gateway takes decides nothing about the cart, since task
+  15.1.** It used to: only the first row's gateways emptied the cart, because
+  each does it inside its own `process_payment()`, and the other two rows
+  never reach that method — the redirect ones have no `empty_cart()` on that
+  path and the pay-page ones are answered before the gateway is called at all.
+  Pro's `AppCartReset` now empties it once, at priority 1000 on
+  `woocommerce_rest_checkout_process_payment_with_context`, for any request
+  carrying `X-FMP-App` whose payment came back `success` or `pending`. A
+  refusal keeps the cart. The app still re-reads the cart after an order
+  rather than assuming — that is what made the defect visible.
 - **The method is resolved, never stored** — like the order type, the slot and
   the address. A tap on an unsupported row can never reach an order.
 - No client-side validation that a gateway is enabled: **the Store API already
