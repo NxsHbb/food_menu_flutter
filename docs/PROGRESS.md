@@ -2,6 +2,55 @@
 
 Newest first. One entry per completed task.
 
+## Task 15.1 — a placed order left the cart full
+
+Branch `fix/cart-empty-docs`, PR TBD. **The fix is in Pro** (`radiustheme/food-menu-pro` #46,
+branch `mobile-app`); the app changed two comments and nothing else. It already
+re-read the cart after a successful order and only ever believed what the
+server told it.
+
+### What was measured
+One order per gateway class, on the **live** store and again on the **local**
+one. The local run went twice against the same build — with `X-FMP-App` and
+without — so the header is the only difference between the columns:
+
+| Gateway | Class | No header | With header |
+|---|---|---|---|
+| `cod`, `bacs`, `cheque` | offline, the app finishes it | emptied | emptied |
+| `razorpay` | redirect | **kept** | emptied |
+| `ppcp-gateway` | redirect | **kept** | emptied |
+| `paypal` (PayPal Standard) | redirect | **kept** | emptied |
+| `stripe`, `stripe_klarna`, `stripe_cashapp` | pay page | refused — no deferral without the header | emptied |
+| `woocommerce_payments` | pay page | **kept** | emptied |
+
+The "no header" column is the **website's** own behaviour, unchanged by the
+fix. PayPal Standard was the plan's second suspect and is confirmed: it is not
+enabled on the live demo, so it was measured locally, where the legacy gateway
+was enabled for the run and switched off again afterwards.
+
+### Paying does not rescue it
+The question the plan could not answer from an unpaid order. Live store,
+**order #100**, WooPayments test mode, card 4242, driven on the **OnePlus 8T**
+through the real UI: the order was placed, paid on the store's pay page, and
+the app said *"the kitchen has your order and is getting started"* — task
+12.1's wording for a genuinely paid order. The cart still held the dish
+afterwards. So the hole is in order *placement*, not in payment completion,
+and a customer who pays is left with the thing they bought still in the cart.
+
+### A refusal keeps the cart, and that was measured too
+The fix empties on `success` and `pending` only. Proving the other branch
+needed a payment that fails, which no gateway here does on demand, so a
+throwaway mu-plugin forced `PaymentResult` to `failure` behind a magic header
+on the local site. Checkout returned 400 and the cart still held its line.
+The mu-plugin was deleted immediately afterwards.
+
+### Gates
+`flutter analyze` clean. `flutter test` — 1159 pass.
+
+### What it cost
+Three live orders' worth of residue in the test customer's cart before the
+pattern was obvious — see `FINDINGS.md`, the cart that is not the app's cart.
+
 ## The first iPhone pass, against the live site
 
 Branch `docs/ios-device-pass`, PR TBD. **No Dart changed.** The diff is docs

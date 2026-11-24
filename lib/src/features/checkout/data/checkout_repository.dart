@@ -28,6 +28,13 @@ class CheckoutRepository {
   ///
   /// **The cart is emptied server-side** by a successful checkout, so a caller
   /// has to re-read it rather than assume the lines are still there.
+  ///
+  /// That is true of an *app* order only, and only since task 15.1. The Store
+  /// API itself never empties the cart; on the website each gateway does it
+  /// from inside `process_payment()`, which the three offline ones reach and
+  /// the redirect and pay-page ones do not. Pro's `AppCartReset` closes that
+  /// for requests carrying `X-FMP-App`. Measured per gateway class — see
+  /// `FINDINGS.md`.
   Future<PlacedOrder> placeOrder(OrderDraft draft) async {
     final raw = await _client.post<Map<String, dynamic>>(
       _client.storeApi('checkout'),

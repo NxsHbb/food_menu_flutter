@@ -43,10 +43,12 @@ pretty permalinks; static files are served directly, everything else goes to
 
 ## Plugins
 Both are git clones in `wp-content/plugins/`. Plugin work happens on a
-**`mobile-app`** branch cut from `main` — one branch for a batch of tasks,
-never one per task — and the branch is **deleted after its PR merges**, local
-and remote, then cut again from `main` for the next batch. Between merges both
-clones sit on `main`:
+**`mobile-app`** branch — one long-lived branch per plugin repo, reused across
+tasks and **never deleted**. It is not cut again after a merge and the clones
+do not go back to `main` between batches; the next task commits on top of the
+same branch and opens the next PR from it. (This reverses what this file said
+until task 15.1, which is the practice that has actually been followed since
+Pro #44.)
 
 | Plugin | Version | Repo |
 |---|---|---|

@@ -2,6 +2,62 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## A release APK does not build on this toolchain, and 13.2 needs to know
+
+`flutter build apk --release` fails in `lintVitalAnalyzeRelease`, for
+`url_launcher_android` and `webview_flutter_android` — not for app code:
+
+```
+Unexpected failure during lint analysis of UrlLauncher.java
+Message: 'java.lang.Object java.util.List.removeLast()'
+The crash seems to involve the detector `com.android.tools.lint.checks.CommentDetector`.
+```
+
+`List.removeLast()` arrived with Java 21's `SequencedCollection`, so this is
+the bundled lint running against a JDK that does not have it — a toolchain
+mismatch, not a fault in either plugin. **`lintVital` runs for release
+variants only**, which is why every debug run and the whole test suite are
+unaffected and why this had gone unnoticed: nothing before task 15.1 needed a
+release APK.
+
+It does not block the app's own verification — `flutter build apk --debug`
+installs and runs on the handset, and the pay-page webview behaves the same —
+but **it blocks task 13.2**, which cannot produce a signed release build until
+lint is pinned to a newer version, AGP is upgraded, or `checkReleaseBuilds` is
+switched off for the plugin modules. Picking between those is 13.2's job.
+
+## The cart the app is holding is not the cart a signed-in API client sees
+
+Three gateway orders in a row during task 15.1's sweep reported `items: 1`
+afterwards while the totals climbed `$1.90`, `$3.80`, `$5.70`. Nothing was
+wrong with the measurement: `items` counts **lines**, not quantity, and the
+same dish ordered three times is one line of three. The totals were the honest
+reading.
+
+The useful half is why the residue accumulated at all. A request carrying
+`Authorization: Bearer` resolves to the **WordPress customer**, whose cart is
+persisted against the user, so every unemptied cart fed the next order. The
+handset, signing in through the same account, had a **different** cart holding
+one dish — because the app is a guest to the website and its `Cart-Token` is
+the identity, not the customer. Two carts, one account, and only the token
+tells them apart. Worth knowing before trusting a cart read from curl to say
+anything about what the handset is showing.
+
+## PayPal Standard has to be switched on before it can be measured
+
+WooCommerce hides the legacy `paypal` gateway on any store that was not
+already using it — `woocommerce_should_load_paypal_standard` — so it does not
+appear in `wp wc payment_gateway list` and cannot be enabled through it
+either. The way in is the option:
+
+```sh
+wp option patch update woocommerce_paypal_settings enabled yes
+```
+
+It then registers normally and can be ordered against. This is why task 15.1's
+fifth class was measured on the local store and not on the live demo, where
+only PPCP is enabled and settings writes are refused.
+
 ## The commonest failure on a phone was the one the app handled worst
 
 `ApiException.from` mapped `DioExceptionType.unknown` to

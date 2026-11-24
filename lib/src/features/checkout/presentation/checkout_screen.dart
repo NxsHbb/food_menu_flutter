@@ -124,7 +124,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       // A successful checkout empties the cart server-side, so it has to be
       // re-read rather than assumed — the mini cart and the tab badge both
-      // watch it.
+      // watch it. Server-side is the operative word, and until task 15.1 it
+      // was only half true: the three offline gateways emptied the cart, the
+      // redirect and pay-page ones did not. This reload reports the cart the
+      // server actually has, which is why that showed up as a full cart after
+      // a card order rather than being quietly papered over here.
       if (order.exists) {
         await ref.read(cartControllerProvider.notifier).reload();
       }
