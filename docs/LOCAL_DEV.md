@@ -164,6 +164,12 @@ Pro features.
   can be reviewed from a screenshot instead of a payload. The store went from
   18 products to **28**.
 
+  **Nine of them carry a gallery as well, since task 15.2** — the pizzas, the
+  burgers, two desserts and two drinks, 2–3 extra photos each, taken from
+  other dishes in the same category so a pizza shows pizzas. Set straight on
+  `_product_image_gallery` with wp-cli and idempotent on "already has one",
+  which is what makes the dish screen's slider worth looking at here.
+
   The images are **real food photographs**, one per dish, from
   [TheMealDB](https://www.themealdb.com) and, for the drinks,
   [TheCocktailDB](https://www.thecocktaildb.com) — both free, no key, and both
@@ -414,6 +420,15 @@ link anyway. Admin is `admin`; Habib supplies the password when it is needed. Th
 sits in a second, **inactive** `tlp-food-menu-main/` folder as a rollback; Pro
 lives in `food-menu-pro-main/`. A zip whose top-level folder does not match
 those names installs a *third* copy instead of updating.
+
+**Every dish has its own photo and a gallery, since task 15.2.** The library
+held **six** images for sixteen products before that, with nothing for drinks
+or desserts, so three dishes had no picture at all. The local store's 25 dish
+photographs were uploaded and each product given a featured image plus 2–3
+more. `tool/seed/seed_live_galleries.py` in the app repo does it, is
+idempotent on both halves, and reads the credentials from `WP_USER` and
+`WP_PASS` — nothing is baked in. Media uploads, media deletes and product
+edits all work here; it is the plugin deploy and order deletes that do not.
 
 **Prices are in real dollars since 2026-11-18.** The 16 products were seeded
 at Bangladeshi magnitudes and read as `$450` once the currency moved; they are

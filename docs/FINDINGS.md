@@ -2,6 +2,60 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## `InteractiveViewer` and `PageView` cannot share a horizontal drag
+
+The obvious way to build a photo viewer — a `PageView` of
+`InteractiveViewer`s — does not page. `InteractiveViewer` installs a
+`ScaleGestureRecognizer`, which treats **one** pointer moving as a pan and
+claims the gesture for it, so the drag never reaches the `PageView`
+underneath.
+
+**`panEnabled: false` is not the fix.** The recognizer is still registered and
+still wins the arena; it simply ignores what it won, so the photo neither
+pans nor pages. Measured both ways: on the handset the viewer opened and then
+refused to swipe, and replacing the widget with a pass-through in a test made
+the same drag page correctly. There is no `minPointers` on the widget, and
+`panAxis` only constrains what it does after winning.
+
+So the viewer's gestures are written out, as three recognizers that divide
+the same pointers without colliding:
+
+- a `ScaleGestureRecognizer` subclass that **rejects while fewer than two
+  pointers are down**, so a one-finger drag is never claimed and the
+  `PageView` keeps it — that is the whole trick;
+- a `PanGestureRecognizer` **registered only while the photo is zoomed**,
+  which is the only time a one-finger drag should move the photo;
+- a double tap, to toggle fit and 2x.
+
+### The test that passed against the broken widget
+`tester.drag` delivers the whole movement as a single pointer event, and the
+horizontal drag recognizer then wins the arena before the scale recognizer
+has seen enough to contest it — so the first version of the regression test
+passed against the widget that was visibly broken on the handset. A real
+finger arrives as a stream of small moves. The test now drags in twelve steps
+with a pump between each, and it fails against the broken widget, which is
+the only reason to trust it.
+
+## The live demo accepts media, and its library was nearly empty
+
+Two facts about `radiustheme.net/demos/food-menu`, both found seeding task
+15.2's galleries:
+
+**It had six photographs.** `burger`, `pizza`, `rice`, `salad`, `shawarma`,
+`steak` — shared across all sixteen products, with nothing for drinks or
+desserts, which is why three dishes had no image at all. Any gallery built by
+"reusing what is there" would have shown other dishes' food.
+
+**Media writes are allowed.** `POST /wp/v2/media`, `DELETE /wp/v2/media/<id>`
+and `PUT /wc/v3/products/<id>` all succeed with a `wp-login.php` cookie and a
+`rest-nonce`. It is the **plugin zip deploy** and **order deletes** that are
+refused there, not writes in general — a narrower rule than it looked.
+
+**One trap signing in.** A bare `POST` to `wp-login.php` is answered **403**.
+It wants the `wordpress_test_cookie` that a prior `GET` sets, and a browser
+user agent; with both it signs in normally. `tool/seed/live_session.py` does
+this and is the thing to copy for any future live seeding.
+
 ## A release APK does not build on this toolchain, and 13.2 needs to know
 
 `flutter build apk --release` fails in `lintVitalAnalyzeRelease`, for

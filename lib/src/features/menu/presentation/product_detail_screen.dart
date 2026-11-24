@@ -9,7 +9,7 @@ import '../../../core/theme/app_palette.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/util/html_text.dart';
 import 'widgets/discount_badge.dart';
-import '../../../core/widgets/dish_image_placeholder.dart';
+import 'widgets/dish_gallery.dart';
 import '../../cart/data/cart_controller.dart';
 import '../../wishlist/presentation/widgets/wishlist_heart.dart';
 import 'menu_list_screen.dart';
@@ -362,7 +362,6 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final image = product.primaryImage;
     final top = MediaQuery.paddingOf(context).top;
 
     // **Not simply dropped.** The photo shares this box with the close
@@ -393,25 +392,26 @@ class _Hero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (image == null)
-            const DishImagePlaceholder(label: 'product image')
-          else
-            Image.network(
-              image.src,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) =>
-                  const DishImagePlaceholder(label: 'product image'),
-            ),
+          // Every photo the dish has, not just the first. The gallery draws
+          // the placeholder itself when there are none.
+          DishGallery(images: product.images, height: 300),
           // Scrim so the close button stays legible over a bright photo.
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.center,
-                colors: [Color(0x55000000), Color(0x00000000)],
+          //
+          // **`IgnorePointer`, since task 15.2.** It covers the whole hero,
+          // so without this it eats every tap meant for the photograph under
+          // it — which did not matter while the photo was not tappable, and
+          // silently breaks the gallery now that it is.
+          const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.center,
+                  colors: [Color(0x55000000), Color(0x00000000)],
+                ),
               ),
+              child: SizedBox.expand(),
             ),
-            child: SizedBox.expand(),
           ),
           // The design pairs the close button with the heart across the top of
           // the photo, so they share one row.

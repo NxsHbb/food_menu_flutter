@@ -2,6 +2,56 @@
 
 Newest first. One entry per completed task.
 
+## Task 15.2 — a dish had one photo, no slider and no viewer
+
+Branch `feat/dish-gallery`, PR TBD. App **and** content, as the plan had it.
+
+### The app half
+`DishGallery` replaces the hero's single `Image.network`: a `PageView` across
+every photo with dots over the picture, and a full-screen viewer on tap —
+pinch to zoom, double tap to toggle, swipe between, close. **No payload work
+was needed.** `Product.images` has carried the whole list all along and
+`primaryImage` is just `images.first`; the hero drew that one and dropped the
+rest.
+
+Two things turned up that the plan could not have known:
+
+- **The scrim ate the taps.** The hero's gradient covers the whole box, and
+  nothing underneath had ever been tappable, so nobody noticed it takes every
+  pointer. It is an `IgnorePointer` now.
+- **`InteractiveViewer` cannot live inside a `PageView`.** Its scale
+  recognizer claims the pointer the moment one moves, so the photos stopped
+  paging entirely; `panEnabled: false` does not help, because the recognizer
+  still wins the arena and then does nothing with what it won. The viewer's
+  gestures are written out instead — a pinch recognizer that ignores a single
+  finger, a pan registered only while zoomed, and a double tap. Written up in
+  `FINDINGS.md`.
+
+### The content half
+Seeded on both stores, **idempotent**, and the live one is scripted in
+`tool/seed/seed_live_galleries.py` so it can be re-run or reviewed.
+
+| | Before | After |
+|---|---|---|
+| Local | 28 dishes, every one a single photo | 9 dishes carry 2–3 extra, from their own category |
+| Live | 16 dishes sharing **6** photos; 3 with none at all | 25 dish photos uploaded; all 16 carry 3–4, none without |
+
+**This overrode a decision in the plan, with Habib's say-so.** Phase 15 said
+galleries would reuse media already on each site so nothing new landed on a
+public demo. The live library turned out to hold six photos for sixteen
+dishes and nothing at all for drinks or desserts, so "reuse" would have meant
+Margherita showing a steak. Uploads were probed first — they work, and so do
+media deletes, so it is reversible.
+
+### Verified on the handset
+Both stores, on the **OnePlus 8T**: the dots, the swipe, the viewer opening on
+the photo that was tapped, paging inside the viewer, and double-tap zoom.
+A two-finger pinch cannot be synthesised through `adb`; it is covered by a
+widget test driving two pointers, and is the one gesture no terminal checked.
+
+### Gates
+`flutter analyze` clean. `flutter test` — 1172 pass, 13 of them new.
+
 ## Task 15.1 — a placed order left the cart full
 
 Branch `fix/cart-empty-docs`, PR TBD. **The fix is in Pro** (`radiustheme/food-menu-pro` #46,
