@@ -2,6 +2,52 @@
 
 Newest first. One entry per completed task.
 
+## Task 16.1 — no store could switch push on
+
+Branch `mobile-app` in `tlp-food-menu`, PR TBD. **Free plugin only.**
+
+Pro #44 registered `fmp_enable_push` and `fmp_push_service_account` and
+nothing rendered them, so the setting existed and could not be set. There is
+now a **Mobile App Push** section under Communication, beside SMS & WhatsApp:
+the switch, and the service-account textarea behind it.
+
+### The save was eating the private key, which is the real content of this task
+`new_settings_response()` unslashed every value twice, which strips the
+backslash from each `\n` in the pasted JSON. The JSON still parsed and Pro
+still answered `enabled() === true`, so the store would have looked configured
+and sent nothing — `openssl_sign()` cannot use a key without line breaks.
+`Fns::sanitize_json_setting()` and `Fns::json_setting_keys()` carve out the
+JSON settings; `FINDINGS.md` has the detail and the one-line shape of the bug.
+
+### What the screen checks for you
+The textarea parses what is pasted and says what it is: the Firebase project
+and service-account email when it is right, and otherwise which of
+`project_id`, `client_email`, `private_key` is missing, or that the JSON is
+truncated. It also catches a `private_key` with **no line breaks**, which is
+exactly what an option saved before the fix contains — so a store that pasted
+a key last week is told why it never worked instead of being left guessing.
+
+### Gates
+`flutter analyze` clean, `flutter test` 1177 pass — no Dart changed, both run
+because the rule says so. PHP `-l` clean on both edited files, and all four
+changed JS files parse.
+
+### Verified against the real handler, not a simulation
+A real 2048-bit RSA key was built into a service account shaped exactly as
+Firebase hands it over, posted through `new_settings_response()` with a
+slashed `$_REQUEST` the way WordPress delivers one, and read back out of the
+option: byte-identical to the file, 28 lines intact, `openssl_sign()` produces
+a 256-byte signature, and Pro's own `AppPushSender::service_account()` accepts
+it and `enabled()` answers true. The dev site's settings option was backed up
+first and restored to the byte afterwards.
+
+**Source only, so the section is not in wp-admin yet.** The bundle is not
+rebuilt here — no lockfile, and a build from pristine source rewrites 13 asset
+files — so the section appears once `assets/js/admin-settings.min.js` is built
+by the release toolchain, and not before. Its markup has therefore not been
+seen rendered either: the JSX parses and follows the WhatsApp section it sits
+beside, and the layout wants an eyeball after that build.
+
 ## Task 15.3 — the checkout's optional sections ran into each other
 
 Branch `fix/checkout-spacing`, PR TBD. App only.

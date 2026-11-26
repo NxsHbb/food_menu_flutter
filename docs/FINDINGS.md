@@ -2,6 +2,46 @@
 
 Decisions, gotchas and anything learned that is not obvious from the code.
 
+## The free plugin's settings save destroys a pasted private key
+
+`new_settings_response()` — the save the React settings UI posts to — ran
+every value through `Fns::sanitize_recursive_array( wp_unslash( $value ) )`,
+and that sanitizer **unslashes again** before `sanitize_text_field()`. Two
+unslashes strip the backslash from every escape sequence in the value, so a
+Firebase service account's `private_key`, which is one long run of `\n`,
+arrives as:
+
+```
+-----BEGIN PRIVATE KEY-----nMIIEvQIBADANBgnkqhkiG9w0=n-----END PRIVATE KEY-----n
+```
+
+**Nothing reports this.** The JSON still parses, the three keys Pro checks for
+are all present, so `AppPushSender::enabled()` answers true and the store
+looks configured — and then `openssl_sign()` fails on a key with no line
+breaks and every notification is dropped in silence. It was found by running a
+realistic service account through the real handler before writing any UI, not
+by reading the sanitizer.
+
+`Fns::json_setting_keys()` now names the keys whose value is JSON
+(`fmp_push_service_account`, extendable through `rt_fm_json_setting_keys`) and
+those go through `Fns::sanitize_json_setting()` instead: one unslash, valid
+JSON re-encoded, anything else kept as typed with markup stripped so the
+screen can tell the admin what is wrong rather than storing nothing. Proven by
+saving a real 2048-bit key through the handler and signing with what came back
+out of the option.
+
+### The old settings page is a separate hazard, and a much wider one
+The pre-React page is still registered — hidden from the menu, reachable at
+`edit.php?post_type=food-menu&page=food_menu_settings` — and its save
+(`response()`) rebuilds the whole option from `Fns::fmpAllSettingsFields()`,
+writing `''` for every registered key its own form does not render. That wipes
+`fmp_push_service_account`, and equally everything else added since the React
+UI: the pickup estimates, the checkout toggles, the tip settings. Its
+`$preserve_keys` list exists for exactly this and has five entries. **Left
+alone deliberately** — it is not a push defect, the fix is a condition change
+affecting every setting in the plugin, and it deserves its own task rather
+than riding along with 16.1.
+
 ## `InteractiveViewer` and `PageView` cannot share a horizontal drag
 
 The obvious way to build a photo viewer — a `PageView` of
