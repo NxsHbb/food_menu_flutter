@@ -41,10 +41,12 @@ a 256-byte signature, and Pro's own `AppPushSender::service_account()` accepts
 it and `enabled()` answers true. The dev site's settings option was backed up
 first and restored to the byte afterwards.
 
-**Not verified in a browser.** The section's markup has not been seen rendered
-— there is no browser tooling in this session, and building the bundle needs an
-`npm install` this plugin has no lockfile for. The JSX parses and follows the
-WhatsApp section it sits beside; the layout wants an eyeball before merge.
+**Source only, so the section is not in wp-admin yet.** The bundle is not
+rebuilt here — no lockfile, and a build from pristine source rewrites 13 asset
+files — so the section appears once `assets/js/admin-settings.min.js` is built
+by the release toolchain, and not before. Its markup has therefore not been
+seen rendered either: the JSX parses and follows the WhatsApp section it sits
+beside, and the layout wants an eyeball after that build.
 
 ## Task 15.3 — the checkout's optional sections ran into each other
 
